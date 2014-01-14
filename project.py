@@ -2,7 +2,7 @@
 
 #: Project name.
 name = 'fork'
-abstract = 'process management tools'
+abstract = 'process management tools and kernel event interfaces'
 
 #: Relevant emoji or reference--URL or relative file path--to an image file.
 icon = '⛔️'
