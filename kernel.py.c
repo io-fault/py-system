@@ -97,6 +97,8 @@ typedef int kerror_t; /* kerror error identifier (errno) */
 
 struct Interface {
 	PyObject_HEAD
+	PyObj kif_kset; /* storage for objects referenced by the kernel */
+	PyObj kif_cancellations; /* cancel bucket */
 
 	kpoint_t kif_kqueue; /* kqueue(2) fd */
 	kevent_t kif_events[8];
@@ -217,6 +219,8 @@ interface_init(Interface kif)
 	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
+		close(kif->kif_kqueue);
+		kif->kif_kqueue = -1;
 		return(0);
 	}
 
@@ -228,9 +232,13 @@ interface_init(Interface kif)
 	kev.filter = EVFILT_SIGNAL; \
 	kev.fflags = 0; \
 \
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts)) { \
+	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts)) \
+	{ \
 		PyErr_SetFromErrno(PyExc_OSError); \
-		return(0); }
+		close(kif->kif_kqueue); \
+		kif->kif_kqueue = -1; \
+		return(0); \
+	}
 	KQ_SIGNALS()
 #undef SIGNAME
 
@@ -239,8 +247,6 @@ interface_init(Interface kif)
 
 /*
  * Interface.void()
- *
- * Close down the kqueue and create a new one.
  */
 static PyObj
 interface_void(PyObj self)
@@ -248,46 +254,90 @@ interface_void(PyObj self)
 	Interface kif = (Interface) self;
 
 	if (kif->kif_kqueue != -1)
-		close(kif->kif_kqueue);
-
-	kif->kif_kqueue = -1;
-
-	if (!interface_init(kif))
 	{
-		Py_DECREF(((PyObj) kif));
-		return(NULL);
+		close(kif->kif_kqueue);
+		kif->kif_kqueue = -1;
 	}
 
+	Py_XDECREF(kif->kif_kset);
+	kif->kif_kset = NULL;
+
+	Py_XDECREF(kif->kif_cancellations);
+	kif->kif_cancellations = NULL;
+
 	Py_RETURN_NONE;
+}
+
+static int
+acquire_kernel_ref(Interface kif, PyObj link)
+{
+	switch (PySet_Contains(kif->kif_kset, link))
+	{
+		case 1:
+			PyErr_SetString(PyExc_RuntimeError, "link already referenced by kernel");
+			return(-1);
+		break;
+
+		case 0:
+			/* not present */
+		break;
+
+		default:
+			return(-1);
+		break;
+	}
+
+	return(PySet_Add(kif->kif_kset, link));
 }
 
 /*
  * Interface.track()
  */
 static PyObj
-interface_track(PyObj self, PyObj ob)
+interface_track(PyObj self, PyObj args)
 {
+	const static struct timespec ts = {0,0};
+
 	Interface kif = (Interface) self;
+
+	PyObj link = NULL;
+	int uselink = 0;
 	long l;
-	const struct timespec ts = {0,0};
+
 	int nkevents;
 	kevent_t kev;
 
-	l = PyLong_AsLong(ob);
-	if (PyErr_Occurred())
+	if (!PyArg_ParseTuple(args, "l|O", &l, &link))
 		return(NULL);
 
-	kev.udata = NULL;
+	if (link != NULL && link != Py_None)
+	{
+		if (acquire_kernel_ref(kif, link))
+			return(NULL);
+
+		uselink = 1;
+		kev.udata = link;
+	}
+	else
+		kev.udata = NULL;
+
 	kev.data = 0;
 	kev.ident = (uintptr_t) l;
 	kev.flags = EV_ADD|EV_RECEIPT|EV_CLEAR;
 	kev.filter = EVFILT_PROC;
 	kev.fflags = NOTE_EXIT|NOTE_SIGNAL;
 
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, NULL, 0, &ts))
+	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
+		/* failed */
+		if (uselink)
+		{
+			if (!PySet_Discard(kif->kif_kset, link))
+				return(NULL);
+		}
+
 		PyErr_SetFromErrno(PyExc_OSError);
-		return(0);
+		return(NULL);
 	}
 
 	Py_RETURN_NONE;
@@ -298,58 +348,189 @@ interface_force(PyObj self)
 {
 	Interface kif = (Interface) self;
 	struct timespec ts = {0,0};
+	PyObj rob;
 	kevent_t kev;
 	int out = 0;
 
 	/*
-	 * Ignore force if we're not waiting.
+	 * Ignore force if we're not waiting or have already forced.
 	 */
-	if (kif->kif_waiting == 0)
+	if (kif->kif_waiting > 0)
 	{
-		Py_RETURN_NONE;
+		kev.udata = (void *) kif;
+		kev.ident = (uintptr_t) kif;
+		kev.filter = EVFILT_USER;
+		kev.fflags = NOTE_TRIGGER;
+		kev.data = 0;
+		kev.flags = EV_RECEIPT;
+
+		if (!interface_kevent(kif, 1, &out, &kev, 1, NULL, 0, &ts))
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			return(NULL);
+		}
+
+		kif->kif_waiting = -1;
+		rob = Py_True;
 	}
+	else if (kif->kif_waiting < 0)
+		rob = Py_False;
+	else
+		rob = Py_None;
 
-	kev.udata = (void *) kif;
-	kev.ident = (uintptr_t) kif;
-	kev.filter = EVFILT_USER;
-	kev.fflags = NOTE_TRIGGER;
-	kev.data = 0;
-	kev.flags = EV_RECEIPT;
+	Py_INCREF(rob);
+	return(rob);
+}
 
-	if (!interface_kevent(kif, 1, &out, &kev, 1, NULL, 0, &ts))
+static int
+set_timer(Interface kif, int recur, int note, unsigned long quantity, PyObj link)
+{
+	const static struct timespec ts = {0,0};
+	int nkevents = 0;
+	kevent_t kev;
+
+	kev.ident = (uintptr_t) link;
+	kev.udata = link;
+
+	kev.fflags = note;
+	kev.data = quantity;
+
+	kev.filter = EVFILT_TIMER;
+	kev.flags = EV_ADD|EV_RECEIPT|EV_ENABLE;
+	if (!recur)
+		kev.flags |= EV_ONESHOT;
+
+	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
+		return(0);
 	}
+
+	return(1);
+}
+
+static int
+note_unit(int unit)
+{
+	const int ms = (0xCE << 2) | 0xBC;
+	int note;
+
+	switch (unit)
+	{
+		case 'n':
+			note = NOTE_NSECONDS;
+		break;
+
+		case 'm':
+			note = 0; /* milliseconds */
+		break;
+
+		case 'u':
+		case ms:
+			note = NOTE_USECONDS;
+		break;
+
+		case 's':
+			note = NOTE_SECONDS;
+		break;
+
+		default:
+			PyErr_Format(PyExc_ValueError, "invalid unit code '%c' for timer", unit);
+			note = -1;
+		break;
+	}
+
+	return(note);
+}
+
+static PyObj
+interface_alarm(PyObj self, PyObj args, PyObj kw)
+{
+	const static char *kwlist[] = {
+		"link", "quantity", "unitcode", NULL,
+	};
+
+	Interface kif = (Interface) self;
+	PyObj link = NULL;
+	unsigned long l = 0;
+	int unit = 's';
+	int note;
+
+	/*
+	 * (link_object, period, unit)
+	 */
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "Ok|C", (char **) kwlist, &link, &l, &unit))
+		return(NULL);
+
+	note = note_unit(unit);
+	if (note < 0)
+		return(NULL);
+
+	if (!set_timer(kif, 0, note, l, link))
+		return(NULL);
 
 	Py_RETURN_NONE;
 }
 
 static PyObj
-interface_alarm(PyObj self, PyObj ob)
+interface_recur(PyObj self, PyObj args, PyObj kw)
 {
-	Interface kif = (Interface) self;
-	struct timespec ts = {0,0};
-	kevent_t kev;
-	long l = 0;
-	int nkevents = 0;
+	const static char *kwlist[] = {
+		"link", "quantity", "unitcode", NULL,
+	};
 
-	l = PyLong_AsLong(ob);
+	Interface kif = (Interface) self;
+	PyObj link = NULL;
+	unsigned long l = 0;
+	int unit = 's';
+	int note;
 
 	/*
-	 * Init USER filter for wait() interruptions.
+	 * (link_object, period, unit)
 	 */
-	kev.udata = NULL;
-	kev.ident = (uintptr_t) 1;
-	kev.data = l;
-	kev.flags = EV_ADD|EV_RECEIPT|EV_ONESHOT|EV_ENABLE;
-	kev.filter = EVFILT_TIMER;
-	kev.fflags = NOTE_USECONDS;
-
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "Ok|C", (char **) kwlist, &link, &l, &unit))
 		return(NULL);
+
+	note = note_unit(unit);
+	if (note < 0)
+		return(NULL);
+
+	if (!set_timer(kif, 1, note, l, link))
+		return(NULL);
+
+	Py_RETURN_NONE;
+}
+
+static PyObj
+interface_cancel(PyObj self, PyObj link)
+{
+	const static struct timespec ts = {0,0};
+	Interface kif = (Interface) self;
+	int nkevents = 0;
+	kevent_t kev;
+
+	if (link != Py_None)
+	{
+		kev.ident = (uintptr_t) link;
+		kev.udata = 0;
+
+		kev.fflags = 0;
+		kev.data = 0;
+
+		kev.filter = EVFILT_TIMER;
+		kev.flags = EV_DELETE|EV_RECEIPT;
+
+		if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			return(NULL);
+		}
+
+		/*
+		 * Add to cancellation *after* successful kevent()
+		 */
+		if (PySet_Add(kif->kif_cancellations, link) < 0)
+			return(NULL);
 	}
 
 	Py_RETURN_NONE;
@@ -396,33 +577,54 @@ signal_string(int sig)
 	}
 }
 
+static PyObj
+interface_enter(PyObj self)
+{
+	Interface kif = (Interface) self;
+	kif->kif_waiting = 1;
+	Py_RETURN_NONE;
+}
+
+static PyObj
+interface_exit(PyObj self, PyObj args)
+{
+	Interface kif = (Interface) self;
+	kif->kif_waiting = 0;
+	Py_RETURN_NONE;
+}
+
 /*
  * interface_wait() - collect and process traffic events
  */
 static PyObj
-interface_wait(PyObj self)
+interface_wait(PyObj self, PyObj args)
 {
+	struct timespec waittime = {0,0};
+	struct timespec *ref = &waittime;
+
 	Interface kif = (Interface) self;
 	PyObj rob;
 	int i, nkevents = 0;
 	int error = 0;
+	long sleeptime = -1;
 
-	const static struct timespec nowait = {0,0};
-	const static struct timespec waitfor = {9,0};
+	if (!PyArg_ParseTuple(args, "|l", &sleeptime))
+		return(NULL);
 
-	//struct timespec *wait = (struct timespec *) (waiting ? &waitfor : &nowait);
-	kif->kif_waiting = 1;
+	/*
+	 * Negative numbers signal indefinate.
+	 */
+	if (sleeptime >= 0)
+		waittime.tv_sec = sleeptime;
+	else
+		ref = NULL;
 
 	Py_BEGIN_ALLOW_THREADS
-
-	if (!interface_kevent(kif, 0, &nkevents, NULL, 0, kif->kif_events, CONFIG_STATIC_KEVENTS, NULL))
+	if (!interface_kevent(kif, 0, &nkevents, NULL, 0, kif->kif_events, CONFIG_STATIC_KEVENTS, ref))
 	{
 		error = 1;
 	}
-
 	Py_END_ALLOW_THREADS
-
-	kif->kif_waiting = 0;
 
 	if (error)
 	{
@@ -439,15 +641,26 @@ interface_wait(PyObj self)
 
 	for (i = 0; i < nkevents; ++i)
 	{
+		PyObj link;
 		kevent_t *kev;
 		PyObj ob;
 
 		kev = &(kif->kif_events[i]);
+		link = (PyObj) kev->udata;
 
 		switch (kev->filter)
 		{
 			case EVFILT_PROC:
-				ob = Py_BuildValue("(si)", "process-delta", (int) kev->ident);
+				ob = Py_BuildValue("(slO)", "process", (long) kev->ident, link ? link : Py_None);
+				if (kev->fflags & NOTE_EXIT && link != NULL)
+				{
+					/* done with filter entry */
+
+					if (PySet_Discard(kif->kif_kset, link) < 0)
+					{
+						/* error */
+					}
+				}
 			break;
 
 			case EVFILT_SIGNAL:
@@ -455,19 +668,78 @@ interface_wait(PyObj self)
 			break;
 
 			case EVFILT_TIMER:
-				ob = Py_BuildValue("(si)", "timer", (PyObj) kev->udata);
+			{
+				if (link == NULL)
+					continue;
+
+				switch (PySet_Contains(kif->kif_cancellations, link))
+				{
+					case 1:
+						if (PySet_Discard(kif->kif_kset, link) < 0)
+						{
+							/* error */
+						}
+						else if (PySet_Discard(kif->kif_cancellations, link) < 0)
+						{
+							/* error */
+						}
+						continue;
+					break;
+					case 0:
+						/* not cancelled */
+					break;
+					default:
+						/* -1 error */
+					break;
+				}
+
+				if (kev->flags & EV_ONESHOT)
+				{
+					ob = Py_BuildValue("(sO)", "alarm", link);
+
+					if (PySet_Discard(kif->kif_kset, link) < 0)
+					{
+						/* error */
+					}
+				}
+				else
+				{
+					ob = Py_BuildValue("(sO)", "recur", link);
+				}
+			}
 			break;
 
 			case EVFILT_USER:
+				/*
+				 * event from force() method
+				 */
 				continue;
 			break;
 
 			default:
+				/*
+				 * unknown event, throw warning
+				 */
 				continue;
 			break;
 		}
 
 		PyList_Append(rob, ob);
+	}
+
+	/*
+	 * Complete timer cancellations.
+	 */
+	if (PySet_GET_SIZE(kif->kif_cancellations) > 0)
+	{
+		PyObj r = PyObject_CallMethod(kif->kif_kset, "difference_update", "O", kif->kif_cancellations);
+		if (r != NULL)
+			Py_DECREF(r);
+
+		if (!PySet_Clear(kif->kif_cancellations))
+		{
+			/* error */
+		}
 	}
 
 	return(rob);
@@ -478,47 +750,94 @@ interface_methods[] = {
 	{"void", (PyCFunction) interface_void,
 		METH_NOARGS, PyDoc_STR(
 "void()\n\n"
+":returns: None\n"
 "\n"
-"\n"
+"Destroy the Interface instance, closing any file descriptors managed by the object.\n"
+"Also destroy the internal set-object for holding kernel references.\n"
 )},
 
-	{"track", (PyCFunction) interface_track, METH_O,
+	{"track", (PyCFunction) interface_track, METH_VARARGS,
 		PyDoc_STR(
+"track(link_object, pid)\n\n"
 ":returns: None\n"
 ":rtype: NoneType\n"
 "\n"
 "Watch a process so that an event will be generated when it exits.\n"
 )},
 
-	{"alarm", (PyCFunction) interface_alarm, METH_O,
+	{"alarm", (PyCFunction) interface_alarm, METH_VARARGS|METH_KEYWORDS,
 		PyDoc_STR(
+"alarm(link_object, period, unit)\n\n"
 ":returns: None\n"
 ":rtype: NoneType\n"
 "\n"
+"Allocate a one-time timer that will cause an event after the designed period.\n"
+)},
+
+	{"recur", (PyCFunction) interface_recur, METH_VARARGS|METH_KEYWORDS,
+		PyDoc_STR(
+"recur(link_object, period, unit)\n\n"
+":returns: None\n"
+":rtype: NoneType\n"
 "\n"
+"Allocate a recurring timer that will cause an event at the designed frequency.\n"
+)},
+
+	{"cancel", (PyCFunction) interface_cancel, METH_O,
+		PyDoc_STR(
+"recur(link_object)\n\n"
+":returns: None\n"
+":rtype: NoneType\n"
+"\n"
+"Cancel a timer, recurring or once, using the link that the timer was allocated with.\n"
 )},
 
 	{"force", (PyCFunction) interface_force, METH_NOARGS,
 		PyDoc_STR(
-":returns: None\n"
-":rtype: NoneType\n"
+":returns: None or True or False\n"
+"\n"
+"Cause a corresponding :py:meth:`.wait` call to stop waiting **if** the Interface\n"
+"instance is inside a with-statement block::\n"
+"\n"
+"	with kinterface:\n"
+"		kinterface.wait()\n"
 "\n"
 "\n"
 )},
 
 	{"wait",
-		(PyCFunction) interface_wait, METH_NOARGS,
+		(PyCFunction) interface_wait, METH_VARARGS,
 		PyDoc_STR(
 ":returns: Sequence of events that occurred while waiting.\n"
 ":rtype: list\n"
 "\n"
+"Normally executed after entering a with-statement block.\n"
+"If executed outside, the :py:meth:`.force` method will not interrupt the system call."
 )},
+
+	{"__enter__",
+		(PyCFunction) interface_enter, METH_NOARGS,
+		PyDoc_STR(
+":returns: Sequence of events that occurred while waiting.\n"
+":rtype: list\n"
+"\n"
+"Enter waiting state."
+)},
+
+	{"__exit__",
+		(PyCFunction) interface_exit, METH_VARARGS,
+		PyDoc_STR(
+":returns: None.\n"
+"\n"
+"Leave waiting state."
+)},
+
 	{NULL,},
 };
 
 static PyMemberDef interface_members[] = {
 	{"waiting", T_PYSSIZET, offsetof(struct Interface, kif_waiting), READONLY,
-		PyDoc_STR("Whether or not the Interface object has a running wait() call.")},
+		PyDoc_STR("Whether or not the Interface object is with statement block.")},
 	{NULL,},
 };
 
@@ -527,10 +846,34 @@ interface_dealloc(PyObj self)
 {
 	Interface kif = (Interface) self;
 
+	Py_XDECREF(kif->kif_kset);
+	kif->kif_kset = NULL;
+	Py_XDECREF(kif->kif_cancellations);
+	kif->kif_cancellations = NULL;
+
 	if (kif->kif_kqueue != -1)
 	{
 		close(kif->kif_kqueue);
+		PyErr_WarnFormat(PyExc_ResourceWarning, 0, QPATH("Interface") " instance not voided before deallocation");
 	}
+}
+
+static int
+interface_clear(PyObj self)
+{
+	Interface kif = (Interface) self;
+	Py_CLEAR(kif->kif_kset);
+	Py_CLEAR(kif->kif_cancellations);
+	return(0);
+}
+
+static int
+interface_traverse(PyObj self, visitproc visit, void *arg)
+{
+	Interface kif = (Interface) self;
+	Py_VISIT(kif->kif_kset);
+	Py_VISIT(kif->kif_cancellations);
+	return(0);
 }
 
 static PyObj
@@ -548,6 +891,20 @@ interface_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 
 	kif->kif_kqueue = -1;
 	kif->kif_waiting = 0;
+
+	kif->kif_kset = PySet_New(0);
+	if (kif->kif_kset == NULL)
+	{
+		Py_DECREF(kif);
+		return(NULL);
+	}
+
+	kif->kif_cancellations = PySet_New(0);
+	if (kif->kif_cancellations == NULL)
+	{
+		Py_DECREF(kif);
+		return(NULL);
+	}
 
 	if (!interface_init(kif))
 	{
@@ -583,10 +940,11 @@ InterfaceType = {
 	NULL,								/* tp_setattro */
 	NULL,								/* tp_as_buffer */
 	Py_TPFLAGS_BASETYPE|
+	Py_TPFLAGS_HAVE_GC|
 	Py_TPFLAGS_DEFAULT,			/* tp_flags */
 	interface_doc,					/* tp_doc */
-	NULL,								/* tp_traverse */
-	NULL,								/* tp_clear */
+	interface_traverse,			/* tp_traverse */
+	interface_clear,				/* tp_clear */
 	NULL,								/* tp_richcompare */
 	0,									/* tp_weaklistoffset */
 	NULL,								/* tp_iter */
