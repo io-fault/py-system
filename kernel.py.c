@@ -2,7 +2,7 @@
 csource = """
 #endif
 /*
- * kernel.py.c - kernel interfaces for process exit signalling
+ * kernel.py.c - kernel interfaces for process invocation and exit signalling
  */
 #include <errno.h>
 #include <unistd.h>
@@ -11,8 +11,7 @@ csource = """
 #include <sys/types.h>
 #include <sys/stat.h>
 
-/* file descriptor transfers */
-#include <sys/param.h>
+#include <spawn.h>
 
 #include <sys/event.h>
 typedef struct kevent kevent_t; /* kernel event description */
@@ -40,7 +39,7 @@ typedef struct kevent kevent_t; /* kernel event description */
  * SIGINT is handled lib.control() with signal.signal.
  * SIGUSR2 is *explicitly* used to trigger interjections.
  *
- * Important to note that *all* Context instances will receive signals.
+ * *All* Context instances will receive signals.
  */
 #define KQ_SIGNALS() \
 	SIGNAME(SIGTERM) \
@@ -247,6 +246,8 @@ interface_init(Interface kif)
 
 /*
  * Interface.void()
+ *
+ * Close the kqueue FD, and release references.
  */
 static PyObj
 interface_void(PyObj self)
@@ -983,6 +984,207 @@ set_process_title(PyObj mod, PyObj title)
 	Py_RETURN_NONE;
 }
 
+static PyObj
+execfile(PyObj mod, PyObj args, PyObj kw)
+{
+	pid_t child = 0;
+	int err = 0;
+
+	PyObj fdmap, cargs;
+
+	char *path;
+	char **argv = NULL;
+	char **envp = NULL;
+
+	short flags = 0;
+	posix_spawnattr_t sa;
+	posix_spawn_file_actions_t fa;
+
+	if (!PyArg_ParseTuple(args, "OsO", &fdmap, &path, &cargs))
+		return(NULL);
+
+	if (posix_spawnattr_init(&sa) != 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	if (posix_spawn_file_actions_init(&fa) != 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		posix_spawnattr_destroy(&sa);
+		errno = 0; /* ignore any error from destroy */
+		return(NULL);
+	}
+
+#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
+	flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
+#endif
+
+#if 0
+	When Requested:
+	flags |= POSIX_SPAWN_SETPGROUP:
+#endif
+
+	if (posix_spawnattr_setflags(&sa, flags) != 0)
+	{
+		err = 1;
+		PyErr_SetFromErrno(PyExc_OSError);
+	}
+
+	/*
+	 * Handle the fdmap parameter.
+	 */
+	if (!err)
+	{
+		int fd, newfd, r;
+
+		PyLoop_ForEachTuple(fdmap, "ii", &fd, &newfd)
+		{
+			if (newfd >= 0)
+				r = posix_spawn_file_actions_adddup2(&fa, fd, newfd);
+			else
+				r = posix_spawn_file_actions_addinherit_np(&fa, fd);
+
+			if (r != 0)
+			{
+				PyErr_SetFromErrno(PyExc_OSError);
+				break;
+			}
+		}
+		PyLoop_CatchError(fdmap)
+		{
+			err = 1;
+		}
+		PyLoop_End(fdmap)
+	}
+
+	/*
+	 * Environment
+	 */
+	if (!err && kw != NULL)
+	{
+		int k = 0;
+		Py_ssize_t keysize, valuesize, dl = PyDict_Size(kw);
+		char *key, *value;
+
+		envp = malloc(sizeof(void *) * dl);
+		if (envp == NULL)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			err = 1;
+		}
+		else
+		{
+			PyLoop_ForEachDictItem(kw, "s#s#", &key, &keysize, &value, &valuesize)
+			{
+				envp[k] = malloc(keysize);
+				envp[k+1] = malloc(valuesize);
+
+				strncpy(envp[k], key, keysize);
+				strncpy(envp[k+1], value, valuesize);
+
+				k += 2;
+			}
+			PyLoop_CatchError(kw)
+			{
+				err = 1;
+			}
+			PyLoop_End(kw)
+		}
+	}
+
+	/*
+	 * Command Arguments
+	 */
+	if (!err && cargs != NULL)
+	{
+		int k = 0;
+		char *value;
+		Py_ssize_t valuesize, al = PySequence_Length(cargs);
+
+		argv = malloc(sizeof(void *) * al);
+		if (argv == NULL)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			err = 1;
+		}
+		else
+		{
+			PyLoop_ForEachTuple(cargs, "s#", &value, &valuesize)
+			{
+				argv[k] = malloc(valuesize);
+
+				strncpy(argv[k], value, valuesize);
+				k += 1;
+			}
+			PyLoop_CatchError(cargs)
+			{
+				err = 1;
+			}
+			PyLoop_End(cargs)
+		}
+	}
+
+	/*
+	 * run the spawn
+	 */
+	if (!err)
+	{
+		if (posix_spawn(&child, (const char *) path, &fa, &sa, argv, envp) != 0)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			err = 1;
+		}
+	}
+
+	/*
+	 * cleanup code. errors here are ignored.
+	 */
+
+	if (argv != NULL)
+	{
+		int i = 0;
+
+		for (i = 0; argv[i] != NULL; ++i)
+			free(argv[i]);
+		free(argv);
+	}
+
+	if (envp != NULL)
+	{
+		int i = 0;
+
+		for (i = 0; envp[i] != NULL; ++i)
+			free(envp[i]);
+		free(envp);
+	}
+
+	if (posix_spawnattr_destroy(&sa) != 0)
+	{
+		/*
+		 * A warning would be appropriate.
+		PyErr_SetFromErrno(PyExc_OSError);
+		 */
+	}
+
+	if (posix_spawn_file_actions_destroy(&fa) != 0)
+	{
+		/*
+		 * A warning would be appropriate.
+		PyErr_SetFromErrno(PyExc_OSError);
+		 */
+	}
+
+	if (err)
+		return(NULL);
+
+	/*
+	 * Spawned a subprocess.
+	 */
+	return(PyLong_FromLong((long) child));
+}
+
 METHODS() = {
 	{"set_process_title",
 		(PyCFunction) set_process_title, METH_O,
@@ -991,6 +1193,16 @@ METHODS() = {
 "\n"
 "Set the process title on supporting platforms."
 )},
+
+	{"execfile",
+		(PyCFunction) execfile, METH_O,
+		PyDoc_STR(
+":returns: pid\n"
+":rtype: int\n"
+"\n"
+"Execute the given file in a subprocess with the given arguments."
+)},
+
 	{NULL,}
 };
 
