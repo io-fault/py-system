@@ -1,5 +1,5 @@
 /*
- * "Python system" stuff.
+ * Low-level Python (CPython) system interfaces.
  */
 #include <pthread.h>
 #include <frameobject.h>
