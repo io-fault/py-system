@@ -1,7 +1,20 @@
 """
-Containment and Transition management.
+Lower-level interfaces to managing queues, processes, processing threads, and memory.
 
-libhazmat is completely unrelated to hazards.
+libhazmat is, in part, fork's :py:mod:`threading` implementation along with
+other primitives and tools used by forking processes. However, its structure is vastly
+different from :py:mod:`threading` as the class structure is unnecessary for libhazmat's
+relatively lower-lever applications. The primitives provided mirror many of the
+:py:mod:`_thread` library's functions with minimal or no differences.
+
+The memory management interfaces exist to support a memory pool for applications
+that need to enforce limits in particular areas. Python's weak references are used
+to allow simple chunk reclaims when all the references are destroyed.
+
+The process management interfaces exist to abstract the operating system's.
+
+The queue managemnent interfaces provide queue implementations and containment tools for
+interleaving processing chains for cooperative areas of an application.
 """
 import os
 import sys
@@ -9,9 +22,13 @@ import collections
 import functools
 import operator
 import signal
+import weakref
 import _thread
 
 from . import system
+
+processing_structure = ('kernel', 'group', 'process', 'thread',)
+memory_structure = ('bytes',)
 
 ##
 # Threading Primitives.
@@ -44,15 +61,17 @@ class Sever(BaseException):
 	__kill__ = True
 
 #: Kill a thread at the *Python* level.
-def cut_thread(tid, setexc = system.interrupt, exc = Sever):
+def cut_thread(tid, exception = Sever, setexc = system.interrupt):
 	"""
-	interrupt(exception, thread_id)
+	interrupt(thread_id, exception = Sever)
 
 	Raise the given exception in the thread with the given identifier.
 
 	.. warning:: Cases where usage is appropriate is rare.
 	"""
-	return setexc(tid, exc)
+	r =  setexc(tid, exc)
+	signal.pthread_kill(tid, signal.SIGINT)
+	return r
 
 def pull_thread(callable, *args):
 	"""
@@ -66,6 +85,9 @@ def pull_thread(callable, *args):
 	pull_thread is best used in situations where concurrent processing should
 	occur while waiting on another result, ideally a system call that will
 	allow the dispatching-thread to run.
+
+	In :py:mod:`threading` terms, this is equivalent to creating and running a new thread
+	and joining it back into calling thread.
 	"""
 	t = Transition()
 	create_thread(t.relay, callable, *args)
@@ -113,6 +135,12 @@ process_fatal_signals = {
 }
 process_fatal_signals.discard(None)
 
+process_signal_identifiers = {
+	getattr(signal, name): name
+	for name in dir(signal)
+	if name.startswith('SIG') and name[3] != '_' and isinstance(getattr(signal, name), int)
+}
+
 def process_delta(
 	pid,
 	wasexit = os.WIFEXITED,
@@ -132,17 +160,21 @@ def process_delta(
 	options = os.WNOHANG | os.WUNTRACED,
 ):
 	"""
-	process_delta(pid = -1)
+	process_delta(pid)
 
 	:param pid: The process identifier to reap.
 	:type pid: :py:class:`int`
-	:returns: :py:obj:`None` or a (:py:class:`Procedure`, ) pair.
+	:returns: (pid, event, status, core)
 	:rtype: tuple or None
 
-	Normally used in response to a "process-delta" event or within a SIGCHLD handler.
-	Pickup the change in child state and return a tuple describing the event.
+	The event is one of: 'exit', 'signal', 'stop', 'continue'.
+	The first two mean that the process has been reaped and their `core` field will be
+	:py:obj:`True` or :py:obj:`False` indicating whether or not the process left a coredump
+	behind. If the `core` field is :py:obj:`None`, it's an authoritative statement that
+	the process did not exit.
 
-	Not all deltas are termination. This can be used to pickup stop and continue events.
+	The status code is the exit status if an exit event, the signal number that killed or
+	stopped the process, or None in the case of continue.
 	"""
 	try:
 		_, code = waitpid(pid, options)
@@ -150,23 +182,23 @@ def process_delta(
 		return None
 
 	if wasexit(code):
-		termination = None
+		event = 'exit'
 		status = getstatus(code)
-		cored = wascore(code)
+		cored = wascore(code) or False
 	elif wassignal(code):
-		termination = None
-		status = - getsig(code)
-		cored = wascore(code)
+		event = 'signal'
+		status = - getsig(code) or 0
+		cored = wascore(code) or False
 	elif wasstopped(code):
-		termination = False
-		status = getstop(code)
+		event = 'stop'
+		status = getstop(code) or 0
 		cored = None
 	elif wascontinued(code):
-		termination = True
+		event = 'continue'
 		status = None
 		cored = None
 
-	return (pid, termination, status, cored)
+	return (event, status, cored)
 
 class ContainerException(Exception):
 	"""
@@ -535,7 +567,7 @@ class EQueue(object):
 	An event driven queue where references to readers and references
 	to writers are passed in order to conflate queue event types.
 
-	Naturally this structure is not thread safe.
+	This implementation is *not* thread safe.
 
 	Event driven queues have a remarkable capability of providing a
 	means to communicate when the reader of the queue wants more.
@@ -547,12 +579,13 @@ class EQueue(object):
 	__slots__ = ('state', 'struct')
 
 	def __init__(self, storage = None, Queue = collections.deque):
-		# negative means waiting readers
-		# positive means waiting writers
-		self.state = 0
 		# writers are appended right of the "center"
 		# readers are prepended left of the "center"
-		self.struct = storage if storage is not None else Queue()
+		self.struct = Queue(storage) if storage is not None else Queue()
+
+		# negative means waiting readers
+		# positive means waiting writers
+		self.state = len(self.struct)
 
 	@property
 	def backlog(self):
@@ -608,7 +641,8 @@ class XQueue(EQueue):
 	"""
 	Unbounded Blocking Queue for interthread communication.
 
-	Puts do not wait. Similar to a barrier, but
+	Puts do not wait. Similar to a barrier, but gets do when
+	there are no items.
 	"""
 	__slots__ = EQueue.__slots__ + ('mutex',)
 
@@ -637,13 +671,91 @@ class XQueue(EQueue):
 
 class Memory(bytearray):
 	"""
-	bytearray subclass supporting weak-references for memory-free signalling.
+	bytearray subclass supporting weak-references and
+	identifier hashing for memory-free signalling.
 	"""
-	import resource
-	pagesize = resource.getpagesize()
-	del resource
+	try:
+		import resource
+		pagesize = resource.getpagesize()
+		del resource
+	except ImportError:
+		pagesize = 1024
 
-	__slots__ = ('__weakrefs__',)
+	__slots__ = ('__weakref__',)
 
 	def __hash__(self, id=id):
 		return id(self)
+
+class Source(object):
+	"""
+	Memory Pool that uses weakref's to reclaim memory.
+	"""
+	Memory = Memory # bytearray subclass with weakref support
+	Reference = weakref.ref # for reclaiming memory
+
+	@classmethod
+	def from_mib(typ, size):
+		"""
+		Construct a Reservoir from the given number of Mebibytes desired.
+		"""
+		pages, remainder = divmod((size * (2**20)), self.Memory.pagesize)
+		if remainder:
+			pages += 1
+		return typ(pages)
+
+	def __init__(self, capacity = 8, Queue = collections.deque):
+		self.capacity = capacity
+		self.blocksize = 2
+		self.allocsize = self.blocksize * self.Memory.pagesize
+		self.transfer_allocations = 3
+
+		self.segments = Queue()
+		self.requests = Queue()
+		self.current = None
+		self._allocated = set()
+		for x in range(self.capacity):
+			self.segments.append(self.Memory(self.Memory.pagesize))
+
+	@property
+	def used(self):
+		"""
+		Memory units currently in use.
+		"""
+		return len(self._allocated)
+
+	@property
+	def available(self):
+		"""
+		Number of memory units available.
+		"""
+		return len(self.segments)
+
+	def alloc(self):
+		"""
+		Allocate a unit of memory for use. When Python references to the memory object
+		no longer exist, the Reservoir will add another unit.
+		"""
+		if not self.segments:
+			raise RuntimeError("empty")
+		mem = self.segments.popleft()
+		self._allocated.add(self.Reference(mem, self.reclaim))
+		return mem
+
+	def reclaim(self, memory, len = len):
+		# Executed by the weakref() when the Memory() instance
+		# is no longer referenced.
+
+		# Remove weakreference reference.
+		self._allocated.discard(memory)
+		# Expand the Pool to fill in the new vacancy
+		self.segments.append(self.Memory(self.Memory.pagesize))
+
+		# signal transfer possible when in demand?
+		if self.requests:
+			pass
+
+	def acquire(self, event):
+		self.segments.extend(event)
+
+	def transfer(self):
+		return self.alloc()
