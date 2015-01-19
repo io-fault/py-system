@@ -1,8 +1,11 @@
 """
-libfork is used to manage main thread control and ordered process forks.
+fork.lib is used to manage main thread control and controlled process fork() sequences.
 
-Arguably, libcontrol is also an appropriate name, but the purpose of the module's
-content orbits the management of the forking process in general.
+In some versions of C-Python, forking a process in a thread can leave the process in an
+inconsistent state unless some maintenance is performed during the fork operation.
+fork.lib provides interfaces for managing callback sets for resolving inconsistent state
+after a fork operation is performed and control functions to allow for safe main thread
+forking.
 """
 import sys
 import os
@@ -15,7 +18,7 @@ from . import system
 
 from . import libhazmat
 
-#: Declaration of main thread :py:func:`.control`
+#: Lock held when :py:func:`.control` is managing the main thread.
 __control_lock__ = libhazmat.create_knot()
 
 #: Protects superfluous interjections.
@@ -381,14 +384,16 @@ class Fork(Control):
 def critical(callable, *args, **kw):
 	"""
 	A Callable used to trap exceptions and interject a :py:class:`Panic` instance caused by the
-	original::
+	original.
+
+	For example::
 
 		from nucleus.lib import critical
 
 		def fun():
 			while True:
 				# critical loop
-				# any exception cause the process to terminate
+				# any exception causes the process to terminate
 				...
 
 		critical(fun)
@@ -408,6 +413,7 @@ def critical(callable, *args, **kw):
 def protect(*init, looptime = 8):
 	"""
 	Perpetually protect the main thread.
+
 	Used by :py:func:`control` to hold the main thread in :py:meth:`Fork.trap`.
 	"""
 	import time
@@ -437,7 +443,7 @@ def control(main, *args, **kw):
 
 	A program that calls this is making an explicit declaration that signals should be
 	defaulted and the main thread should be protected from uninterruptable calls to allow
-	prompt exits.
+	prompt process exits.
 	"""
 	# Registers the atfork functions.
 	system.initialize(sys.modules[__name__])
@@ -448,7 +454,6 @@ def control(main, *args, **kw):
 			# Fork.trap() should not return.
 			raise RuntimeError("fork.lib.Fork.trap did not raise SystemExit or Interruption")
 		except Interruption as e:
-			import traceback
 			sys.stderr.write("\nINTERRUPT: {0}\n".format(str(e)))
 			sys.stderr.flush()
 			raise Exit(250)
@@ -462,7 +467,7 @@ def concurrently(controller, exe = Fork.dispatch):
 	:returns: Reference dispatched result.
 	:rtype: :py:class:`collections.Callable`
 
-	Dispatch the given controller in a child process of a libfork controlled process.
+	Dispatch the given controller in a child process of a fork.lib controlled process.
 	The returned object is a reference to the result that will block until the child
 	process has written the response to a pipe.
 	"""
