@@ -119,7 +119,7 @@ process_signals = {
 	'profiler': signal.SIGPROF,
 }
 
-#: Signal Names used by nucleus.
+#: Signal numeric identifier to Signal Names mapping.
 process_signal_names = dict([(v, k) for k, v in process_signals.items()])
 
 #: Signals that *would* terminate the process *if* SIG_DFL was set.

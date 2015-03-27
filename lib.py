@@ -303,18 +303,20 @@ class Fork(Control):
 
 	Specifically, execute the callable at a pivot point replacing the existing stack.
 	"""
+	__controlled_thread_id__ = None
+
 	def __init__(self, controller, *args, **kw):
 		self.controller = controller
 		self.arguments = args
 		self.keywords = kw
 
 	def __str__(self):
-		return "no nucleus.lib.Fork.trap() call in main thread"
+		return "no Fork.trap call was made in main thread"
 
 	def pivot(self, T, fork = os.fork):
 		pid = fork()
 		# Unconditionally perform the transition, it doesn't matter.
-		T.endpoint(ContainedReturn((pid,)))
+		T.endpoint(libhazmat.ContainedReturn((pid,)))
 		if pid == 0:
 			# In the child, raise the Fork() exception
 			# to trigger pivot's replacement functionality.
@@ -336,17 +338,30 @@ class Fork(Control):
 		:py:func:`pivot` was called to execute the program, the pivot function will catch the
 		exception, in the child, and execute the replacement.
 		"""
-		__fork_knot__.acquire() # Released by atfork handler.
+		fcontroller = Class(controller, *args, **kw)
 
-		# Transition is used because we're probably in a thread and we want to hold
-		# until the fork occurs.
+		# Don't bother with the interjection if we're dispatching from the main thread.
+		# Usually, this doesn't happen, but it can be desirable to have fork's control
+		# provisions in even simple programs.
+		if Class.__controlled_thread_id__ == libhazmat.identify_thread():
+			pid = os.fork()
+			if pid == 0:
+				raise fcontroller
+			return pid
+		else:
+			# Not in the thread controlled by Fork.trap().
 
-		T = libhazmat.Transition()
-		transitioned_pivot = functools.partial(Class(controller, *args, **kw).pivot, T)
-		interject(transitioned_pivot) # .fork.lib.Fork.dispatch
+			# Transition is used because we're probably in a thread and we want to hold
+			# until the fork occurs.
+			T = libhazmat.Transition()
+			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
-		# wait on commit until the fork() in the above pivot() method occurs in the main thread.
-		return T.commit()
+			__fork_knot__.acquire() # Released by atfork handler.
+			interject(transitioned_pivot) # .fork.lib.Fork.dispatch
+
+			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
+			return T.commit()
+		raise RuntimeError("method branches did not return process identifier")
 
 	@classmethod
 	def trap(Class, controller, *args, **kw):
@@ -363,6 +378,7 @@ class Fork(Control):
 			is often better to start a new Python instance.
 		"""
 		while True:
+			Class.__controlled_thread_id__ = libhazmat.identify_thread()
 			try:
 				if not __interject_lock__.locked():
 					raise Panic("interjection knot not configured")
@@ -482,30 +498,33 @@ def concurrently(controller, exe = Fork.dispatch):
 	dump = pickle.dump
 	load = pickle.load
 
-	def exec(call = callable, rw = rw):
-		write = io.open(rw[1], 'wb')
+	def execute_controller(call = controller, rw = rw):
 		os.close(rw[0])
-		with write:
-			try:
-				result = call()
-			except SystemExit:
-				result = None
-			dump(result, write)
+		try:
+			result = call()
+		except SystemExit:
+			result = None
+
+		write = io.open(rw[1], 'wb')
+		dump(result, write)
 		raise SystemExit(0)
 
 	# child never returns
-	pid = exe(exec)
-	del exec
+	pid = exe(execute_controller)
+	del execute_controller
 
 	os.close(rw[1])
-	def read_child_result(read = io.open(rw[0], 'rb'), pid = pid):
+	def read_child_result(read = io.open(rw[0], 'rb'), pid = pid, status_ref = None):
 		try:
 			with read:
-				return load(read)
+				result = load(read)
 		except EOFError:
-			r = os.waitpid(pid)
-			return None
-		finally:
-			os.waitpid(pid)
+			result = None
+
+		status = os.waitpid(pid, 0)
+		if status_ref is not None:
+			status_ref(status)
+
+		return result
 
 	return read_child_result

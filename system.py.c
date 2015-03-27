@@ -246,7 +246,7 @@ _exit_by_signal(void)
 		kill(getpid(), exit_signal);
 
 		/* signal didn't end the process, abort */
-		fprintf(stderr, "[nucleus.kernel.exit_by_signal: signal, %d, did not terminate process]\n", exit_signal);
+		fprintf(stderr, "[kernel._exit_by_signal: signal, %d, did not terminate process]\n", exit_signal);
 		abort();
 	}
 }
