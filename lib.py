@@ -67,7 +67,7 @@ def interject(main_thread_exec, signo = signal.SIGUSR2):
 def clear_atexit_callbacks(pid = None):
 	"""
 	In cases where there may be process dependent callbacks, add this to the
-	:py:attr:`.fork_child_callset` to clear the callbacks.
+	@fork_child_callset to clear the callbacks.
 	"""
 	if 'atexit' in sys.modules:
 		# It's somewhat uncommon to retain the forked process image,
