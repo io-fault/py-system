@@ -36,7 +36,7 @@ typedef struct kevent kevent_t; /* kernel event description */
 /*
  * Signals that kernel.Interface will listen for automatically.
  *
- * SIGINT is handled lib.control() with signal.signal.
+ * SIGINT is handled fork.library.control() with signal.signal.
  * SIGUSR2 is *explicitly* used to trigger interjections.
  *
  * *All* Context instances will receive signals.

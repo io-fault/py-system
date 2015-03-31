@@ -1,9 +1,9 @@
 """
-fork.lib is used to manage main thread control and controlled process fork() sequences.
+fork.library is used to manage main thread control and controlled process fork() sequences.
 
 In some versions of C-Python, forking a process in a thread can leave the process in an
 inconsistent state unless some maintenance is performed during the fork operation.
-fork.lib provides interfaces for managing callback sets for resolving inconsistent state
+fork.library provides interfaces for managing callback sets for resolving inconsistent state
 after a fork operation is performed and control functions to allow for safe main thread
 forking.
 """
@@ -46,12 +46,12 @@ fork_prepare_callset = set()
 fork_parent_callset = set()
 
 #: Add callables to be dispatched in the child after a fork call is performed.
-#: If :py:mod:`fork.lib` did not perform the :manpage:`fork(2)` operation,
+#: If @fork.library did not perform the :manpage:`fork(2)` operation,
 #: these callables will *not* be ran.
 fork_child_callset = set()
 
 #: Initial set of callables to run. These are run whether or not the fork operation
-#: was managed by :py:mod:`fork.lib`.
+#: was managed by @fork.library.
 fork_child_cleanup = set()
 
 def interject(main_thread_exec, signo = signal.SIGUSR2):
@@ -243,7 +243,7 @@ class Interruption(Control):
 		Default nucleus signal handler for SIGINT.
 		"""
 		if signo in libhazmat.process_fatal_signals:
-			interject(Class('signal', signo).raised) # .fork.lib.Interruption
+			interject(Class('signal', signo).raised) # .fork.library.Interruption
 
 	@staticmethod
 	def void(signo, frame):
@@ -357,7 +357,7 @@ class Fork(Control):
 			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
 			__fork_knot__.acquire() # Released by atfork handler.
-			interject(transitioned_pivot) # .fork.lib.Fork.dispatch
+			interject(transitioned_pivot) # .fork.library.Fork.dispatch
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
 			return T.commit()
@@ -399,12 +399,12 @@ class Fork(Control):
 
 def critical(callable, *args, **kw):
 	"""
-	A Callable used to trap exceptions and interject a :py:class:`Panic` instance caused by the
+	A Callable used to trap exceptions and interject a @Panic instance caused by the
 	original.
 
 	For example::
 
-		from nucleus.lib import critical
+		from fault.fork.library import critical
 
 		def fun():
 			while True:
@@ -422,7 +422,7 @@ def critical(callable, *args, **kw):
 
 		if __control_lock__.locked():
 			raise_panic = ce.raised
-			system.interject(raise_panic) # .fork.lib.critical
+			system.interject(raise_panic) # .fork.library.critical
 		else:
 			raise ce
 
@@ -468,7 +468,7 @@ def control(main, *args, **kw):
 		try:
 			Fork.trap(main, *args, **kw)
 			# Fork.trap() should not return.
-			raise RuntimeError("fork.lib.Fork.trap did not raise SystemExit or Interruption")
+			raise RuntimeError("fork.library.Fork.trap did not raise SystemExit or Interruption")
 		except Interruption as e:
 			sys.stderr.write("\nINTERRUPT: {0}\n".format(str(e)))
 			sys.stderr.flush()
@@ -483,7 +483,7 @@ def concurrently(controller, exe = Fork.dispatch):
 	:returns: Reference dispatched result.
 	:rtype: :py:class:`collections.Callable`
 
-	Dispatch the given controller in a child process of a fork.lib controlled process.
+	Dispatch the given controller in a child process of a fork.library controlled process.
 	The returned object is a reference to the result that will block until the child
 	process has written the response to a pipe.
 	"""
