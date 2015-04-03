@@ -208,6 +208,8 @@ class Interruption(Control):
 	"""
 	Similar to KeyboardInterrupt, but causes :py:func:`control` to exit with the signal,
 	and calls critical status hooks.
+
+	Used to mimic signal exit codes.
 	"""
 	__kill__ = True
 
@@ -311,7 +313,7 @@ class Fork(Control):
 		self.keywords = kw
 
 	def __str__(self):
-		return "no Fork.trap call was made in main thread"
+		return "no Fork.trap was present to catch exception"
 
 	def pivot(self, T, fork = os.fork):
 		pid = fork()
@@ -321,6 +323,16 @@ class Fork(Control):
 			# In the child, raise the Fork() exception
 			# to trigger pivot's replacement functionality.
 			raise self
+
+	@classmethod
+	def substitute(Class, callable, *args, **kw):
+		"""
+		Substitute the existing control call with the given one.
+
+		Immediately raises a @Fork instance in the calling thread to be caught
+		by a corresponding @trap call.
+		"""
+		raise Class(callable, *args, **kw)
 
 	@classmethod
 	def dispatch(Class, controller, *args, **kw):
@@ -507,6 +519,7 @@ def concurrently(controller, exe = Fork.dispatch):
 
 		write = io.open(rw[1], 'wb')
 		dump(result, write)
+		write.close()
 		raise SystemExit(0)
 
 	# child never returns
