@@ -13,52 +13,50 @@ import signal
 import functools
 import contextlib
 
-from .kernel import Interface as Kernel
 from . import system
-
 from . import libhazmat
 
-#: Lock held when :py:func:`.control` is managing the main thread.
+# Lock held when @control is managing the main thread.
 __control_lock__ = libhazmat.create_knot()
 
-#: Protects superfluous interjections.
+# Protects superfluous interjections.
 __interject_lock__ = libhazmat.create_knot()
 __interject_lock__.acquire() # released in Fork.trap()
 
-#: Call to identify if :py:func:`.control` is managing the main thread.
+# Call to identify if @control is managing the main thread.
 controlled = __control_lock__.locked
 
-#: Maintained process identifier object. Do not change or delete.
+# Maintained process identifier object. Do not change or delete.
 current_process_id = os.getpid()
 
-#: Currently identified parent process.
+# Currently identified parent process.
 parent_process_id = os.getppid()
 
-#: Intercontext Fork Lock
+# Intercontext Fork Lock
 __fork_knot__ = libhazmat.create_knot()
 
-#: Add callables to be dispatched in the parent *before* a fork occurs.
-#: Useful for creating context independent parent-child connections.
+# Add callables to be dispatched in the parent *before* a fork occurs.
+# Useful for creating context independent parent-child connections.
 fork_prepare_callset = set()
 
-#: Add callables to be dispatched in the parent after a fork call is performed.
-#: Each object in the set will be called with one parameter, the process id of the child.
+# Add callables to be dispatched in the parent after a fork call is performed.
+# Each object in the set will be called with one parameter, the process id of the child.
 fork_parent_callset = set()
 
-#: Add callables to be dispatched in the child after a fork call is performed.
-#: If @fork.library did not perform the :manpage:`fork(2)` operation,
-#: these callables will *not* be ran.
+# Add callables to be dispatched in the child after a fork call is performed.
+# If @fork.library did not perform the :manpage:`fork(2)` operation,
+# these callables will *not* be ran.
 fork_child_callset = set()
 
-#: Initial set of callables to run. These are run whether or not the fork operation
-#: was managed by @fork.library.
+# Initial set of callables to run. These are run whether or not the fork operation
+# was managed by @fork.library.
 fork_child_cleanup = set()
 
 def interject(main_thread_exec, signo = signal.SIGUSR2):
 	"""
 	Trip the main thread by sending the process a SIGUSR2 signal in order to cause any
 	running system call to exit early. Used in conjunction with
-	:py:func:`.system.interject`.
+	@system.interject
 	"""
 	__interject_lock__.acquire() # One interjection at a time.
 	system.interject(main_thread_exec) # executed in main thread
@@ -112,7 +110,7 @@ def _after_fork_child():
 		finally:
 			__fork_knot__.release()
 
-class Exit(SystemExit):
+class SystemExit(SystemExit):
 	"""
 	Extension of SystemExit for use with interjections.
 	"""
@@ -128,65 +126,63 @@ class Exit(SystemExit):
 	def raised(self):
 		raise self
 
-class Execution(object):
+class Invocation(object):
 	"""
-	A handle to the execution of the process. This is used to manage custom invocations
-	without interferring with the process global data in the :py:mod:`sys` module.
+	A means of representing the invocation of an abstract executable and the specification
+	of the means of exiting. Normally, used to describe how the process was invoked and the
+	corresponding parameters, argv and environ, in which the invocation should be reacting to.
 
-	libfork also uses Execution instances to manage the exit status to use with the
-	program.
-
-	By default, the status is the highest status possible, `255`.
-
-	Execution instances have four fields:
-
-	 context
-	  None or a dictionary object describing any prior stack of commands or function paths
-	  that led up to the existance of this object.
-
-	 name
-	  By default, the process name as acquired from sys.argv.
-
-	 arguments
-	  By default, the remaining arguments after the path from sys.argv. The arguments
-	  given to the :c:func:`main` function of the program.
-
-	 exit_status
-	  The status code to exit the process with.
+	For system invocation, the &parameters dictionary will have two entries by default
 	"""
-	__slots__ = ('context', 'name', 'arguments', 'exit_status')
-
-	def __init__(self, name, arguments, context = None):
+	def __init__(self, exit_method, context = None):
+		self.exit_method = exit_method
+		self.parameters = {}
 		self.context = context
-		self.name = name
-		self.arguments = arguments
-		self.exit_status = Exit.exiting_by_default_status
+
+	def exit(self, result):
+		"""
+		Perform the exit method designated during the initialization of the invocation.
+		"""
+		self.exit_method(result)
 
 	@classmethod
-	def default(cls, **kw):
+	def system(Class, context = None, environ = ()):
 		"""
-		Create an execution instance from the information in the :py:mod:`sys` module.
+		Create an instance representing that of the invocation from the operating
+		system. Primarily, information is retrieved from the @sys and @os module.
 		"""
-		return cls(sys.argv[0], sys.argv[1:], **kw)
+		r = Class(Class.system_exit_method, context = context)
+		r.parameters['type'] = 'system'
 
-	def set_exit_status(self, status):
-		"""
-		Configure the exit status to use on :py:meth:`.exit`. This can be overwritten.
-		"""
-		self.exit_status = status
+		system = r.parameters['system'] = {}
+		system['name'] = sys.argv[0]
+		system['arguments'] = sys.argv[1:]
+		system['directory'] = os.getcwd()
 
-	def exit(self, status = None):
+		if environ:
+			# copy interesting environment variables
+			local = system['environment'] = {}
+			for x in environ:
+				if isinstance(x, str):
+					local[x] = os.environ[x]
+				else:
+					local[x] = os.environ[x]
+
+		r.exit_method = Class.system_exit_method
+		return r
+
+	@classmethod
+	def system_exit_method(Class, exit_status):
 		"""
-		Interject the :py:class:`.Exit` instance and cause the process to exit with
-		the status code configured on this :py:class:`.Execution` instance.
+		A means of exit used with a @Fork.trap managed process.
 		"""
-		interject(Exit(self.exit_status).raised)
+		interject(SystemExit(exit_status).raised)
 
 class Control(BaseException):
 	"""
 	Process control exceptions for significant events.
 
-	.. note:: This inherits from BaseException.
+	This is a control exception inheriting from @BaseException. It should not be trapped.
 	"""
 	__kill__ = None
 
@@ -200,16 +196,17 @@ class Panic(Control):
 	Instances of this class are usually interjected into the main thread causing
 	the process to immediately terminate.
 
-	.. note:: This ultimately inherits from BaseException.
+	This is a control exception inheriting from @BaseException. It should not be trapped.
 	"""
 	__kill__ = True
 
 class Interruption(Control):
 	"""
-	Similar to KeyboardInterrupt, but causes :py:func:`control` to exit with the signal,
+	Similar to @KeyboardInterrupt, but causes @control to exit with the signal,
 	and calls critical status hooks.
 
-	Used to mimic signal exit codes.
+	Primarily used to cause signal exit codes that are usually masked with
+	@KeyboardInterrupt.
 	"""
 	__kill__ = True
 
@@ -221,7 +218,7 @@ class Interruption(Control):
 		if self.type == 'signal':
 			signame = libhazmat.process_signal_names.get(self.signo, 'unknown')
 			sigid = libhazmat.process_signal_identifiers.get(self.signo, 'UNKNOWN-SIG')
-			return "[{0} signal] {1}: {2}".format(signame, sigid, str(self.signo))
+			return "{1}[{2}]".format(signame, sigid, str(self.signo))
 		else:
 			return str(self.type)
 
@@ -242,7 +239,7 @@ class Interruption(Control):
 		"""
 		Signal handler that interjects an Interruption instance into the main thread.
 
-		Default nucleus signal handler for SIGINT.
+		Default signal handler for SIGINT.
 		"""
 		if signo in libhazmat.process_fatal_signals:
 			interject(Class('signal', signo).raised) # .fork.library.Interruption
@@ -300,10 +297,14 @@ class Interruption(Control):
 
 class Fork(Control):
 	"""
-	Fork the process with the express purpose of keeping the process image in order to
-	divide the load of the process across its clones.
+	@Control exception used to signal @Fork.trap to replace the existing managed call.
 
-	Specifically, execute the callable at a pivot point replacing the existing stack.
+	Usual case is that a @Fork.trap call is made on the main thread where other threads are
+	created to run the actual program. Given that program is finished and another should be ran
+	*as if the current program were never ran*, the @Control exception can be raised in the
+	main thread replacing the initial callable given to @Fork.trap.
+
+	The exception should only be used through the provided classmethods.
 	"""
 	__controlled_thread_id__ = None
 
@@ -313,7 +314,7 @@ class Fork(Control):
 		self.keywords = kw
 
 	def __str__(self):
-		return "no Fork.trap was present to catch exception"
+		return "no Fork.trap was present to catch the exception"
 
 	def pivot(self, T, fork = os.fork):
 		pid = fork()
@@ -331,6 +332,9 @@ class Fork(Control):
 
 		Immediately raises a @Fork instance in the calling thread to be caught
 		by a corresponding @trap call.
+
+		Only to be used in cases where it is known that the current frame stack is
+		being managed by @trap.
 		"""
 		raise Class(callable, *args, **kw)
 
@@ -345,10 +349,10 @@ class Fork(Control):
 		:returns: The child process' PID.
 		:rtype: :py:class:`int`
 
-		Execute the given callable with the given arguments in a child process. This causes
-		:py:class:`Execution` to be raised in the main thread of the process. Given that
-		:py:func:`pivot` was called to execute the program, the pivot function will catch the
-		exception, in the child, and execute the replacement.
+		Execute the given callable with the given arguments in a child process.
+		This performs an @interject call. Given that @pivot was called to execute the
+		program, the pivot function will catch the exception, in the child, and
+		execute the replacement.
 		"""
 		fcontroller = Class(controller, *args, **kw)
 
@@ -409,7 +413,7 @@ class Fork(Control):
 				args = exe.arguments
 				kw = exe.keywords
 
-def critical(callable, *args, **kw):
+def critical(context, callable, *args, **kw):
 	"""
 	A Callable used to trap exceptions and interject a @Panic instance caused by the
 	original.
@@ -424,10 +428,11 @@ def critical(callable, *args, **kw):
 				# any exception causes the process to terminate
 				...
 
-		critical(fun)
+		critical(None, fun)
 	"""
 	try:
-		return callable(*args, **kw) # should never exit
+		r = callable(*args, **kw) # should never exit
+		return r
 	except BaseException as exc:
 		ce = Panic("critical call raised exception")
 		ce.__cause__ = exc
@@ -442,7 +447,7 @@ def protect(*init, looptime = 8):
 	"""
 	Perpetually protect the main thread.
 
-	Used by :py:func:`control` to hold the main thread in :py:meth:`Fork.trap`.
+	Used by @control to hold the main thread in @Fork.trap.
 	"""
 	import time
 	global current_process_id, parent_process_id
@@ -462,16 +467,14 @@ def protect(*init, looptime = 8):
 
 def control(main, *args, **kw):
 	"""
-	control(execution = None)
-
-	:param execution: Initial parameter data extracted from sys.argv.
-	:type execution: :py:class:`.Execution`
-
-	Give control of the process over to the manager.
+	control(main, *args, **kw)
 
 	A program that calls this is making an explicit declaration that signals should be
 	defaulted and the main thread should be protected from uninterruptable calls to allow
 	prompt process exits.
+
+	The given @main is executed with the given positionals @args and keywords @kw inside
+	of a @Fork.trap call. @Fork handles formal exits and main-call substitution.
 	"""
 	# Registers the atfork functions.
 	system.initialize(sys.modules[__name__])
@@ -482,9 +485,10 @@ def control(main, *args, **kw):
 			# Fork.trap() should not return.
 			raise RuntimeError("fork.library.Fork.trap did not raise SystemExit or Interruption")
 		except Interruption as e:
-			sys.stderr.write("\nINTERRUPT: {0}\n".format(str(e)))
+			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
+			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
 			sys.stderr.flush()
-			raise Exit(250)
+			raise SystemExit(250)
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""

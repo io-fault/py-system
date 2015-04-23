@@ -122,7 +122,8 @@ process_signals = {
 #: Signal numeric identifier to Signal Names mapping.
 process_signal_names = dict([(v, k) for k, v in process_signals.items()])
 
-#: Signals that *would* terminate the process *if* SIG_DFL was set.
+# Signals that *would* terminate the process *iff* SIG_DFL was set.
+# Notably, this list is used to help preserve the appropriate exit code.
 process_fatal_signals = {
 	signal.SIGINT,
 	signal.SIGTERM,
@@ -466,7 +467,7 @@ class Switch(object):
 	A queue that manages callbacks that are invoked when a given
 	callback reached the head of the queue.
 
-	Using :py:class:`nucleus.libhazmat.create_knot` in combination with join
+	Using @create_knot in combination with join
 	is a great way to manage continuations based on exclusive access.
 
 	.. warning:: Do not use.
@@ -686,9 +687,9 @@ class Memory(bytearray):
 	def __hash__(self, id=id):
 		return id(self)
 
-class Source(object):
+class MemoryContext(object):
 	"""
-	Memory Pool that uses weakref's to reclaim memory.
+	Memory pool that uses weakref's and context managers to reclaim memory.
 	"""
 	Memory = Memory # bytearray subclass with weakref support
 	Reference = weakref.ref # for reclaiming memory
@@ -705,14 +706,15 @@ class Source(object):
 
 	def __init__(self, capacity = 8, Queue = collections.deque):
 		self.capacity = capacity
-		self.blocksize = 2
-		self.allocsize = self.blocksize * self.Memory.pagesize
+		self.block_size = 2
+		self.allocate_size = self.blocksize * self.Memory.pagesize
 		self.transfer_allocations = 3
 
 		self.segments = Queue()
 		self.requests = Queue()
 		self.current = None
 		self._allocated = set()
+
 		for x in range(self.capacity):
 			self.segments.append(self.Memory(self.Memory.pagesize))
 
@@ -730,10 +732,10 @@ class Source(object):
 		"""
 		return len(self.segments)
 
-	def alloc(self):
+	def allocate(self):
 		"""
 		Allocate a unit of memory for use. When Python references to the memory object
-		no longer exist, the Reservoir will add another unit.
+		no longer exist, another unit will be added.
 		"""
 		if not self.segments:
 			raise RuntimeError("empty")
@@ -755,7 +757,7 @@ class Source(object):
 			pass
 
 	def acquire(self, event):
+		"""
+		Explicitly add an object to the available segments.
+		"""
 		self.segments.extend(event)
-
-	def transfer(self):
-		return self.alloc()

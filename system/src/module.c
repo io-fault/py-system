@@ -234,6 +234,9 @@ trace(PyObj self, PyObj args)
 static int exit_signal = -1;
 static pid_t exit_for_pid = -1;
 
+/*
+ * Executed in atexit in order to preserve the signal's exit code.
+ */
 void
 _exit_by_signal(void)
 {
