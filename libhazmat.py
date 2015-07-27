@@ -19,7 +19,6 @@ interleaving processing chains for cooperative areas of an application.
 import os
 import sys
 import collections
-import functools
 import operator
 import signal
 import weakref

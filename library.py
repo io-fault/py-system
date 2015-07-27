@@ -14,6 +14,7 @@ import functools
 import contextlib
 
 from . import system
+from . import kernel
 from . import libhazmat
 
 # Lock held when @control is managing the main thread.
@@ -122,6 +123,10 @@ class SystemExit(SystemExit):
 	#: :py:class:`Execution` exit status code used to indicate that the
 	#: the process failed to explicitly note status.
 	exiting_by_default_status = 255
+
+	# Exit code indicating the type of information presented on standard error.
+	# Indicates that the standard error contains help output.
+	exiting_with_information = 100
 
 	def raised(self):
 		raise self
@@ -300,7 +305,7 @@ class Fork(Control):
 	@Control exception used to signal @Fork.trap to replace the existing managed call.
 
 	Usual case is that a @Fork.trap call is made on the main thread where other threads are
-	created to run the actual program. Given that program is finished and another should be ran
+	created to run the actual program. Given that the program is finished and another should be ran
 	*as if the current program were never ran*, the @Control exception can be raised in the
 	main thread replacing the initial callable given to @Fork.trap.
 
@@ -545,3 +550,148 @@ def concurrently(controller, exe = Fork.dispatch):
 		return result
 
 	return read_child_result
+
+KInvocation = kernel.Invocation
+
+class Pipeline(tuple):
+	"""
+	Object holding the file descriptors of a running pipeline.
+	"""
+	__slots__ = ()
+
+	@property
+	def input(self):
+		"Pipe file descriptor for the pipeline's input"
+		return self[0]
+
+	@property
+	def output(self):
+		"Pipe file descriptor for the pipeline's output"
+		return self[1]
+
+	@property
+	def process_identifiers(self):
+		"The sequence of process identifiers of the commands that make up the pipeline"
+		return self[2]
+
+	@property
+	def standard_errors(self):
+		"Mapping of process identifiers to the standard error file descriptor."
+		return self[3]
+
+	def __new__(Class, input, output, pids, errfds, tuple=tuple):
+		tpids = tuple(pids)
+		errors = dict(zip(tpids, errfds))
+		return super().__new__(Class, (
+			input, output,
+			tpids, errors,
+		))
+
+	def void(self, close=os.close):
+		"Close all file descriptors and kill -9 all processes involved in the pipeline."
+		for x in self.standard_errors:
+			close(x)
+		close(self[0])
+		close(self[1])
+
+		for pid in self.process_identifiers:
+			kill(pid, 9)
+
+class PInvocation(tuple):
+	"""
+	A sequence of &KInvocation instances used to form a pipeline for
+	unix processes; a process image where the file descriptors 0, 1, and 2
+	refer to standard input, standard output, and standard error.
+
+	Pipelines of zero commands can be created; it will merely represent a pipe
+	with no standard errors and process identifiers.
+	"""
+	__slots__ = ()
+
+	from . import kernel
+	Invocation = kernel.Invocation
+	del kernel
+
+	@classmethod
+	def from_commands(Class, *commands):
+		"""
+		Create a &PInvcoation instance from a sequences of commands.
+
+			pr = forklib.PInvocation.from_commands(('cat', 'somefile'), ('process', '--flags'))
+		"""
+		return Class([
+			Class.Invocation(path, args)
+			for path, *args in commands
+		])
+
+	@classmethod
+	def from_pairs(Class, commands):
+		"""
+		Create a Pipeline Invocation from a sequence of process-path and process-arguments
+		pairs.
+
+			pr = forklib.PInvocation.from_pairs([("/bin/cat", ("file", "-")), ...])
+		"""
+		return Class([Class.Invocation(*x) for x in commands])
+
+	def __call__(self, pipe=os.pipe, close=os.close):
+		"""
+		Execute the series of invocations returning a &Pipeline instance containing
+		the file descriptors used for input, output and the standard error of all the commands.
+		"""
+		n = len(self)
+
+		# one for each command, split read and write ends into separate lists
+		stderr = []
+		pipes = []
+
+		try:
+			for i in range(n):
+				stderr.append(pipe())
+
+			errors = [x[0] for x in stderr]
+			child_errors = [x[1] for x in stderr]
+
+			# using list.append instead of a comprehension
+			# so cleanup can be properly performed in the except clause
+			for i in range(n+1):
+				pipes.append(pipe())
+
+			# first stdin (write) and final stdout (read)
+			input = pipes[0][1]
+			output = pipes[-1][0]
+
+			pids = []
+			for i, inv, err in zip(range(n), self, child_errors):
+				pid = inv(((pipes[i][0], 0), (pipes[i+1][1], 1), (err, 2)))
+				pids.append(pid)
+
+			return Pipeline(input, output, pids, errors)
+		except:
+			# Close file descriptors that were going to be kept given the
+			# success; the finally clause will make sure everything else is closed.
+			close(pipes[0][1])
+			close(pipes[-1][0])
+
+			# kill any invoked processes
+			for pid in pids:
+				os.kill(pid, 9)
+				os.waitpid(pid)
+			raise
+		finally:
+			# fd's inherited in the child processes will
+			# be unconditionally closed.
+			for r, w in stderr:
+				close(w)
+
+			# special for the edges as the process is holding
+			# the reference to the final read end and
+			# the initial write end.
+			if self:
+				close(pipes[0][0])
+				close(pipes[-1][1])
+
+				# the middle range is wholly owned by the child processes.
+				for r, w in pipes[1:-2]:
+					close(r)
+					close(w)
