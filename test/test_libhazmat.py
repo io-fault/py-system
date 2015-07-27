@@ -1,49 +1,9 @@
 from .. import libhazmat as lib
+from .. import core
 
 ##
 # Containment
 ##
-
-def test_ContainedReturn(test):
-	c = lib.ContainedReturn((None,))
-	test/c.failed == False
-	test/None == c.contained
-	test/None == c.open()
-	test/None == c()
-
-def test_ContainedException(test):
-	class Foo(Exception):
-		pass
-	exc = Foo('bar')
-	c = lib.ContainedRaise((exc,None,(None,None)))
-	test/c.failed == True
-	test/exc == c.contained
-	test/lib.Containment ^ c.open
-	test/lib.Containment ^ c
-
-def test_Contain(test):
-	rob = object()
-	def job():
-		return rob
-	c = lib.contain(job)
-	test/rob == c.open()
-
-	class Foo(Exception):
-		pass
-	exc = Foo()
-	def job():
-		raise exc
-	c = lib.contain(job)
-	test/c.contained / Foo
-	test/c.contained == exc
-	test/lib.Containment ^ c.open
-	test/lib.Containment ^ c
-
-def test_ContainedContainer(test):
-	inner = lib.Container((None,))
-	outer = lib.Container((inner,))
-	outerouter = lib.Container((outer,))
-	test/True == (outerouter.shed() is inner)
 
 def test_partial(test):
 	return
@@ -79,12 +39,12 @@ def test_chain(test):
 	g2 = G2()
 	next(g2)
 
-	r = lib.chain((g1, g2), lib.contain(lambda: ('initial',)))
+	r = lib.chain((g1, g2), core.contain(lambda: ('initial',)))
 	test/r.open() == ('initial', 'g1', 'g2')
 
 	# check for exception propagation
 	astring = "STRING"
-	r = lib.chain((g1, g2), lib.contain(lambda: astring))
+	r = lib.chain((g1, g2), core.contain(lambda: astring))
 	test/r.failed == True
 	test/r[0] == ME
 	test/r[0].arg == astring
@@ -166,4 +126,4 @@ def test_EQueue_fasten(test):
 
 if __name__ == '__main__':
 	import sys; from ...development import libtest
-	libtest.execute(sys.modules['__name__'])
+	libtest.execute(sys.modules[__name__])

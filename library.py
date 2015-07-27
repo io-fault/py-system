@@ -6,6 +6,12 @@ inconsistent state unless some maintenance is performed during the fork operatio
 fork.library provides interfaces for managing callback sets for resolving inconsistent state
 after a fork operation is performed and control functions to allow for safe main thread
 forking.
+
+In addition to safe forking, the main thread protection allows for immmediate exits to be
+performed when dealing with interrupt signals from the operating system. Considering that
+no significant process machinery should exist there, the interrupt exception can be raised
+so that fork can properly propagate error. Notably, fork uses some of the C libraries to
+return proper status codes for SIGINT killed processes.
 """
 import sys
 import os
@@ -66,7 +72,7 @@ def interject(main_thread_exec, signo = signal.SIGUSR2):
 def clear_atexit_callbacks(pid = None):
 	"""
 	In cases where there may be process dependent callbacks, add this to the
-	@fork_child_callset to clear the callbacks.
+	&fork_child_callset to clear the callbacks.
 	"""
 	if 'atexit' in sys.modules:
 		# It's somewhat uncommon to retain the forked process image,
@@ -497,16 +503,15 @@ def control(main, *args, **kw):
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""
-	concurrently(controller)
+	#!/usr/bin/env eclectic
 
-	:param controller: The object to call.
-	:type controller: :py:class:`collections.Callable`
-	:returns: Reference dispatched result.
-	:rtype: :py:class:`collections.Callable`
+	/controller
+		The object to call to use the child's controller. &collections.Callable
 
 	Dispatch the given controller in a child process of a fork.library controlled process.
 	The returned object is a reference to the result that will block until the child
-	process has written the response to a pipe.
+	process has written the pickled response to a pipe.
+	#!/bin/exit
 	"""
 	if not __control_lock__.locked():
 		raise RuntimeError("main thread is not managed with libfork.control")
@@ -551,6 +556,7 @@ def concurrently(controller, exe = Fork.dispatch):
 
 	return read_child_result
 
+# Public export of kernel.Invocation
 KInvocation = kernel.Invocation
 
 class Pipeline(tuple):
@@ -604,7 +610,7 @@ class PInvocation(tuple):
 	refer to standard input, standard output, and standard error.
 
 	Pipelines of zero commands can be created; it will merely represent a pipe
-	with no standard errors and process identifiers.
+	with no standard errors and no process identifiers.
 	"""
 	__slots__ = ()
 

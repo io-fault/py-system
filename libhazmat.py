@@ -3,9 +3,9 @@ Lower-level interfaces to managing queues, processes, processing threads, and me
 
 libhazmat is, in part, fork's :py:mod:`threading` implementation along with
 other primitives and tools used by forking processes. However, its structure is vastly
-different from :py:mod:`threading` as the class structure is unnecessary for libhazmat's
+different from &threading as the class structure is unnecessary for libhazmat's
 relatively lower-lever applications. The primitives provided mirror many of the
-:py:mod:`_thread` library's functions with minimal or no differences.
+&_thread library's functions with minimal or no differences.
 
 The memory management interfaces exist to support a memory pool for applications
 that need to enforce limits in particular areas. Python's weak references are used
@@ -24,6 +24,7 @@ import signal
 import weakref
 import _thread
 
+from . import core
 from . import system
 
 processing_structure = ('kernel', 'group', 'process', 'thread',)
@@ -53,14 +54,8 @@ def select_fabric(tids):
 	]
 	return r
 
-class Sever(BaseException):
-	"""
-	Exception used to signal thread kills.
-	"""
-	__kill__ = True
-
 #: Kill a thread at the *Python* level.
-def cut_thread(tid, exception = Sever, setexc = system.interrupt):
+def cut_thread(tid, exception = core.Sever, setexc=system.interrupt, pthread_kill=signal.pthread_kill):
 	"""
 	interrupt(thread_id, exception = Sever)
 
@@ -69,7 +64,7 @@ def cut_thread(tid, exception = Sever, setexc = system.interrupt):
 	.. warning:: Cases where usage is appropriate is rare.
 	"""
 	r =  setexc(tid, exc)
-	signal.pthread_kill(tid, signal.SIGINT)
+	pthread_kill(tid, signal.SIGINT)
 	return r
 
 def pull_thread(callable, *args):
@@ -169,8 +164,8 @@ def process_delta(
 
 	The event is one of: 'exit', 'signal', 'stop', 'continue'.
 	The first two mean that the process has been reaped and their `core` field will be
-	:py:obj:`True` or :py:obj:`False` indicating whether or not the process left a coredump
-	behind. If the `core` field is :py:obj:`None`, it's an authoritative statement that
+	&True or &False indicating whether or not the process left a coredump
+	behind. If the `core` field is &None, it's an authoritative statement that
 	the process did not exit.
 
 	The status code is the exit status if an exit event, the signal number that killed or
@@ -200,194 +195,7 @@ def process_delta(
 
 	return (event, status, cored)
 
-class ContainerException(Exception):
-	"""
-	Common containment Exception.
-	"""
-
-class Containment(ContainerException):
-	"""
-	Raised when an open call attempts to access a contained exception.
-
-	:py:attr:`__cause__` contains the original, contained, exception.
-	"""
-
-class ContainerError(ContainerException):
-	'Base class for **errors** involving containers'
-class VoidError(ContainerError):
-	'Raised when access to an absent resource occurs.'
-class NoExceptionError(VoidError):
-	'Raised when a Return is contained, but the Exception was accessed.'
-class NoReturnError(VoidError):
-	'Raised when an Exception is contained, but the Return was accessed.'
-
-##
-# Python Callable Result Containers
-##
-
-class Container(tuple):
-	"""
-	An object that contains either the returned object or the raised exception.
-	"""
-	#: Whether or not the Contained object was raised.
-	__slots__ = ()
-	failed = None
-	contained = property(operator.itemgetter(0), doc = 'The contained object.')
-
-	_fields = ('contained',)
-	@property
-	def __dict__(self, OrderedDict = collections.OrderedDict, _fields = _fields):
-		return OrderedDict(zip(_fields, self))
-
-	def self(self):
-		"""
-		Return the container itself; useful for cases where a reference is needed.
-		"""
-		return self
-
-	def shed(self):
-		"""
-		Given an object contained within a container, return the innermost
-		*Container*.
-		"""
-		c = self
-		while isinstance(c.contained, Container):
-			c = c.contained
-		return c
-
-	def open(self):
-		"""
-		Open the container with the effect that the original Contained callable
-		would have. If the contained object was raised as an exception, raise the
-		exception. If the contained object the object returned by the callable,
-		return the contained object.
-		"""
-		raise VoidError(self)
-	__call__ = open
-
-	def inject(self, generator):
-		"""
-		Given an object supporting the generator interface, `throw` or `send` the
-		contained object based on the Container's
-		:py:attr:`Container.failed` attribute.
-		"""
-		raise VoidError()
-
-	def exception(self):
-		"""
-		Open the container returning the exception raised by the Contained
-		callable.
-
-		An exception, :py:class:`.VoidError`, is raised iff the
-		Contained object is not an exception-result.
-		"""
-		raise VoidError()
-
-	def returned(self):
-		"""
-		Open the container returning the object returned by the Contained
-		callable.
-
-		An exception, :py:class:`.VoidError`, is raised iff the
-		Contained object is not a return-result.
-		"""
-		raise VoidError()
-
-	def endpoint(self, callback):
-		"""
-		Give the container to the callback.
-
-		This method exists explicitly to provide interface consistency with Deliveries.
-		Rather than conditionally checking what was returned by a given function that
-		may be deferring subsequent processing, a container can be returned and immediately
-		passed to the next call.
-		"""
-		return callback(self)
-
-class ContainedReturn(Container):
-	"""
-	The Container type a return-result.
-
-	See :py:class:`Container` for details.
-	"""
-	__slots__ = ()
-	failed = False
-
-	def open(self):
-		return self[0]
-	returned = open
-	__call__ = open
-
-	def exception(self):
-		raise NoExceptionError(self)
-
-	def inject(self, generator):
-		return generator.send(self[0])
-
-class ContainedRaise(Container):
-	"""
-	The Container type for an exception-result.
-
-	See :py:class:`Container` for details.
-	"""
-	__slots__ = ()
-	failed = True
-
-	def _prepare(self):
-		contained_exception, traceback, why = self
-		contained_exception.__traceback__ = traceback
-		contained_exception.__cause__, contained_exception.__context__ = why
-		contained = Containment()
-		contained.container = self
-		contained.__cause__ = contained_exception
-		return (contained, contained_exception)
-
-	def open(self):
-		containment, contained_exception = self._prepare()
-		raise containment from contained_exception # opened a contained raise
-	__call__ = open
-
-	def returned(self):
-		raise NoReturnError(self.contained)
-
-	def exception(self):
-		return self[0]
-
-	def inject(self, generator):
-		contained, contained_exception = self._prepare()
-		self.__class__ = Container
-		generator.throw(Contained, contained, None)
-
-def contain(callable, *args,
-	ContainedReturn = ContainedReturn,
-	ContainedRaise = ContainedRaise,
-	BaseException = BaseException,
-	getattr = getattr
-):
-	"""
-	contain(callable, *args)
-
-	:param callable: The object to call with the given arguments.
-	:type callable: :py:class:`collections.Callable`
-	:param args: The positional arguments to pass on to `callable`.
-	:returns: The Contained result.
-
-	Construct and return a Container suitable for the fate of the given
-	callable executed with the given arguments.
-
-	The given callable is only provided with positional parameters. In cases
-	where keywords need to be given, :py:class:`functools.partial` should be used prior to
-	calling `contain`.
-	"""
-	try:
-		return ContainedReturn((callable(*args),None,None)) ### Exception was Contained ###
-	except BaseException as exc:
-		# *All* exceptions are trapped here, save kills.
-		if getattr(exc, '__kill__', None) is True:
-			raise
-		return ContainedRaise((exc,exc.__traceback__,(exc.__cause__,exc.__context__)))
-
-def chain(iterable, initial, contain = contain):
+def chain(iterable, initial, contain = core.contain):
 	"""
 	chain(iterable, initial)
 
@@ -524,7 +332,7 @@ class Transition(object):
 
 	In terms of Python's threading library, Transitions would
 	be the kind of synchronization mechanism used to implement
-	:py:meth:`threading.Thread.join`
+	&threading.Thread.join
 	"""
 	__slots__ = ('mutex', 'container')
 
@@ -559,7 +367,7 @@ class Transition(object):
 		self.container = container
 		mutex.release()
 
-	def relay(self, callable, *args, contain = contain):
+	def relay(self, callable, *args, contain = core.contain):
 		return self.endpoint(contain(callable, *args))
 
 class EQueue(object):
