@@ -1,21 +1,17 @@
-from .. import libhazmat as lib
 from .. import core
-
-##
-# Containment
-##
+from .. import libhazmat as library
 
 def test_partial(test):
 	return
 
 	def foo(bar):
 		return "meh" + bar
-	fooref = lib.partial(foo, "foo")
+	fooref = library.partial(foo, "foo")
 	test/fooref().open() == "mehfoo"
 
 	def raises(bar):
 		raise Exception(bar)
-	fooref = lib.partial(raises, "msg")
+	fooref = library.partial(raises, "msg")
 	test/fooref().failed == True
 	test/fooref().exception() != None
 	test/str(fooref().exception()) == "msg"
@@ -39,18 +35,18 @@ def test_chain(test):
 	g2 = G2()
 	next(g2)
 
-	r = lib.chain((g1, g2), core.contain(lambda: ('initial',)))
+	r = library.chain((g1, g2), core.contain(lambda: ('initial',)))
 	test/r.open() == ('initial', 'g1', 'g2')
 
 	# check for exception propagation
 	astring = "STRING"
-	r = lib.chain((g1, g2), core.contain(lambda: astring))
+	r = library.chain((g1, g2), core.contain(lambda: astring))
 	test/r.failed == True
 	test/r[0] == ME
 	test/r[0].arg == astring
 
 def test_Delivery(test):
-	D = lib.Delivery()
+	D = library.Delivery()
 	test/TypeError ^ D.commit
 	receiver = []
 	D.endpoint(receiver.append)
@@ -59,7 +55,7 @@ def test_Delivery(test):
 	test/receiver[0] == pkg
 
 	# now where the package comes before the address
-	D = lib.Delivery()
+	D = library.Delivery()
 	receiver = []
 	pkg = 'pkg'
 	D.send(pkg)
@@ -68,7 +64,7 @@ def test_Delivery(test):
 	test/receiver[0] == pkg
 
 def test_Switch(test):
-	s = lib.Switch()
+	s = library.Switch()
 	cell = []
 	def inc():
 		cell.append(1)
@@ -81,7 +77,7 @@ def test_Switch(test):
 	test/sum(cell) == 0
 
 def test_EQueue(test):
-	q = lib.EQueue()
+	q = library.EQueue()
 	events = []
 	def getevent(x):
 		events.append(('get', x))
@@ -113,8 +109,8 @@ def test_EQueue(test):
 
 def test_EQueue_fasten(test):
 	sink = []
-	source = lib.EQueue()
-	terminal = lib.EQueue()
+	source = library.EQueue()
+	terminal = library.EQueue()
 	terminal.get(sink.append)
 
 	terminal.fasten(source)
