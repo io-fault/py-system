@@ -308,9 +308,9 @@ class Interruption(Control):
 
 class Fork(Control):
 	"""
-	@Control exception used to signal @Fork.trap to replace the existing managed call.
+	&Control exception used to signal @Fork.trap to replace the existing managed call.
 
-	Usual case is that a @Fork.trap call is made on the main thread where other threads are
+	Usual case is that a &Fork.trap call is made on the main thread where other threads are
 	created to run the actual program. Given that the program is finished and another should be ran
 	*as if the current program were never ran*, the @Control exception can be raised in the
 	main thread replacing the initial callable given to @Fork.trap.
