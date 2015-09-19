@@ -106,32 +106,41 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 		PyLoop_End(fdmap)
 	}
 
-	if (inherits != NULL)
-	{
-		PyObj fdo;
-		int fd, r;
-
-		PyLoop_ForEach(inherits, &fdo)
+	#if __DARWIN__
+		/* Might remove this due to portability issues. */
+		if (inherits != NULL)
 		{
-			fd = PyLong_AsLong(fdo);
-			if (fd == -1 && PyErr_Occurred())
-				break;
+			PyObj fdo;
+			int fd, r;
 
-			r = posix_spawn_file_actions_addinherit_np(&fa, fd);
-
-			if (r != 0)
+			PyLoop_ForEach(inherits, &fdo)
 			{
-				PyErr_SetFromErrno(PyExc_OSError);
-				break;
+				fd = PyLong_AsLong(fdo);
+				if (fd == -1 && PyErr_Occurred())
+					break;
+
+				r = posix_spawn_file_actions_addinherit_np(&fa, fd);
+
+				if (r != 0)
+				{
+					PyErr_SetFromErrno(PyExc_OSError);
+					break;
+				}
 			}
+			PyLoop_CatchError(inherits)
+			{
+				posix_spawn_file_actions_destroy(&fa);
+				return(NULL);
+			}
+			PyLoop_End(fdmap)
 		}
-		PyLoop_CatchError(inherits)
+	#else
+		if (inherits != NULL)
 		{
-			posix_spawn_file_actions_destroy(&fa);
-			return(NULL);
+			PyErr_SetString(PyExc_TypeError, "inherits only supported on Darwin");
+			return(NULL)
 		}
-		PyLoop_End(fdmap)
-	}
+	#endif
 
 	/*
 	 * run the spawn
