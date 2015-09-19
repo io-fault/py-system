@@ -3,6 +3,7 @@
  */
 #include <pthread.h>
 #include <frameobject.h>
+#include <signal.h>
 
 static PyObj libfork = NULL;
 
