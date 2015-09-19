@@ -12,8 +12,8 @@ struct Invocation {
 typedef struct Invocation *Invocation;
 
 #define SPAWN_ATTRIBUTES() \
-	SA(POSIX_SPAWN_SETPGROUP, set_process_group) \
-	SA(POSIX_SPAWN_SETSIGMASK, set_signal_mask) \
+	SA(POSIX_SPAWN_SETPGROUP, set_process_group, posix_spawnattr_setpgroup) \
+	SA(POSIX_SPAWN_SETSIGMASK, set_signal_mask, posix_spawnattr_setsigmask) \
 	SA(POSIX_SPAWN_SETSIGDEF, set_signal_defaults)
 
 #define APPLE_SPAWN_EXTENSIONS() \
@@ -33,7 +33,9 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 {
 	int r;
 	pid_t child = 0;
-	static char *kwlist[] = {"fdmap", "inherit", NULL,};
+	pid_t pgrp = -1;
+	short flags = 0;
+	static char *kwlist[] = {"fdmap", "inherit", "process_group", NULL,};
 
 	PyObj fdmap = NULL;
 	PyObj inherits = NULL;
@@ -42,10 +44,38 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 
 	Invocation inv = (Invocation) self;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "|OO", kwlist, &fdmap, &inherits))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "|OOi", kwlist, &fdmap, &inherits, &pgrp))
 		return(NULL);
 
 	if (posix_spawn_file_actions_init(&fa) != 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	/*
+	 * Modify attributes per-invocation.
+	 * Attributes like process group need to be per-invocation.
+	 */
+
+	if (posix_spawnattr_getflags(&(inv->invocation_spawnattr), &flags))
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	if (pgrp >= 0)
+	{
+		flags |= POSIX_SPAWN_SETPGROUP;
+		posix_spawnattr_setpgroup(&(inv->invocation_spawnattr), 0);
+	}
+	else
+	{
+		flags &= ~POSIX_SPAWN_SETPGROUP;
+		posix_spawnattr_setpgroup(&(inv->invocation_spawnattr), 0);
+	}
+
+	if (posix_spawnattr_setflags(&(inv->invocation_spawnattr), flags))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
@@ -146,6 +176,12 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "s#|OO", kwlist, &path, &pathlen, &cargs, &env))
 		return(NULL);
 
+	if (env != NULL && !PyDict_Check(env))
+	{
+		PyErr_SetString(PyExc_TypeError, "environ keyword requires a dictionary type");
+		return(NULL);
+	}
+
 	rob = subtype->tp_alloc(subtype, 0);
 	inv = (Invocation) rob;
 	if (inv == NULL)
@@ -186,14 +222,21 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	/*
 	 * Environment
 	 */
-	if (env != NULL)
+	if (env == NULL || env == Py_None)
+	{
+		inv->invocation_environ = malloc(sizeof(char *));
+		inv->invocation_environ[0] = NULL;
+	}
+	else
 	{
 		unsigned long k = 0;
-		Py_ssize_t keysize, valuesize, dl = PyDict_Size(kw);
+		Py_ssize_t keysize, valuesize, dl;
 		char *key, *value;
 		char **envp;
 
-		envp = inv->invocation_environ = malloc(sizeof(void *) * ((2*dl) + 1));
+		dl = PyDict_Size(env);
+		envp = inv->invocation_environ = malloc(sizeof(char *) * (dl + 1));
+
 		if (envp == NULL)
 		{
 			PyErr_SetFromErrno(PyExc_OSError);
@@ -204,17 +247,19 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		{
 			PyLoop_ForEachDictItem(env, "s#s#", &key, &keysize, &value, &valuesize)
 			{
-				envp[k] = malloc(keysize);
-				strncpy(envp[k], key, keysize);
-
-				k += 1;
-				envp[k] = malloc(valuesize);
-				strncpy(envp[k], value, valuesize);
-
+				register int size = keysize+valuesize+2;
+				envp[k] = malloc(size);
+				snprintf(envp[k], size, "%s=%s\0", key, value);
 				k += 1;
 			}
 			PyLoop_CatchError(env)
 			{
+				/*
+				 * Python Exceptions will only occur at start of loop,
+				 * so the 'k' index will be the last.
+				 */
+				envp[k] = NULL;
+
 				Py_DECREF(rob);
 				return(NULL);
 			}
