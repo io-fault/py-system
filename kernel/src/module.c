@@ -138,7 +138,7 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 		if (inherits != NULL)
 		{
 			PyErr_SetString(PyExc_TypeError, "inherits only supported on Darwin");
-			return(NULL)
+			return(NULL);
 		}
 	#endif
 
