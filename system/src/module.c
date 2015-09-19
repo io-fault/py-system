@@ -103,11 +103,14 @@ parent(void)
 	forking_pipe[1] = -1;
 	pthread_mutex_unlock(&forking_mutex);
 
-retry:
-	if (Py_AddPendingCall(_after_fork_parent, (void *) fork_data.process_id))
+	retry:
 	{
-		goto retry;
+		if (Py_AddPendingCall(_after_fork_parent, (void *) fork_data.process_id))
+		{
+			goto retry;
+		}
 	}
+
 	fork_data.process_id = -1;
 }
 
@@ -140,10 +143,12 @@ child(void)
 	forking_pipe[1] = -1;
 	pthread_mutex_unlock(&forking_mutex);
 
-retry:
-	if (Py_AddPendingCall(_after_fork_child, NULL))
+	retry:
 	{
-		goto retry;
+		if (Py_AddPendingCall(_after_fork_child, NULL))
+		{
+			goto retry;
+		}
 	}
 }
 
