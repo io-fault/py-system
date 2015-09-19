@@ -22,6 +22,7 @@ import contextlib
 from . import system
 from . import kernel
 from . import libhazmat
+from . import core
 
 # Lock held when @control is managing the main thread.
 __control_lock__ = libhazmat.create_knot()
@@ -59,13 +60,17 @@ fork_child_callset = set()
 # was managed by @fork.library.
 fork_child_cleanup = set()
 
-def interject(main_thread_exec, signo = signal.SIGUSR2):
+def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	"""
 	Trip the main thread by sending the process a SIGUSR2 signal in order to cause any
 	running system call to exit early. Used in conjunction with
-	@system.interject
+	&system.interject
 	"""
-	__interject_lock__.acquire() # One interjection at a time.
+
+	if replacement:
+		# One interjection at a time if replacing.
+		__interject_lock__.acquire()
+
 	system.interject(main_thread_exec) # executed in main thread
 	os.kill(current_process_id, signo)
 
@@ -88,9 +93,12 @@ def clear_atexit_callbacks(pid = None):
 ##
 # These are invoked by AddPendingCall.
 def _after_fork_parent(child_pid):
+	global __fork_knot__
+
 	if not __fork_knot__.locked():
 		# Don't perform related duties unless the fork() was managed by libfork.
 		return
+
 	try:
 		for after_fork_in_parent_task in fork_parent_callset:
 			after_fork_in_parent_task(child_pid)
@@ -98,7 +106,8 @@ def _after_fork_parent(child_pid):
 		__fork_knot__.release()
 
 def _after_fork_child():
-	global parent_process_id, current_process_id
+	global parent_process_id, current_process_id, __fork_knot__
+
 	# Unconditionally update this data.
 	parent_process_id = current_process_id
 	current_process_id = os.getpid()
@@ -108,6 +117,7 @@ def _after_fork_child():
 		for after_fork_in_child_task in fork_child_cleanup:
 			after_fork_in_child_task()
 	else:
+
 		try:
 			for after_fork_in_child_task in fork_child_cleanup:
 				after_fork_in_child_task()
@@ -120,19 +130,52 @@ def _after_fork_child():
 class SystemExit(SystemExit):
 	"""
 	Extension of SystemExit for use with interjections.
+
+	/exiting_with_information
+		Exit code indicating the type of information presented on standard error.
+		Indicates that the standard error contains help output.
+
+	/exiting_for_termination
+		Exit code indicating that the daemon was signalled to shutdown
+		by an administrative function.
+
+	/exiting_for_restart
+		Code used to communicate to the parent that it should be restarted.
+		Primarily used by forking daemons to signal the effect of its exit
+		without maintaining specific context.
+
+		Parent processes should, naturally, restart the process when this
+		code is used; usually it is used for automatic process cycling.
+
+	/exiting_for_reduction
+		Essentially exiting for termination, but gives a clear indicator
+		about the purpose of the exit. Used by forking processes to
+		indicate that the exit is purposeful and should essentially be ignored.
+
+	/exiting_by_exception
+		Code used to communicate that the process exited due to an exception.
+		Details *may* be written standard error.
+		Essentially, this is a runtime coredump.
+
+	/exiting_by_signal_status
+		&Invocation exit status code used to indicate that the
+		process will exit using a signal during &atexit(2).
+		The calling process will *not* see this code. Internal indicator.
+
+	/exiting_by_default_status
+		&Invocation exit status code used to indicate that the
+		the process failed to explicitly note status.
 	"""
-	#: :py:class:`Execution` exit status code used to indicate that the
-	#: process will exit using a signal during :manpage:`atexit(2)`.
-	#: The calling process will *not* see this code. Internal indicator.
+
+	exiting_with_information = 200
+
+	exiting_for_termination = 240
+	exiting_for_restart = 241
+	exiting_for_reduction = 242
+
+	exiting_by_exception = 253
 	exiting_by_signal_status = 254
-
-	#: :py:class:`Execution` exit status code used to indicate that the
-	#: the process failed to explicitly note status.
 	exiting_by_default_status = 255
-
-	# Exit code indicating the type of information presented on standard error.
-	# Indicates that the standard error contains help output.
-	exiting_with_information = 100
 
 	def raised(self):
 		raise self
@@ -145,6 +188,7 @@ class Invocation(object):
 
 	For system invocation, the &parameters dictionary will have two entries by default
 	"""
+
 	def __init__(self, exit_method, context = None):
 		self.exit_method = exit_method
 		self.parameters = {}
@@ -154,6 +198,7 @@ class Invocation(object):
 		"""
 		Perform the exit method designated during the initialization of the invocation.
 		"""
+
 		self.exit_method(result)
 
 	@classmethod
@@ -162,6 +207,7 @@ class Invocation(object):
 		Create an instance representing that of the invocation from the operating
 		system. Primarily, information is retrieved from the @sys and @os module.
 		"""
+
 		r = Class(Class.system_exit_method, context = context)
 		r.parameters['type'] = 'system'
 
@@ -180,6 +226,7 @@ class Invocation(object):
 					local[x] = os.environ[x]
 
 		r.exit_method = Class.system_exit_method
+
 		return r
 
 	@classmethod
@@ -187,6 +234,7 @@ class Invocation(object):
 		"""
 		A means of exit used with a @Fork.trap managed process.
 		"""
+
 		interject(SystemExit(exit_status).raised)
 
 class Control(BaseException):
@@ -195,6 +243,7 @@ class Control(BaseException):
 
 	This is a control exception inheriting from @BaseException. It should not be trapped.
 	"""
+
 	__kill__ = None
 
 	def raised(self):
@@ -209,6 +258,7 @@ class Panic(Control):
 
 	This is a control exception inheriting from @BaseException. It should not be trapped.
 	"""
+
 	__kill__ = True
 
 class Interruption(Control):
@@ -219,6 +269,7 @@ class Interruption(Control):
 	Primarily used to cause signal exit codes that are usually masked with
 	@KeyboardInterrupt.
 	"""
+
 	__kill__ = True
 
 	def __init__(self, type, signo = None):
@@ -308,15 +359,19 @@ class Interruption(Control):
 
 class Fork(Control):
 	"""
-	&Control exception used to signal @Fork.trap to replace the existing managed call.
+	&Control exception used to signal &Fork.trap to replace the existing managed call.
 
 	Usual case is that a &Fork.trap call is made on the main thread where other threads are
 	created to run the actual program. Given that the program is finished and another should be ran
-	*as if the current program were never ran*, the @Control exception can be raised in the
-	main thread replacing the initial callable given to @Fork.trap.
+	*as if the current program were never ran*, the &Control exception can be raised in the
+	main thread replacing the initial callable given to &Fork.trap.
 
 	The exception should only be used through the provided classmethods.
+
+	This exception should never be displayed in a traceback as it is intended to be caught
+	by &Fork.trap.
 	"""
+
 	__controlled_thread_id__ = None
 
 	def __init__(self, controller, *args, **kw):
@@ -330,7 +385,7 @@ class Fork(Control):
 	def pivot(self, T, fork = os.fork):
 		pid = fork()
 		# Unconditionally perform the transition, it doesn't matter.
-		T.endpoint(libhazmat.ContainedReturn((pid,)))
+		T.endpoint(core.ContainedReturn((pid,)))
 		if pid == 0:
 			# In the child, raise the Fork() exception
 			# to trigger pivot's replacement functionality.
@@ -352,19 +407,28 @@ class Fork(Control):
 	@classmethod
 	def dispatch(Class, controller, *args, **kw):
 		"""
-		dispatch(controller, *args, **kw)
+		[Parameters]
 
-		:param controller: The object that will be called in the clone.
-		:param args: Arguments given to the callable.
-		:param kw: Keywords given to the callable.
-		:returns: The child process' PID.
-		:rtype: :py:class:`int`
+		/controller
+			The object that will be called in the clone.
+		/args
+			Arguments given to the callable.
+		/kw
+			Keywords given to the callable.
+
+		[Return]
+
+		The child process' PID.
+
+		[Description]
 
 		Execute the given callable with the given arguments in a child process.
 		This performs an @interject call. Given that @pivot was called to execute the
 		program, the pivot function will catch the exception, in the child, and
 		execute the replacement.
 		"""
+		global interject
+
 		fcontroller = Class(controller, *args, **kw)
 
 		# Don't bother with the interjection if we're dispatching from the main thread.
@@ -384,7 +448,7 @@ class Fork(Control):
 			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
 			__fork_knot__.acquire() # Released by atfork handler.
-			interject(transitioned_pivot) # .fork.library.Fork.dispatch
+			interject(transitioned_pivot, replacement=False) # .fork.library.Fork.pivot
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
 			return T.commit()
@@ -404,11 +468,12 @@ class Fork(Control):
 			Due to the varying global process state that may exist in a given process, it
 			is often better to start a new Python instance.
 		"""
+
 		while True:
 			Class.__controlled_thread_id__ = libhazmat.identify_thread()
 			try:
 				if not __interject_lock__.locked():
-					raise Panic("interjection knot not configured")
+					raise Panic("interjection lock not configured")
 				try:
 					__interject_lock__.release()
 					return controller(*args, **kw) # Process replacement point.
@@ -426,7 +491,7 @@ class Fork(Control):
 
 def critical(context, callable, *args, **kw):
 	"""
-	A Callable used to trap exceptions and interject a @Panic instance caused by the
+	A Callable used to trap exceptions and interject a &Panic instance caused by the
 	original.
 
 	For example::
@@ -450,7 +515,7 @@ def critical(context, callable, *args, **kw):
 
 		if __control_lock__.locked():
 			raise_panic = ce.raised
-			system.interject(raise_panic) # .fork.library.critical
+			interject(raise_panic) # .fork.library.critical
 		else:
 			raise ce
 
@@ -458,7 +523,7 @@ def protect(*init, looptime = 8):
 	"""
 	Perpetually protect the main thread.
 
-	Used by @control to hold the main thread in @Fork.trap.
+	Used by &control to hold the main thread in &Fork.trap.
 	"""
 	import time
 	global current_process_id, parent_process_id
@@ -478,15 +543,14 @@ def protect(*init, looptime = 8):
 
 def control(main, *args, **kw):
 	"""
-	control(main, *args, **kw)
-
 	A program that calls this is making an explicit declaration that signals should be
 	defaulted and the main thread should be protected from uninterruptable calls to allow
 	prompt process exits.
 
-	The given @main is executed with the given positionals @args and keywords @kw inside
-	of a @Fork.trap call. @Fork handles formal exits and main-call substitution.
+	The given &main is executed with the given positionals &args and keywords &kw inside
+	of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
 	"""
+
 	# Registers the atfork functions.
 	system.initialize(sys.modules[__name__])
 
@@ -503,8 +567,6 @@ def control(main, *args, **kw):
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""
-	#!/usr/bin/env eclectic
-
 	/controller
 		The object to call to use the child's controller. &collections.Callable
 
