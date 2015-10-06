@@ -1,3 +1,4 @@
+# XXX: Move to computation
 import operator
 import collections
 
@@ -21,10 +22,13 @@ class Containment(ContainerException):
 
 class ContainerError(ContainerException):
 	'Base class for **errors** involving containers'
+
 class VoidError(ContainerError):
 	'Raised when access to an absent resource occurs.'
+
 class NoExceptionError(VoidError):
 	'Raised when a Return is contained, but the Exception was accessed.'
+
 class NoReturnError(VoidError):
 	'Raised when an Exception is contained, but the Return was accessed.'
 
@@ -193,32 +197,3 @@ def contain(callable, *args,
 		if getattr(exc, '__kill__', None) is True:
 			raise
 		return ContainedRaise((exc,exc.__traceback__,(exc.__cause__,exc.__context__)))
-
-def compose(*args,
-		str=str, len=len, dict=dict, zip=zip, exec=exec,
-		_model = ("def COMPOSITION(x,", "):\n\treturn ")
-	):
-	'return a composition of the given callable arguments'
-
-	# not necessary, but let's avoid creating superfluous
-	# function objects for compose() and compose(f)
-	nargs = len(args)
-
-	if not nargs:
-		# no transformation is a reflection
-		return (lambda x: x)
-	elif nargs == 1:
-		# not composition necessary
-		return args[0]
-
-	names = ['f' + str(i) for i in range(nargs)]
-	locals = dict(zip(names, args))
-	code = _model[0] + ','.join(['='.join((y,y)) for y in names]) + _model[1]
-	code = code + '('.join(names) + '(x)' + (')' * (nargs-1))
-	locals['__name__'] = "<function-composition>"
-	exec(code, locals, locals)
-	composition = locals["COMPOSITION"]
-	composition.transforms = args
-	return composition
-
-
