@@ -1,7 +1,5 @@
 """
-⛔️ about
--------
-
-fork is a Python project that provides fundamentals for managing a Python process.
+fork is a project that provides UNIX process management for Python applications.
 """
+
 __pkg_bottom__ = True # Use this to detect the root package module of a project.

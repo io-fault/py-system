@@ -4,10 +4,10 @@ from .. import libhazmat as library
 def test_partial(test):
 	return
 
-	def foo(bar):
-		return "meh" + bar
-	fooref = library.partial(foo, "foo")
-	test/fooref().open() == "mehfoo"
+	def func(param):
+		return "meh" + param
+	funcref = library.partial(func, "func")
+	test/funcref().open() == "mehfunc"
 
 	def raises(bar):
 		raise Exception(bar)

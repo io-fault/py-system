@@ -388,8 +388,11 @@ PyDoc_STRVAR(invocation_doc,
 	"path, command arguments sequence, and optional environment variables.\n"
 	"Once created, the invocation can be reused with different sets of file descriptors for\n"
 	"managing standard input, output, and error.\n\n"
+
+	"#!/pl/python\n"
 	"\tinv = kernel.Invocation(command_path, (command_argument, ...), envkey1=value, ..., envkeyN=value)\n"
 	"\tpid = inv((pipe_read_side, 0), (pipe_write_side_stdout, 1), (pipe_write_side_stderr, 2))\n"
+
 	"This designated object for invocation improves performance of repeat invocations by avoiding repeat conversion.\n"
 );
 
@@ -463,8 +466,6 @@ METHODS() = {
 	{"set_process_title",
 		(PyCFunction) set_process_title, METH_O,
 		PyDoc_STR(
-			":returns: None\n"
-			"\n"
 			"Set the process title on supporting platforms."
 		)
 	},

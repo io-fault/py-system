@@ -1,7 +1,7 @@
 """
 Lower-level interfaces to managing queues, processes, processing threads, and memory.
 
-libhazmat is, in part, fork's :py:mod:`threading` implementation along with
+libhazmat is, in part, fork's &threading implementation along with
 other primitives and tools used by forking processes. However, its structure is vastly
 different from &threading as the class structure is unnecessary for libhazmat's
 relatively lower-lever applications. The primitives provided mirror many of the
@@ -58,11 +58,17 @@ def select_fabric(tids):
 #: Kill a thread at the *Python* level.
 def cut_thread(tid, exception = core.Sever, setexc=system.interrupt, pthread_kill=signal.pthread_kill):
 	"""
-	interrupt(thread_id, exception = Sever)
-
 	Raise the given exception in the thread with the given identifier.
 
-	.. warning:: Cases where usage is appropriate is rare.
+	! WARNING:
+		Cases where usage is appropriate is rare.
+
+	[ Parameters ]
+
+	/tid
+		The thread's low-level identifier to interrupt.
+	/exception
+		The exception that is raised in the thread.
 	"""
 	r =  setexc(tid, exc)
 	pthread_kill(tid, signal.SIGINT)
@@ -70,8 +76,7 @@ def cut_thread(tid, exception = core.Sever, setexc=system.interrupt, pthread_kil
 
 def pull_thread(callable, *args):
 	"""
-	:returns: Reference to the :py:class:`Contained` result.
-	:rtype: Callable
+	Returns reference to the &Contained result.
 
 	Execute a callable in a new thread returning a (callable) reference to
 	the contained result. When the returned object is called, a mutex will
@@ -81,7 +86,7 @@ def pull_thread(callable, *args):
 	occur while waiting on another result, ideally a system call that will
 	allow the dispatching-thread to run.
 
-	In :py:mod:`threading` terms, this is equivalent to creating and running a new thread
+	In &threading terms, this is equivalent to creating and running a new thread
 	and joining it back into calling thread.
 	"""
 	t = Transition()
@@ -156,13 +161,6 @@ def process_delta(
 	options = os.WNOHANG | os.WUNTRACED,
 ):
 	"""
-	process_delta(pid)
-
-	:param pid: The process identifier to reap.
-	:type pid: :py:class:`int`
-	:returns: (pid, event, status, core)
-	:rtype: tuple or None
-
 	The event is one of: 'exit', 'signal', 'stop', 'continue'.
 	The first two mean that the process has been reaped and their `core` field will be
 	&True or &False indicating whether or not the process left a coredump
@@ -170,7 +168,14 @@ def process_delta(
 	the process did not exit.
 
 	The status code is the exit status if an exit event, the signal number that killed or
-	stopped the process, or None in the case of continue.
+	stopped the process, or None in the case of *continue* event.
+
+	Returns (pid, event, status, core) or &None.
+
+	[ Parameters ]
+
+	/pid
+		The process identifier to reap.
 	"""
 	try:
 		_, code = waitpid(pid, options)
@@ -198,13 +203,6 @@ def process_delta(
 
 def chain(iterable, initial, contain = core.contain):
 	"""
-	chain(iterable, initial)
-
-	:param iterable: The generators to connect.
-	:type iterable: :py:class:`collections.Iterable`
-	:param initial: The initial Container to give to the first generator.
-	:type initial: :py:class:`Container`
-
 	Given an iterable of generators, send or throw the Contained result into the
 	next, returning the last container result.
 
@@ -212,7 +210,17 @@ def chain(iterable, initial, contain = core.contain):
 	generator, not Containment. Chain discard the Container leaving
 	little possibility of another open mangling the traceback.
 
-	.. note:: The `initial` container given should not be used again.
+	! NOTE:
+		The `initial` container given should not be used again.
+
+	[ Parameters ]
+	chain(iterable, initial)
+
+	/&iterable
+		The generators to connect. &collection.Iterable
+	/&initial
+		The initial Container to give to the first generator.
+		&Container
 	"""
 
 	param = initial
@@ -238,7 +246,8 @@ class Delivery(object):
 	depends on a subsequent event. The event is received by an object
 	controlled or known by the called function, but not the caller.
 
-	.. note:: Connecting deliveries with Joins is a powerful combination.
+	! NOTE:
+		Connecting deliveries with Joins is a powerful combination.
 	"""
 	__slots__ = ('callback', 'container')
 
@@ -250,8 +259,7 @@ class Delivery(object):
 		"""
 		Deliver the given arguments to the designated endpoint.
 		If there is no endpoint, hold onto the arguments until a corresponding
-		:py:meth:`endpoint` call is performed allowing
-		delivery to be committed.
+		&endpoint call is performed allowing delivery to be committed.
 		"""
 		self.container = container
 		if self.callback is not None:
@@ -259,10 +267,9 @@ class Delivery(object):
 
 	def endpoint(self, callback):
 		"""
-		Specify the given `callback` as the designated endpoint.
-		If there is no package, hold onto the `callback` until a corresponding
-		:py:meth:`send` call is performed allowing
-		delivery to be committed.
+		Specify the given &callback as the designated endpoint.
+		If there is no package, hold onto the &callback until a corresponding
+		&send call is performed allowing delivery to be committed.
 		"""
 		self.callback = callback
 		if self.container is not None:
@@ -278,10 +285,11 @@ class Switch(object):
 	A queue that manages callbacks that are invoked when a given
 	callback reached the head of the queue.
 
-	Using @create_knot in combination with join
+	Using &create_knot in combination with join
 	is a great way to manage continuations based on exclusive access.
 
-	.. warning:: Do not use.
+	! WARNING:
+		Do not use.
 	"""
 	__slots__ = ('_current', '_waiters',)
 
@@ -291,8 +299,7 @@ class Switch(object):
 
 	def acquire(self, callback):
 		"""
-		:returns: Whether or not it was **immediately** acquired.
-		:rtype: :py:class:`bool`
+		Return boolean on whether or not it was **immediately** acquired.
 		"""
 		self._waiters.append(callback)
 		# At this point, if there is a _current,
@@ -306,8 +313,8 @@ class Switch(object):
 
 	def release(self):
 		"""
-		:returns: Whether or not the Switch was released **to another controller**.
-		:rtype: :py:class:`bool`
+		Returns boolean on whether or not the Switch was
+		released **to another controller**.
 		"""
 		if self._current is not None:
 			if not self._waiters:
@@ -386,7 +393,8 @@ class EQueue(object):
 	By using "NULL" items, a the source of items can identify that
 	the receptor is looking to retrieve more information.
 
-	.. warning:: get and put operations are **not** thread safe.
+	! WARNING:
+		Get and put operations are **not** thread safe.
 	"""
 	__slots__ = ('state', 'struct')
 
@@ -435,10 +443,11 @@ class EQueue(object):
 
 	def fasten(self, src):
 		"""
-		Fasten two :py:class:`Queue` instances together sending items from
+		Fasten two &Queue instances together sending items from
 		the source to the destination.
 
-		.. warning:: Currently, there is no way to terminate a connection.
+		! WARNING:
+			Currently, there is no way to terminate a connection.
 
 		Often, if possible, it is better to replace the destination queue with
 		the source. This provides the desired functionality without the extra

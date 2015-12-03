@@ -312,26 +312,40 @@ initialize(PyObj mod, PyObj ctx)
 }
 
 METHODS() = {
-	{"interrupt", (PyCFunction) interrupt, METH_VARARGS, PyDoc_STR(
-"Interrupt a Python *thread* with the given exception.")},
-
-	{"interject", (PyCFunction) interject, METH_O, PyDoc_STR(
-"Interject the callable in the *main thread* using Py_AddPendingCall. Usually, the called object should dispatch a task.")},
-
-	{"trace", (PyCFunction) trace, METH_VARARGS, PyDoc_STR(
-"Apply the trace function to the given thread identifiers. Normally used by Context injections that take over the process for debugging.")},
-
-	{"exit_by_signal",
-		(PyCFunction) exit_by_signal, METH_O,
+	{"interrupt", (PyCFunction) interrupt, METH_VARARGS,
 		PyDoc_STR(
-":returns: None\n"
-"\n"
-"Register an :manpage:`atexit(2)` handler that causes the process to exit with the given signal number.\n"
-"This may only be called once per-process."
-)},
+			"Interrupt a Python *thread* with the given exception."
+		)
+	},
 
-	{"initialize", (PyCFunction) initialize, METH_O, PyDoc_STR("Configure the module to use for fork callbacks.")},
+	{"interject", (PyCFunction) interject, METH_O,
+		PyDoc_STR(
+			"Interject the callable in the *main thread* using Py_AddPendingCall. "
+			"Usually, the called object should dispatch a task."
+		)
+	},
 
+	{"trace", (PyCFunction) trace, METH_VARARGS,
+		PyDoc_STR(
+			"Apply the trace function to the given thread identifiers. "
+			"Normally used by Context injections that take over the process for debugging."
+		)
+	},
+
+	{"exit_by_signal", (PyCFunction) exit_by_signal, METH_O,
+		PyDoc_STR(
+			"Returns &None\n"
+			"\n"
+			"Register an &atexit(2) handler that causes the process to exit with the given signal number.\n"
+			"This may only be called once per-process."
+		)
+	},
+
+	{"initialize", (PyCFunction) initialize, METH_O,
+		PyDoc_STR(
+			"Configure the module to use for fork callbacks."
+		)
+	},
 	{NULL}
 };
 

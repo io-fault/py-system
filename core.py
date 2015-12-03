@@ -17,7 +17,7 @@ class Containment(ContainerException):
 	"""
 	Raised when an open call attempts to access a contained exception.
 
-	&.__cause__ contains the original, contained, exception.
+	&__cause__ contains the original, contained, exception.
 	"""
 
 class ContainerError(ContainerException):
@@ -40,7 +40,7 @@ class Container(tuple):
 	"""
 	An object that contains either the returned object or the raised exception.
 	"""
-	#: Whether or not the Contained object was raised.
+	# Whether or not the Contained object was raised.
 	__slots__ = ()
 	failed = None
 	contained = property(operator.itemgetter(0), doc = 'The contained object.')
@@ -79,8 +79,7 @@ class Container(tuple):
 	def inject(self, generator):
 		"""
 		Given an object supporting the generator interface, `throw` or `send` the
-		contained object based on the Container's
-		:py:attr:`Container.failed` attribute.
+		contained object based on the Container's &failed.
 		"""
 		raise VoidError()
 
@@ -89,7 +88,7 @@ class Container(tuple):
 		Open the container returning the exception raised by the Contained
 		callable.
 
-		An exception, :py:class:`.VoidError`, is raised iff the
+		An exception, &VoidError, is raised iff the
 		Contained object is not an exception-result.
 		"""
 		raise VoidError()
@@ -99,7 +98,7 @@ class Container(tuple):
 		Open the container returning the object returned by the Contained
 		callable.
 
-		An exception, :py:class:`.VoidError`, is raised iff the
+		An exception, &VoidError, is raised iff the
 		Contained object is not a return-result.
 		"""
 		raise VoidError()
@@ -119,7 +118,7 @@ class ContainedReturn(Container):
 	"""
 	The Container type a return-result.
 
-	See :py:class:`Container` for details.
+	See &Container for details.
 	"""
 	__slots__ = ()
 	failed = False
@@ -139,7 +138,7 @@ class ContainedRaise(Container):
 	"""
 	The Container type for an exception-result.
 
-	See :py:class:`Container` for details.
+	See &Container for details.
 	"""
 	__slots__ = ()
 	failed = True
@@ -176,19 +175,18 @@ def contain(callable, *args,
 	getattr = getattr
 ):
 	"""
-	contain(callable, *args)
-
-	:param callable: The object to call with the given arguments.
-	:type callable: :py:class:`collections.Callable`
-	:param args: The positional arguments to pass on to `callable`.
-	:returns: The Contained result.
-
 	Construct and return a Container suitable for the fate of the given
 	callable executed with the given arguments.
 
 	The given callable is only provided with positional parameters. In cases
-	where keywords need to be given, :py:class:`functools.partial` should be used prior to
-	calling `contain`.
+	where keywords need to be given, &functools.partial should be used prior to
+	calling &contain.
+
+	[Parameters]
+	/callable
+		The object to call with the given arguments.
+	/args
+		The positional arguments to pass on to `callable`.
 	"""
 	try:
 		return ContainedReturn((callable(*args),None,None)) ### Exception was Contained ###

@@ -1,17 +1,5 @@
 """
-fork.library is used to manage main thread control and controlled process fork() sequences.
-
-In some versions of C-Python, forking a process in a thread can leave the process in an
-inconsistent state unless some maintenance is performed during the fork operation.
-fork.library provides interfaces for managing callback sets for resolving inconsistent state
-after a fork operation is performed and control functions to allow for safe main thread
-forking.
-
-In addition to safe forking, the main thread protection allows for immmediate exits to be
-performed when dealing with interrupt signals from the operating system. Considering that
-no significant process machinery should exist there, the interrupt exception can be raised
-so that fork can properly propagate error. Notably, fork uses some of the C libraries to
-return proper status codes for SIGINT killed processes.
+Main thread protection, fork management tools, and system process invocation tools.
 """
 import sys
 import os
@@ -24,14 +12,14 @@ from . import kernel
 from . import libhazmat
 from . import core
 
-# Lock held when @control is managing the main thread.
+# Lock held when &control is managing the main thread.
 __control_lock__ = libhazmat.create_knot()
 
 # Protects superfluous interjections.
 __interject_lock__ = libhazmat.create_knot()
 __interject_lock__.acquire() # released in Fork.trap()
 
-# Call to identify if @control is managing the main thread.
+# Call to identify if &control is managing the main thread.
 controlled = __control_lock__.locked
 
 # Maintained process identifier object. Do not change or delete.
@@ -52,12 +40,12 @@ fork_prepare_callset = set()
 fork_parent_callset = set()
 
 # Add callables to be dispatched in the child after a fork call is performed.
-# If @fork.library did not perform the :manpage:`fork(2)` operation,
+# If &.library did not perform the :manpage:`fork(2)` operation,
 # these callables will *not* be ran.
 fork_child_callset = set()
 
 # Initial set of callables to run. These are run whether or not the fork operation
-# was managed by @fork.library.
+# was managed by &.library.
 fork_child_cleanup = set()
 
 def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
@@ -130,6 +118,8 @@ def _after_fork_child():
 class SystemExit(SystemExit):
 	"""
 	Extension of SystemExit for use with interjections.
+
+	[ Properties ]
 
 	/exiting_with_information
 		Exit code indicating the type of information presented on standard error.
@@ -205,7 +195,7 @@ class Invocation(object):
 	def system(Class, context = None, environ = ()):
 		"""
 		Create an instance representing that of the invocation from the operating
-		system. Primarily, information is retrieved from the @sys and @os module.
+		system. Primarily, information is retrieved from the &sys and &os module.
 		"""
 
 		r = Class(Class.system_exit_method, context = context)
@@ -232,7 +222,7 @@ class Invocation(object):
 	@classmethod
 	def system_exit_method(Class, exit_status):
 		"""
-		A means of exit used with a @Fork.trap managed process.
+		A means of exit used with a &Fork.trap managed process.
 		"""
 
 		interject(SystemExit(exit_status).raised)
@@ -241,7 +231,7 @@ class Control(BaseException):
 	"""
 	Process control exceptions for significant events.
 
-	This is a control exception inheriting from @BaseException. It should not be trapped.
+	This is a control exception inheriting from &BaseException. It should not be trapped.
 	"""
 
 	__kill__ = None
@@ -256,18 +246,18 @@ class Panic(Control):
 	Instances of this class are usually interjected into the main thread causing
 	the process to immediately terminate.
 
-	This is a control exception inheriting from @BaseException. It should not be trapped.
+	This is a control exception inheriting from &BaseException. It should not be trapped.
 	"""
 
 	__kill__ = True
 
 class Interruption(Control):
 	"""
-	Similar to @KeyboardInterrupt, but causes @control to exit with the signal,
+	Similar to &KeyboardInterrupt, but causes &control to exit with the signal,
 	and calls critical status hooks.
 
 	Primarily used to cause signal exit codes that are usually masked with
-	@KeyboardInterrupt.
+	&KeyboardInterrupt.
 	"""
 
 	__kill__ = True
@@ -396,17 +386,22 @@ class Fork(Control):
 		"""
 		Substitute the existing control call with the given one.
 
-		Immediately raises a @Fork instance in the calling thread to be caught
-		by a corresponding @trap call.
+		Immediately raises a &Fork instance in the calling thread to be caught
+		by a corresponding &trap call.
 
 		Only to be used in cases where it is known that the current frame stack is
-		being managed by @trap.
+		being managed by &trap.
 		"""
 		raise Class(callable, *args, **kw)
 
 	@classmethod
 	def dispatch(Class, controller, *args, **kw):
 		"""
+		Execute the given callable with the given arguments in a child process.
+		This performs an &interject call. Given that &pivot was called to execute the
+		program, the pivot function will catch the exception, in the child, and
+		execute the replacement.
+
 		[Parameters]
 
 		/controller
@@ -419,13 +414,6 @@ class Fork(Control):
 		[Return]
 
 		The child process' PID.
-
-		[Description]
-
-		Execute the given callable with the given arguments in a child process.
-		This performs an @interject call. Given that @pivot was called to execute the
-		program, the pivot function will catch the exception, in the child, and
-		execute the replacement.
 		"""
 		global interject
 
@@ -457,14 +445,12 @@ class Fork(Control):
 	@classmethod
 	def trap(Class, controller, *args, **kw):
 		"""
-		trap(controller, *args, **kw)
-
 		Establish a point for substituting the process. Trap provides an
 		exception trap for replacing the controlling stack. This is used to
 		perform safe fork operations that allow tear-down of process specific resources
 		in a well defined manner.
 
-		.. note::
+		! NOTE:
 			Due to the varying global process state that may exist in a given process, it
 			is often better to start a new Python instance.
 		"""
@@ -494,8 +480,9 @@ def critical(context, callable, *args, **kw):
 	A Callable used to trap exceptions and interject a &Panic instance caused by the
 	original.
 
-	For example::
+	For example:
 
+	#!/pl/python
 		from fault.fork.library import critical
 
 		def fun():
@@ -683,8 +670,9 @@ class PInvocation(tuple):
 	@classmethod
 	def from_commands(Class, *commands):
 		"""
-		Create a &PInvcoation instance from a sequences of commands.
+		Create a &PInvocation instance from a sequences of commands.
 
+		#!/pl/python
 			pr = forklib.PInvocation.from_commands(('cat', 'somefile'), ('process', '--flags'))
 		"""
 		return Class([
@@ -698,6 +686,7 @@ class PInvocation(tuple):
 		Create a Pipeline Invocation from a sequence of process-path and process-arguments
 		pairs.
 
+		#!/pl/python
 			pr = forklib.PInvocation.from_pairs([("/bin/cat", ("file", "-")), ...])
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
