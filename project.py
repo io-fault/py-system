@@ -1,5 +1,3 @@
-'project information'
-
 name = 'fork'
 fork = 'panic'
 identity = 'https://fault.io/project/python/fork'

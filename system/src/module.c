@@ -349,7 +349,7 @@ METHODS() = {
 	{NULL}
 };
 
-INIT("Python system access")
+INIT("Access to Python low-level C-APIs")
 {
 	PyObj mod = NULL;
 
