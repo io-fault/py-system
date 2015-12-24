@@ -1,8 +1,8 @@
 name = 'fork'
 fork = 'panic'
 identity = 'https://fault.io/project/python/fork'
-abstract = 'process management tools and kernel event interfaces'
-icon = '⚗'
+abstract = 'process management tools and kernel event interfaces for UNIX systems'
+icon = '⚙'
 release = None
 
 controller = 'fault.io'
