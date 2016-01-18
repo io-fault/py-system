@@ -26,7 +26,7 @@ import weakref
 import _thread
 
 from . import core
-from . import system
+from . import kernel
 
 processing_structure = ('kernel', 'group', 'process', 'thread',)
 memory_structure = ('bytes',)
@@ -56,7 +56,7 @@ def select_fabric(tids):
 	return r
 
 #: Kill a thread at the *Python* level.
-def cut_thread(tid, exception = core.Sever, setexc=system.interrupt, pthread_kill=signal.pthread_kill):
+def cut_thread(tid, exception = core.Sever, setexc=kernel.interrupt, pthread_kill=signal.pthread_kill):
 	"""
 	Raise the given exception in the thread with the given identifier.
 
