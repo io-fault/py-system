@@ -7,7 +7,6 @@ import signal
 import functools
 import contextlib
 
-from . import system
 from . import kernel
 from . import libhazmat
 from . import core
@@ -54,14 +53,14 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	"""
 	Trip the main thread by sending the process a SIGUSR2 signal in order to cause any
 	running system call to exit early. Used in conjunction with
-	&system.interject
+	&kernel.interject
 	"""
 
 	if replacement:
 		# One interjection at a time if replacing.
 		__interject_lock__.acquire()
 
-	system.interject(main_thread_exec) # executed in main thread
+	kernel.interject(main_thread_exec) # executed in main thread
 	os.kill(current_process_id, signo)
 
 def clear_atexit_callbacks(pid = None):
@@ -284,7 +283,7 @@ class Interruption(Control):
 		# if the noted signo is normally fatal, make it exit by signal.
 		if self.signo in libhazmat.process_fatal_signals:
 			# SIG_DFL causes process termination
-			system.exit_by_signal(self.signo)
+			kernel.exit_by_signal(self.signo)
 
 		return super().raised() # Interruption
 
@@ -527,7 +526,7 @@ def protect(*init, looptime = 8):
 			parent_process_id = newppid
 			os.kill(os.getpid(), libhazmat.process_signals['context'])
 
-	# Relies on Fork.trip() and system.interject to manage the main thread's stack.
+	# Relies on Fork.trip() and kernel.interject to manage the main thread's stack.
 	raise Panic("infinite loop exited")
 
 def control(main, *args, **kw):
@@ -541,7 +540,7 @@ def control(main, *args, **kw):
 	"""
 
 	# Registers the atfork functions.
-	system.initialize(sys.modules[__name__])
+	kernel.initialize(sys.modules[__name__])
 
 	with Interruption.trap(), __control_lock__:
 		try:
