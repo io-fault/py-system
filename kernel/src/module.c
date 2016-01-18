@@ -470,57 +470,6 @@ set_process_title(PyObj mod, PyObj title)
 	Py_RETURN_NONE;
 }
 
-static PyObj
-interrupt(PyObj self, PyObj args)
-{
-	long tid;
-	PyObj exc;
-
-	if (!PyArg_ParseTuple(args, "lO", &tid, &exc))
-		return(NULL);
-
-	if (!PyThreadState_SetAsyncExc(tid, exc))
-		return(NULL);
-
-	Py_INCREF(Py_None);
-	return(Py_None);
-}
-
-/*
- * AddPendingCall callback
- */
-static int
-_call(void *ob)
-{
-	PyObject *callable = ob;
-	PyObject *ret = NULL;
-
-	ret = PyObject_CallObject(ob, NULL);
-	Py_XDECREF(ret);
-	Py_DECREF(callable);
-
-	return(ret == NULL ? -1 : 0);
-}
-
-/*
- * Expose AddPendingCall C-API to the Python language.
- */
-static PyObj
-interject(PyObj self, PyObj callable)
-{
-	PyObj rob = Py_True;
-
-	Py_INCREF(callable);
-	if (Py_AddPendingCall(_call, callable))
-	{
-		Py_DECREF(callable);
-		rob = Py_False;
-	}
-
-	Py_INCREF(rob);
-	return(rob);
-}
-
 static pthread_mutex_t forking_mutex = PTHREAD_MUTEX_INITIALIZER;
 int forking_pipe[2] = {-1,-1};
 struct inherit {
@@ -772,6 +721,8 @@ initialize(PyObj mod, PyObj ctx)
 	Py_RETURN_NONE;
 }
 
+#include "python.h"
+
 METHODS() = {
 	{"set_process_title",
 		(PyCFunction) set_process_title, METH_O,
@@ -780,6 +731,20 @@ METHODS() = {
 		)
 	},
 
+	{"exit_by_signal", (PyCFunction) exit_by_signal, METH_O,
+		PyDoc_STR(
+			"Register an &/unix/man/2/atexit handler that causes the process to exit with the given signal number.\n"
+			"This may only be called once per-process."
+		)
+	},
+
+	{"initialize", (PyCFunction) initialize, METH_O,
+		PyDoc_STR(
+			"Initialize the after fork callbacks."
+		)
+	},
+
+	/* Python "kernel" control */
 	{"interrupt", (PyCFunction) interrupt, METH_VARARGS,
 		PyDoc_STR(
 			"Interrupt a Python thread with the given exception."
@@ -800,18 +765,6 @@ METHODS() = {
 		)
 	},
 
-	{"exit_by_signal", (PyCFunction) exit_by_signal, METH_O,
-		PyDoc_STR(
-			"Register an &/unix/man/2/atexit handler that causes the process to exit with the given signal number.\n"
-			"This may only be called once per-process."
-		)
-	},
-
-	{"initialize", (PyCFunction) initialize, METH_O,
-		PyDoc_STR(
-			"Initialize the after fork callbacks."
-		)
-	},
 	{NULL,}
 };
 
