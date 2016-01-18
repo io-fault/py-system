@@ -314,7 +314,7 @@ initialize(PyObj mod, PyObj ctx)
 METHODS() = {
 	{"interrupt", (PyCFunction) interrupt, METH_VARARGS,
 		PyDoc_STR(
-			"Interrupt a Python *thread* with the given exception."
+			"Interrupt a Python thread with the given exception."
 		)
 	},
 
@@ -334,16 +334,14 @@ METHODS() = {
 
 	{"exit_by_signal", (PyCFunction) exit_by_signal, METH_O,
 		PyDoc_STR(
-			"Returns &None\n"
-			"\n"
-			"Register an &atexit(2) handler that causes the process to exit with the given signal number.\n"
+			"Register an &/unix/man/2/atexit handler that causes the process to exit with the given signal number.\n"
 			"This may only be called once per-process."
 		)
 	},
 
 	{"initialize", (PyCFunction) initialize, METH_O,
 		PyDoc_STR(
-			"Configure the module to use for fork callbacks."
+			"Initialize the after fork callbacks."
 		)
 	},
 	{NULL}
