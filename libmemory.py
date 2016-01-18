@@ -2,6 +2,8 @@
 Memory management classes for implementing usage constraints
 in parts of processes.
 """
+import weakref
+import collections
 
 class Memory(bytearray):
 	"""
