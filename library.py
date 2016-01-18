@@ -12,6 +12,8 @@ from . import kernel
 from . import libhazmat
 from . import core
 
+__shortname__ = 'libsys'
+
 # Lock held when &control is managing the main thread.
 __control_lock__ = libhazmat.create_knot()
 
@@ -84,7 +86,7 @@ def _after_fork_parent(child_pid):
 	global __fork_knot__
 
 	if not __fork_knot__.locked():
-		# Don't perform related duties unless the fork() was managed by libfork.
+		# Don't perform related duties unless the fork() was managed by libsys.
 		return
 
 	try:
@@ -294,7 +296,7 @@ class Interruption(Control):
 		Default signal handler for SIGINT.
 		"""
 		if signo in libhazmat.process_fatal_signals:
-			interject(Class('signal', signo).raised) # .fork.library.Interruption
+			interject(Class('signal', signo).raised) # fault.system.library.Interruption
 
 	@staticmethod
 	def void(signo, frame):
@@ -436,7 +438,7 @@ class Fork(Control):
 			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
 			__fork_knot__.acquire() # Released by atfork handler.
-			interject(transitioned_pivot, replacement=False) # .fork.library.Fork.pivot
+			interject(transitioned_pivot, replacement=False) # fault.system.library.Fork.pivot
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
 			return T.commit()
@@ -483,7 +485,7 @@ def critical(context, callable, *args, **kw):
 	For example:
 
 	#!/pl/python
-		from fault.fork.library import critical
+		from fault.system.library import critical
 
 		def fun():
 			while True:
@@ -502,7 +504,7 @@ def critical(context, callable, *args, **kw):
 
 		if __control_lock__.locked():
 			raise_panic = ce.raised
-			interject(raise_panic) # .fork.library.critical
+			interject(raise_panic) # fault.system.library.critical
 		else:
 			raise ce
 
@@ -545,7 +547,7 @@ def control(main, *args, **kw):
 		try:
 			Fork.trap(main, *args, **kw)
 			# Fork.trap() should not return.
-			raise RuntimeError("fork.library.Fork.trap did not raise SystemExit or Interruption")
+			raise RuntimeError("libsys.Fork.trap did not raise SystemExit or Interruption")
 		except Interruption as e:
 			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
@@ -554,16 +556,16 @@ def control(main, *args, **kw):
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""
-	/controller
-		The object to call to use the child's controller. &collections.Callable
-
-	Dispatch the given controller in a child process of a fork.library controlled process.
+	Dispatch the given controller in a child process of a system.library controlled process.
 	The returned object is a reference to the result that will block until the child
 	process has written the pickled response to a pipe.
-	#!/bin/exit
+
+	[ Parameters ]
+	/controller
+		The object to call to use the child's controller. &collections.Callable
 	"""
 	if not __control_lock__.locked():
-		raise RuntimeError("main thread is not managed with libfork.control")
+		raise RuntimeError("main thread is not managed with libsys.control")
 
 	rw = os.pipe()
 
@@ -673,7 +675,7 @@ class PInvocation(tuple):
 		Create a &PInvocation instance from a sequences of commands.
 
 		#!/pl/python
-			pr = forklib.PInvocation.from_commands(('cat', 'somefile'), ('process', '--flags'))
+			pr = libsys.PInvocation.from_commands(('cat', 'somefile'), ('process', '--flags'))
 		"""
 		return Class([
 			Class.Invocation(path, args)
@@ -687,7 +689,7 @@ class PInvocation(tuple):
 		pairs.
 
 		#!/pl/python
-			pr = forklib.PInvocation.from_pairs([("/bin/cat", ("file", "-")), ...])
+			pr = libsys.PInvocation.from_pairs([("/bin/cat", ("file", "-")), ...])
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
 

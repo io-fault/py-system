@@ -476,7 +476,7 @@ METHODS() = {
 #define PYTHON_TYPES() \
 	ID(Invocation)
 
-INIT(PyDoc_STR("kernel interfaces for supporting fork.\n"))
+INIT(PyDoc_STR("kernel interfaces.\n"))
 {
 	PyObj mod = NULL;
 

@@ -5,7 +5,7 @@
 #include <frameobject.h>
 #include <signal.h>
 
-static PyObj libfork = NULL;
+static PyObj libsys = NULL;
 
 static PyObj
 interrupt(PyObj self, PyObj args)
@@ -83,7 +83,7 @@ _after_fork_parent(void *pc_param)
 {
 	PyObj rob, ctx;
 
-	rob = PyObject_CallMethod(libfork, "_after_fork_parent", "i", (int) pc_param);
+	rob = PyObject_CallMethod(libsys, "_after_fork_parent", "i", (int) pc_param);
 	Py_XDECREF(rob);
 
 	return(rob == NULL ? -1 : 0);
@@ -122,7 +122,7 @@ static int
 _after_fork_child(void *pc_param)
 {
 	PyObj rob;
-	rob = PyObject_CallMethod(libfork, "_after_fork_child", "");
+	rob = PyObject_CallMethod(libsys, "_after_fork_child", "");
 	Py_XDECREF(rob);
 	return(rob == NULL ? -1 : 0);
 }
@@ -290,7 +290,7 @@ exit_by_signal(PyObj mod, PyObj ob)
 static PyObj
 initialize(PyObj mod, PyObj ctx)
 {
-	if (libfork != NULL)
+	if (libsys != NULL)
 	{
 		/*
 		 * Already configured.
@@ -298,8 +298,8 @@ initialize(PyObj mod, PyObj ctx)
 		Py_RETURN_NONE;
 	}
 
-	libfork = ctx;
-	Py_INCREF(libfork);
+	libsys = ctx;
+	Py_INCREF(libsys);
 
 	if (pthread_atfork(prepare, parent, child))
 	{
