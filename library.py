@@ -1,5 +1,14 @@
 """
 Main thread protection, fork management tools, and system process invocation tools.
+
+[ Functions ]
+
+/create_lock
+	Create a lock for mutual exclusion across threads.
+
+/identify_thread
+	When executed inside a thread, return the identifier
+	of the running thread.
 """
 import sys
 import os
@@ -13,11 +22,16 @@ from . import core
 
 __shortname__ = 'libsys'
 
+import _thread
+create_thread = _thread.start_new_thread
+create_lock = _thread.allocate_lock
+identify_thread = _thread.get_ident
+
 # Lock held when &control is managing the main thread.
-__control_lock__ = libhazmat.create_knot()
+__control_lock__ = create_lock()
 
 # Protects superfluous interjections.
-__interject_lock__ = libhazmat.create_knot()
+__interject_lock__ = create_lock()
 __interject_lock__.acquire() # released in Fork.trap()
 
 # Call to identify if &control is managing the main thread.
@@ -30,7 +44,7 @@ current_process_id = os.getpid()
 parent_process_id = os.getppid()
 
 # Intercontext Fork Lock
-__fork_knot__ = libhazmat.create_knot()
+__fork_lock__ = create_lock()
 
 # Add callables to be dispatched in the parent *before* a fork occurs.
 # Useful for creating context independent parent-child connections.
@@ -55,6 +69,7 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	running system call to exit early. Used in conjunction with
 	&kernel.interject
 	"""
+	global os
 
 	if replacement:
 		# One interjection at a time if replacing.
@@ -68,6 +83,8 @@ def clear_atexit_callbacks(pid = None):
 	In cases where there may be process dependent callbacks, add this to the
 	&fork_child_callset to clear the callbacks.
 	"""
+	global sys
+
 	if 'atexit' in sys.modules:
 		# It's somewhat uncommon to retain the forked process image,
 		# so Python just leaves atexit alone. In the context of a nucleus
@@ -82,9 +99,9 @@ def clear_atexit_callbacks(pid = None):
 ##
 # These are invoked by AddPendingCall.
 def _after_fork_parent(child_pid):
-	global __fork_knot__
+	global __fork_lock__
 
-	if not __fork_knot__.locked():
+	if not __fork_lock__.locked():
 		# Don't perform related duties unless the fork() was managed by libsys.
 		return
 
@@ -92,16 +109,16 @@ def _after_fork_parent(child_pid):
 		for after_fork_in_parent_task in fork_parent_callset:
 			after_fork_in_parent_task(child_pid)
 	finally:
-		__fork_knot__.release()
+		__fork_lock__.release()
 
 def _after_fork_child():
-	global parent_process_id, current_process_id, __fork_knot__
+	global parent_process_id, current_process_id, __fork_lock__
 
 	# Unconditionally update this data.
 	parent_process_id = current_process_id
 	current_process_id = os.getpid()
 
-	if not __fork_knot__.locked():
+	if not __fork_lock__.locked():
 		# Only perform cleanup tasks
 		for after_fork_in_child_task in fork_child_cleanup:
 			after_fork_in_child_task()
@@ -114,7 +131,7 @@ def _after_fork_child():
 			for after_fork_in_child_task in fork_child_callset:
 				after_fork_in_child_task()
 		finally:
-			__fork_knot__.release()
+			__fork_lock__.release()
 
 class SystemExit(SystemExit):
 	"""
@@ -193,11 +210,12 @@ class Invocation(object):
 		self.exit_method(result)
 
 	@classmethod
-	def system(Class, context = None, environ = ()):
+	def system(Class, context=None, environ=(), isinstance=isinstance, str=str):
 		"""
 		Create an instance representing that of the invocation from the operating
 		system. Primarily, information is retrieved from the &sys and &os module.
 		"""
+		global os, sys
 
 		r = Class(Class.system_exit_method, context = context)
 		r.parameters['type'] = 'system'
@@ -225,6 +243,7 @@ class Invocation(object):
 		"""
 		A means of exit used with a &Fork.trap managed process.
 		"""
+		global interject
 
 		interject(SystemExit(exit_status).raised)
 
@@ -277,7 +296,7 @@ class Interruption(Control):
 
 	def raised(self):
 		"""
-		Register a libc-level atexit handler that will cause the process to exit with
+		Register a system-level atexit handler that will cause the process to exit with
 		the configured signal.
 		"""
 		# if the noted signo is normally fatal, make it exit by signal.
@@ -416,14 +435,14 @@ class Fork(Control):
 
 		The child process' PID.
 		"""
-		global interject
+		global interject, identify_thread
 
 		fcontroller = Class(controller, *args, **kw)
 
 		# Don't bother with the interjection if we're dispatching from the main thread.
 		# Usually, this doesn't happen, but it can be desirable to have fork's control
 		# provisions in even simple programs.
-		if Class.__controlled_thread_id__ == libhazmat.identify_thread():
+		if Class.__controlled_thread_id__ == identify_thread():
 			pid = os.fork()
 			if pid == 0:
 				raise fcontroller
@@ -436,7 +455,7 @@ class Fork(Control):
 			T = libhazmat.Transition()
 			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
-			__fork_knot__.acquire() # Released by atfork handler.
+			__fork_lock__.acquire() # Released by atfork handler.
 			interject(transitioned_pivot, replacement=False) # fault.system.library.Fork.pivot
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
@@ -457,7 +476,7 @@ class Fork(Control):
 		"""
 
 		while True:
-			Class.__controlled_thread_id__ = libhazmat.identify_thread()
+			Class.__controlled_thread_id__ = identify_thread()
 			try:
 				if not __interject_lock__.locked():
 					raise Panic("interjection lock not configured")
@@ -611,7 +630,7 @@ KInvocation = kernel.Invocation
 
 class Pipeline(tuple):
 	"""
-	Object holding the file descriptors of a running pipeline.
+	Object holding the file descriptors associated with a running pipeline.
 	"""
 	__slots__ = ()
 
