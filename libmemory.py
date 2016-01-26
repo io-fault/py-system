@@ -158,7 +158,7 @@ class Segments(object):
 		i = iter(range(*self.range))
 
 		start = next(i)
-		stop = None
+		stop = 0
 
 		for stop in i:
 			vslice = view[start:stop]
