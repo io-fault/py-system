@@ -8,14 +8,18 @@ static PyObj libsys = NULL;
 static int exit_signal = -1;
 static pid_t exit_for_pid = -1;
 
+#define IOPTION_SET_PGROUP 1
+
 struct Invocation {
 	PyObject_HEAD
 
 	char *invocation_path;
 	char **invocation_argv;
 	char **invocation_environ;
+
 	posix_spawnattr_t invocation_spawnattr;
 	char invocation_spawnattr_init;
+	char invocation_options;
 };
 typedef struct Invocation *Invocation;
 
@@ -54,6 +58,13 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "|OOi", kwlist, &fdmap, &inherits, &pgrp))
 		return(NULL);
+
+	/* Inherit pgroup setting from Invocation instance if not overridden. */
+	if (pgrp < 0 && inv->invocation_options & IOPTION_SET_PGROUP)
+	{
+		/* Some invocations are essentially identified as independent daemons this way */
+		pgrp = 0;
+	}
 
 	if (posix_spawn_file_actions_init(&fa) != 0)
 	{
@@ -178,19 +189,23 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 static PyObj
 invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
-	static char *kwlist[] = {"path", "arguments", "environ", NULL,};
+	static char *kwlist[] = {"path", "arguments", "environ", "set_process_group", NULL,};
 	PyObj rob;
 	Invocation inv;
 
 	pid_t child = 0;
 	short flags = 0;
+	int set_pgroup = 0;
 
 	char *path;
 	Py_ssize_t pathlen = 0;
 
 	PyObj env = NULL, cargs;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "s#|OO", kwlist, &path, &pathlen, &cargs, &env))
+	if (!PyArg_ParseTupleAndKeywords(
+		args, kw, "s#|OOp", kwlist,
+		&path, &pathlen, &cargs, &env, &set_pgroup)
+	)
 		return(NULL);
 
 	if (env != NULL && !PyDict_Check(env))
@@ -206,6 +221,10 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 
 	inv->invocation_environ = NULL;
 	inv->invocation_argv = NULL;
+	inv->invocation_options = 0;
+
+	if (set_pgroup)
+		inv->invocation_options |= IOPTION_SET_PGROUP;
 
 	inv->invocation_path = malloc(pathlen+1);
 	if (inv->invocation_path == NULL)
@@ -566,7 +585,7 @@ child(void)
 }
 
 static int
-ltracefunc(PyObj ob, PyFrameObject *f, int event)
+ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 {
 	/*
 	 * TODO: debugger control tracefunc
