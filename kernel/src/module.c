@@ -75,7 +75,7 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	if (pgrp >= 0)
 	{
 		flags |= POSIX_SPAWN_SETPGROUP;
-		posix_spawnattr_setpgroup(&(inv->invocation_spawnattr), 0);
+		posix_spawnattr_setpgroup(&(inv->invocation_spawnattr), pgrp);
 	}
 	else
 	{
