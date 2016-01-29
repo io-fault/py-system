@@ -2,6 +2,7 @@
 Memory management classes for implementing usage constraints
 in parts of processes.
 """
+import os
 import weakref
 import collections
 
@@ -109,23 +110,25 @@ class Segments(object):
 
 	@classmethod
 	def open(Class, path):
-		f = open(path, 'rb')
-		fd = f.fileno()
+		"""
+		Open the file at the given path in read-only mode and
+		create a &Segments providing a &MemoryMap interface
+		to the contents.
+		"""
+		global os
+		fd = os.open(path, os.O_RDONLY|os.O_CLOEXEC)
 		s = Class(Class.MemoryMap(fd, 0, access=Class.ACCESS_MODE))
-		del f
 		return s
 
-	def __init__(self, memory, start = 0, stop = None, size = 1024*4):
-		self.range = (start, stop if stop is not None else len(memory), size)
+	def __init__(self, memory:MemoryMap):
+		global weakref
 		self.memory = memory
 		self.weaks = weakref.WeakSet()
 
 	def __del__(self):
 		# The delete method is used as its
 		# the precise functionality that is needed here.
-		#
-		# It is unusual that the weak set will ever be empty
-		# when del is called, but if it is, it's a shortcut.
+		# A two-stage deallocation procedure is used:
 
 		if self.weaks is not None:
 			if len(self.weaks) > 0:
@@ -153,20 +156,30 @@ class Segments(object):
 			del self.finals[:]
 			del self.finals
 
-	def __iter__(self, memoryview=memoryview):
+	def select(self, start, stop, size, memoryview=memoryview, iter=iter, range=range):
+		"""
+		Constructs an iterator to the parameterized range over the
+		&memory the &Segments instance was initialized with.
+		"""
+		add_weak = self.weaks.add
+		stop = stop if stop is not None else len(self.memory)
+
 		view = memoryview(self.memory)
-		i = iter(range(*self.range))
+		i = iter(range(start, stop, size))
 
 		start = next(i)
 		stop = 0
 
 		for stop in i:
 			vslice = view[start:stop]
-			self.weaks.add(vslice)
+			add_weak(vslice)
 			yield vslice
 			start = stop
 		else:
 			# use the last stop to start the final
-			vslice = view[stop:stop+self.range[-1]]
-			self.weaks.add(vslice)
+			vslice = view[stop:stop+size]
+			add_weak(vslice)
 			yield vslice
+
+	def __iter__(self):
+		return self.select(0, len(self.memory), 1024*16)

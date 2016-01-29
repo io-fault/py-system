@@ -22,8 +22,8 @@ def test_Segments(test):
 	del closed[:]
 	m = new()
 	cur = id(m)
-	seg = library.Segments(m, size=512)
-	iseg = iter(seg)
+	seg = library.Segments(m)
+	iseg = seg.select(0, None, 512)
 	s = next(iseg)
 	test/seg.weaks << s
 	del s, seg
@@ -31,12 +31,11 @@ def test_Segments(test):
 	del iseg
 	test/closed << cur
 
-	# test that Segments()
 	del closed[:]
 	m = new()
 	cur = id(m)
-	seg = library.Segments(m, size=128)
-	iseg = iter(seg)
+	seg = library.Segments(m)
+	iseg = seg.select(0, None, 128)
 	s = next(iseg)
 	test/seg.weaks << s
 	del seg, iseg
@@ -50,8 +49,8 @@ def test_Segments(test):
 	del closed[:]
 	m = new()
 	cur = id(m)
-	seg = library.Segments(m, size=64)
-	iseg = iter(seg)
+	seg = library.Segments(m)
+	iseg = seg.select(0, None, 64)
 	s = list(iseg)
 	test/set(seg.weaks) == set(s)
 	del seg, iseg
@@ -65,9 +64,9 @@ def test_Segments(test):
 	ba = bytearray()
 	m = new()
 	cur = id(m)
-	seg = library.Segments(m, size=64)
+	seg = library.Segments(m)
 	x = None
-	for x in seg:
+	for x in seg.select(0, None, 64):
 		ba += x
 	test/closed == []
 	del x
@@ -88,7 +87,7 @@ def test_Segments(test):
 	del closed[:]
 	seg = SSegments.open(__file__)
 	cur = id(seg.memory)
-	for x in seg:
+	for x in seg.select(0, None, 1024*4):
 		del x
 		break
 	del seg
