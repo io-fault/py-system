@@ -161,7 +161,7 @@ class Segments(object):
 		Constructs an iterator to the parameterized range over the
 		&memory the &Segments instance was initialized with.
 		"""
-		add_weak = self.weaks.add
+		add_weak = self.weaks.add # (__del__ triggered finalization)
 		stop = stop if stop is not None else len(self.memory)
 
 		view = memoryview(self.memory)
