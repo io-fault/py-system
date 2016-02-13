@@ -40,7 +40,6 @@ import typing
 import types
 
 from . import kernel
-from . import core
 from ..computation import library as libc
 
 __shortname__ = 'libsys'
