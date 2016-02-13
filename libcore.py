@@ -73,18 +73,18 @@ def constraint(
 		&constraint is *not* thread safe.
 		Conccurrent execution will render inconsistent effects on the limit.
 
-	When executed on systems where &available is `False`, &constrain does nothing.
+	When executed on systems where &available is `False`, &constraint does nothing.
 
 	Typical use:
 
 	#!/pl/python
-		with libcore.constrain(None):
+		with libcore.constraint(None):
 			...
 
 	Core dumps can disabled by designating zero size:
 
 	#!/pl/python
-		with libcore.constrain(0):
+		with libcore.constraint(0):
 			...
 
 	[ Parameters ]
