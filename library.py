@@ -1,7 +1,14 @@
 """
-Main thread protection, fork management tools, and system process invocation tools.
+Main thread protection, thread primitives, and system process invocation interfaces.
+
+&.library provides a framework for managing a process and the resources that interact
+with the operating system. Notably, it provides access to POSIX atfork callbacks used
+to manage the re-initialization of child processes.
 
 [ Functions ]
+
+/create_thread
+	Create a new thread and run the given callable inside of it.
 
 /create_lock
 	Create a lock for mutual exclusion across threads.
@@ -30,6 +37,7 @@ import signal
 import functools
 import contextlib
 import typing
+import types
 
 from . import kernel
 from . import libhazmat
@@ -42,6 +50,57 @@ import _thread
 create_thread = _thread.start_new_thread
 create_lock = _thread.allocate_lock
 identify_thread = _thread.get_ident
+
+def interrupt_thread(tid, exception=None,
+		setexc=kernel.interrupt,
+		pthread_kill=signal.pthread_kill
+	):
+	"""
+	Raise the given exception in the thread with the given identifier, &tid.
+
+	The thread being interrupted will be signalled after the exception has been set.
+	This helps ensure that system calls will not stop the exception from being raised
+	in order to kill the thread.
+
+	! WARNING:
+		Cases where usage is appropriate is rare. Managing the interruption
+		of threads in this fashion is only appropriate in certain applications.
+
+	[ Parameters ]
+
+	/tid
+		The thread's low-level identifier to interrupt.
+	/exception
+		The exception that is raised in the thread.
+	"""
+	global Sever
+
+	r =  setexc(tid, exception or Sever)
+	pthread_kill(tid, 0) # interrupt system call if any.
+
+	return r
+
+def select_thread_frame(tid:int) -> types.FrameType:
+	"""
+	Select the frame of the thread's identifier.
+
+	[Parameters]
+	/tid
+		Identifier of the thread returned by &create_thread or &identify_thread.
+		Returns &None when the thread is not running.
+	"""
+	global sys
+	return sys._current_frames().get(x)
+
+def select_fabric(tids:typing.Sequence[int]) -> typing.Sequence[typing.Tuple[int, types.FrameType]]:
+	"""
+	Select a set of threads from the same snapshot of frames.
+	"""
+	global sys
+	snapshot = sys._current_frames()
+	return [
+		(x, snapshot[x]) for x in tids
+	]
 
 # Lock held when &control is managing the main thread.
 __control_lock__ = create_lock()
