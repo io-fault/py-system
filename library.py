@@ -328,7 +328,7 @@ class Transition(object):
 	"""
 	__slots__ = ('mutex', 'container')
 
-	def __init__(self, mutex = create_knot):
+	def __init__(self, mutex = create_lock):
 		self.container = None
 		# acquire prior to setting
 		mtx = mutex()
