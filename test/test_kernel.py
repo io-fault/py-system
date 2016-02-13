@@ -1,6 +1,6 @@
 import io
 import os
-from .. import libhazmat
+from .. import library as libsys
 from .. import kernel as library
 
 def test_invocation_create(test):
@@ -40,7 +40,7 @@ def perform_cat(pids, input, output, data, *errors):
 	status = []
 
 	for pid in pids:
-		status.append(libhazmat.process_delta(pid))
+		status.append(libsys.process_delta(pid))
 	output.close()
 
 	return data, status

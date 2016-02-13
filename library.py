@@ -9,12 +9,27 @@ Main thread protection, fork management tools, and system process invocation too
 /identify_thread
 	When executed inside a thread, return the identifier
 	of the running thread.
+
+[ Properties ]
+
+/process_signals
+	Mapping of generalized signal names to signal identifiers.
+
+/process_signal_names
+	Mapping of signal identifiers to names.
+
+/process_fatal_signals
+	Set of signals that would cause an immediate exit if `SIG_DFL` were set.
+
+/process_signal_identifier
+	Mapping of signal identifiers to names used in POSIX header files.
 """
 import sys
 import os
 import signal
 import functools
 import contextlib
+import typing
 
 from . import kernel
 from . import libhazmat
@@ -62,6 +77,53 @@ fork_child_callset = set()
 # Initial set of callables to run. These are run whether or not the fork operation
 # was managed by &.library.
 fork_child_cleanup = set()
+
+getattr=getattr
+# Normalized identities for signals.
+process_signals = {
+	'stop': signal.SIGSTOP,
+	'istop': signal.SIGTSTP,
+	'continue': signal.SIGCONT,
+	'terminate' : signal.SIGTERM,
+	'quit' : signal.SIGQUIT,
+	'interrupt' : signal.SIGINT,
+	'kill' : signal.SIGKILL,
+
+	'terminal.query': getattr(signal, 'SIGINFO', None),
+	'terminal.view': getattr(signal, 'SIGWINCH', None),
+
+	'delta': signal.SIGHUP,
+	'context': signal.SIGUSR1,
+	'trip' : signal.SIGUSR2,
+
+	'limit-cpu': signal.SIGXCPU,
+	'limit-file.size': signal.SIGXFSZ,
+	'profiler': signal.SIGPROF,
+}
+
+# Signal numeric identifier to Signal Names mapping.
+process_signal_names = dict([(v, k) for k, v in process_signals.items()])
+
+# Signals that *would* terminate the process *iff* SIG_DFL was set.
+# Notably, this set is used to help preserve the appropriate exit code.
+process_fatal_signals = {
+	signal.SIGINT,
+	signal.SIGTERM,
+	getattr(signal, 'SIGXCPU', None),
+	getattr(signal, 'SIGXFSZ', None),
+	getattr(signal, 'SIGVTALRM', None),
+	getattr(signal, 'SIGPROF', None),
+	getattr(signal, 'SIGUSR1', None),
+	getattr(signal, 'SIGUSR2', None),
+}
+process_fatal_signals.discard(None)
+
+process_signal_identifiers = {
+	getattr(signal, name): name
+	for name in dir(signal)
+	if name.startswith('SIG') and name[3] != '_' and isinstance(getattr(signal, name), int)
+}
+del getattr
 
 def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	"""
@@ -287,9 +349,12 @@ class Interruption(Control):
 		self.signo = signo
 
 	def __str__(self):
+		global process_signal_names
+		global process_signal_identifier
+
 		if self.type == 'signal':
-			signame = libhazmat.process_signal_names.get(self.signo, 'unknown')
-			sigid = libhazmat.process_signal_identifiers.get(self.signo, 'UNKNOWN-SIG')
+			signame = process_signal_names.get(self.signo, 'unknown')
+			sigid = process_signal_identifiers.get(self.signo, 'UNKNOWN-SIG')
 			return "{1}[{2}]".format(signame, sigid, str(self.signo))
 		else:
 			return str(self.type)
@@ -299,8 +364,10 @@ class Interruption(Control):
 		Register a system-level atexit handler that will cause the process to exit with
 		the configured signal.
 		"""
+		global process_fatal_signals
+
 		# if the noted signo is normally fatal, make it exit by signal.
-		if self.signo in libhazmat.process_fatal_signals:
+		if self.signo in process_fatal_signals:
 			# SIG_DFL causes process termination
 			kernel.exit_by_signal(self.signo)
 
@@ -313,7 +380,9 @@ class Interruption(Control):
 
 		Default signal handler for SIGINT.
 		"""
-		if signo in libhazmat.process_fatal_signals:
+		global process_fatal_signals
+
+		if signo in process_fatal_signals:
 			interject(Class('signal', signo).raised) # fault.system.library.Interruption
 
 	@staticmethod
@@ -351,9 +420,11 @@ class Interruption(Control):
 		"""
 		Signal handler for a root process.
 		"""
+		global process_fatal_signals
 		stored_signals = {}
+
 		try:
-			for sig in libhazmat.process_fatal_signals:
+			for sig in process_fatal_signals:
 				# In Context situations, signals are read from kernel.Interface()
 				stored_signals[sig] = signal(sig, ign)
 
@@ -533,7 +604,7 @@ def protect(*init, looptime = 8):
 	Used by &control to hold the main thread in &Fork.trap.
 	"""
 	import time
-	global current_process_id, parent_process_id
+	global current_process_id, parent_process_id, process_signals
 
 	while 1:
 		time.sleep(looptime) # main thread system call
@@ -543,7 +614,7 @@ def protect(*init, looptime = 8):
 		if newppid != parent_process_id:
 			# Emit a context signal to the process.
 			parent_process_id = newppid
-			os.kill(os.getpid(), libhazmat.process_signals['context'])
+			os.kill(os.getpid(), process_signals['context'])
 
 	# Relies on Fork.trip() and kernel.interject to manage the main thread's stack.
 	raise Panic("infinite loop exited")
@@ -571,6 +642,81 @@ def control(main, *args, **kw):
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
 			sys.stderr.flush()
 			raise SystemExit(250)
+
+def process_delta(
+		pid:int,
+
+		wasexit = os.WIFEXITED,
+		getstatus = os.WEXITSTATUS,
+
+		wassignal = os.WIFSIGNALED,
+		getsig = os.WTERMSIG,
+
+		wasstopped = os.WIFSTOPPED,
+		getstop = os.WSTOPSIG,
+
+		wascontinued = os.WIFCONTINUED,
+
+		wascore = os.WCOREDUMP,
+
+		waitpid = os.waitpid,
+		options = os.WNOHANG | os.WUNTRACED,
+	) -> typing.Tuple[str, int, typing.Union[bool, None.__class__]]:
+	"""
+	Transform pending process events such as exits into a triple describing
+	the event. Normally used to respond to process exit events in order to reap
+	the process or SIGCHLD signals.
+
+	[ Parameters ]
+
+	/pid
+		The process identifier to reap.
+		In cases of (system:signal)`SIGCHLD` events, the process-id associated
+		with the received signal.
+
+	[ Return ]
+
+	A triple describing the event: `(event, status, core)`.
+
+	The event is one of:
+
+		- `'exit'`
+		- `'signal'`
+		- `'stop'`
+		- `'continue'`
+
+	The first two events mean that the process has been reaped and their `core` field will be
+	&True or &False indicating whether or not the process left a process image
+	behind. If the `core` field is &None, it's an authoritative statement that
+	the process did *not* exit regardless of the platform.
+
+	The status (code) is the exit status if an exit event, the signal number that killed or
+	stopped the process, or &None in the case of `'continue'` event.
+	"""
+
+	try:
+		_, code = waitpid(pid, options)
+	except OSError:
+		return None
+
+	if wasexit(code):
+		event = 'exit'
+		status = getstatus(code)
+		cored = wascore(code) or False
+	elif wassignal(code):
+		event = 'exit'
+		status = - getsig(code)
+		cored = wascore(code) or False
+	elif wasstopped(code):
+		event = 'stop'
+		status = getstop(code) or 0
+		cored = None
+	elif wascontinued(code):
+		event = 'continue'
+		status = None
+		cored = None
+
+	return (event, status, cored)
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""

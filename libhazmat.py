@@ -93,114 +93,6 @@ def pull_thread(callable, *args):
 	create_thread(t.relay, callable, *args)
 	return t.commit
 
-##
-# Process Related mappings
-##
-
-#: Normalized identities for signals.
-process_signals = {
-	'stop': signal.SIGSTOP,
-	'istop': signal.SIGTSTP,
-	'continue': signal.SIGCONT,
-	'terminate' : signal.SIGTERM,
-	'quit' : signal.SIGQUIT,
-	'interrupt' : signal.SIGINT,
-	'kill' : signal.SIGKILL,
-
-	'terminal.query': getattr(signal, 'SIGINFO', None),
-	'terminal.view': getattr(signal, 'SIGWINCH', None),
-
-	'delta': signal.SIGHUP,
-	'context': signal.SIGUSR1,
-	'trip' : signal.SIGUSR2,
-
-	'limit-cpu': signal.SIGXCPU,
-	'limit-file.size': signal.SIGXFSZ,
-	'profiler': signal.SIGPROF,
-}
-
-#: Signal numeric identifier to Signal Names mapping.
-process_signal_names = dict([(v, k) for k, v in process_signals.items()])
-
-# Signals that *would* terminate the process *iff* SIG_DFL was set.
-# Notably, this list is used to help preserve the appropriate exit code.
-process_fatal_signals = {
-	signal.SIGINT,
-	signal.SIGTERM,
-	getattr(signal, 'SIGXCPU', None),
-	getattr(signal, 'SIGXFSZ', None),
-	getattr(signal, 'SIGVTALRM', None),
-	getattr(signal, 'SIGPROF', None),
-	getattr(signal, 'SIGUSR1', None),
-	getattr(signal, 'SIGUSR2', None),
-}
-process_fatal_signals.discard(None)
-
-process_signal_identifiers = {
-	getattr(signal, name): name
-	for name in dir(signal)
-	if name.startswith('SIG') and name[3] != '_' and isinstance(getattr(signal, name), int)
-}
-
-def process_delta(
-	pid,
-	wasexit = os.WIFEXITED,
-	getstatus = os.WEXITSTATUS,
-
-	wassignal = os.WIFSIGNALED,
-	getsig = os.WTERMSIG,
-
-	wasstopped = os.WIFSTOPPED,
-	getstop = os.WSTOPSIG,
-
-	wascontinued = os.WIFCONTINUED,
-
-	wascore = os.WCOREDUMP,
-
-	waitpid = os.waitpid,
-	options = os.WNOHANG | os.WUNTRACED,
-):
-	"""
-	The event is one of: 'exit', 'signal', 'stop', 'continue'.
-	The first two mean that the process has been reaped and their `core` field will be
-	&True or &False indicating whether or not the process left a coredump
-	behind. If the `core` field is &None, it's an authoritative statement that
-	the process did not exit.
-
-	The status code is the exit status if an exit event, the signal number that killed or
-	stopped the process, or None in the case of *continue* event.
-
-	Returns (pid, event, status, core) or &None.
-
-	[ Parameters ]
-
-	/pid
-		The process identifier to reap.
-	"""
-	try:
-		_, code = waitpid(pid, options)
-	except OSError:
-		return None
-
-	if wasexit(code):
-		event = 'exit'
-		status = getstatus(code)
-		cored = wascore(code) or False
-	elif wassignal(code):
-		event = 'exit'
-		status = - getsig(code)
-		cored = wascore(code) or False
-	elif wasstopped(code):
-		event = 'stop'
-		status = getstop(code) or 0
-		cored = None
-	elif wascontinued(code):
-		event = 'continue'
-		status = None
-		cored = None
-
-	return (event, status, cored)
-
 def chain(iterable, initial, contain = core.contain):
 	"""
 	Given an iterable of generators, send or throw the Contained result into the
@@ -233,6 +125,10 @@ def chain(iterable, initial, contain = core.contain):
 			param = contain(generator.send, why)
 
 	return param
+
+##
+# Process Related mappings
+##
 
 class Delivery(object):
 	"""
