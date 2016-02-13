@@ -40,7 +40,6 @@ import typing
 import types
 
 from . import kernel
-from . import libhazmat
 from . import core
 from ..computation import library as libc
 
@@ -637,7 +636,7 @@ class Fork(Control):
 
 			# Transition is used because we're probably in a thread and we want to hold
 			# until the fork occurs.
-			T = libhazmat.Transition()
+			T = Transition()
 			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
 			__fork_lock__.acquire() # Released by atfork handler.
