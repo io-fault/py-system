@@ -229,54 +229,6 @@ class Switch(object):
 	def locked(self):
 		return self._current is not None
 
-class Transition(object):
-	"""
-	A synchronization mechanism used to manage the transition
-	of an arbitrary Container from one thread to another.
-
-	Transitions are used by two threads in order to synchronize
-	a single transfer.
-
-	In terms of Python's threading library, Transitions would
-	be the kind of synchronization mechanism used to implement
-	&threading.Thread.join
-	"""
-	__slots__ = ('mutex', 'container')
-
-	def __init__(self, mutex = create_knot):
-		self.container = None
-		# acquire prior to setting
-		mtx = mutex()
-		mtx.acquire()
-		self.mutex = mtx
-
-	def commit(self):
-		"""
-		Commit to the transition. If the object
-		hasn't been placed, block until it is.
-
-		A RuntimeError will be raised upon multiple invocations of commit.
-		"""
-		mutex = self.mutex
-		if mutex is None:
-			raise RuntimeError("transitioned")
-		with mutex:
-			self.mutex = None
-			return self.container.open() # Thread Result
-
-	def endpoint(self, container):
-		"""
-		Initiate the transition using the given container.
-		"""
-		mutex = self.mutex
-		if mutex is None:
-			raise RuntimeError("transitioned")
-		self.container = container
-		mutex.release()
-
-	def relay(self, callable, *args, contain = core.contain):
-		return self.endpoint(contain(callable, *args))
-
 class EQueue(object):
 	"""
 	An event driven queue where references to readers and references

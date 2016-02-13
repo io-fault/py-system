@@ -34,6 +34,7 @@ import typing
 from . import kernel
 from . import libhazmat
 from . import core
+from ..computation import library as libc
 
 __shortname__ = 'libsys'
 
@@ -195,6 +196,12 @@ def _after_fork_child():
 		finally:
 			__fork_lock__.release()
 
+class Sever(BaseException):
+	"""
+	Exception used to signal thread kills.
+	"""
+	__kill__ = True
+
 class SystemExit(SystemExit):
 	"""
 	Extension of SystemExit for use with interjections.
@@ -249,6 +256,54 @@ class SystemExit(SystemExit):
 
 	def raised(self):
 		raise self
+
+class Transition(object):
+	"""
+	A synchronization mechanism used to manage the transition
+	of an arbitrary Container from one thread to another.
+
+	Transitions are used by two threads in order to synchronize
+	a single transfer.
+
+	In terms of Python's threading library, Transitions would
+	be the kind of synchronization mechanism used to implement
+	&threading.Thread.join
+	"""
+	__slots__ = ('mutex', 'container')
+
+	def __init__(self, mutex = create_knot):
+		self.container = None
+		# acquire prior to setting
+		mtx = mutex()
+		mtx.acquire()
+		self.mutex = mtx
+
+	def commit(self):
+		"""
+		Commit to the transition. If the object
+		hasn't been placed, block until it is.
+
+		A RuntimeError will be raised upon multiple invocations of commit.
+		"""
+		mutex = self.mutex
+		if mutex is None:
+			raise RuntimeError("transitioned")
+		with mutex:
+			self.mutex = None
+			return self.container.open() # Thread Result
+
+	def endpoint(self, container):
+		"""
+		Initiate the transition using the given container.
+		"""
+		mutex = self.mutex
+		if mutex is None:
+			raise RuntimeError("transitioned")
+		self.container = container
+		mutex.release()
+
+	def relay(self, callable, *args, contain = libc.contain):
+		return self.endpoint(contain(callable, *args))
 
 class Invocation(object):
 	"""
@@ -466,7 +521,7 @@ class Fork(Control):
 	def pivot(self, T, fork = os.fork):
 		pid = fork()
 		# Unconditionally perform the transition, it doesn't matter.
-		T.endpoint(core.ContainedReturn((pid,)))
+		T.endpoint(libc.ContainedReturn((pid,)))
 		if pid == 0:
 			# In the child, raise the Fork() exception
 			# to trigger pivot's replacement functionality.
