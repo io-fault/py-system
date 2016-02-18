@@ -59,7 +59,7 @@ def location(pid, pattern = functools.partial(os.environ.get, 'COREPATTERN', '/c
 
 @contextlib.contextmanager
 def constraint(
-		limit:int=-1,
+		image_size_limit:int=-1,
 
 		getrlimit=resource.getrlimit,
 		setrlimit=resource.setrlimit,
@@ -89,19 +89,19 @@ def constraint(
 
 	[ Parameters ]
 
-	/limit
+	/image_size_limit
 		The limit of the core file's size emitted by the system.
 		A size of `0` will disable core files from being generated.
 	"""
 
-	if size_limit is None:
-		size_limit = -1
+	if image_size_limit is None:
+		image_size_limit = -1
 	else:
-		size_limit = size_limit or 0
+		image_size_limit = image_size_limit or 0
 
 	try:
 		current = getrlimit(rtype)
-		setrlimit(rtype, (size_limit, size_limit))
+		setrlimit(rtype, (image_size_limit, image_size_limit))
 		yield None
 	finally:
 		setrlimit(rtype, current)
