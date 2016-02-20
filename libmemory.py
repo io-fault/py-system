@@ -21,6 +21,9 @@ class Memory(bytearray):
 	__slots__ = ('__weakref__',)
 
 	def __hash__(self, id=id):
+		"""
+		Object Identifier based hash for allowing indexing of allocated instances.
+		"""
 		return id(self)
 
 class MemoryContext(object):
@@ -121,18 +124,36 @@ class Segments(object):
 		return s
 
 	def __init__(self, memory:MemoryMap):
+		"""
+		Initialize an instance using the given &memory. An instance
+		created by &MemoryMap.
+
+		[ Parameters ]
+		/memory
+			The `mmap.mmap` instance defining the total memory region.
+		"""
 		global weakref
 		self.memory = memory
 		self.weaks = weakref.WeakSet()
 
 	def __del__(self):
+		"""
+		Manage the final stages of &Segments deallocation by transitioning
+		to a finalization process where &select methods can no longer occur,
+		and existing &memoryview's referencing &self, &weaks, are
+		used to construct a sequence of &weakref.finalize callbacks.
+
+		Once in the final stage, a count of outstanding &memoryview instances
+		is tracked and decremented with &decrement until there are no more references
+		to the &Segments allowing the file descriptor associated with &memory to be closed.
+		"""
 		# The delete method is used as its
 		# the precise functionality that is needed here.
 		# A two-stage deallocation procedure is used:
 
 		if self.weaks is not None:
 			if len(self.weaks) > 0:
-				# Add references
+				# Add references, bringing the Segments refcount back to positive.
 				self.__iter__ = None
 				self.finals = [
 					weakref.finalize(x, self.decrement) for x in self.weaks
@@ -150,6 +171,10 @@ class Segments(object):
 			self.memory.close()
 
 	def decrement(self):
+		"""
+		Used internally by &__del__ to manage the deallocation process
+		when there are outstanding references to the memory mapped region.
+		"""
 		self.count -= 1
 		if self.count == 0:
 			# this should trigger del's second stage.
@@ -182,4 +207,7 @@ class Segments(object):
 			yield vslice
 
 	def __iter__(self):
+		"""
+		Return an iterator to the entire region in sixteen kilobyte sizes.
+		"""
 		return self.select(0, len(self.memory), 1024*16)
