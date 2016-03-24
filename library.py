@@ -740,6 +740,9 @@ def control(main, *args, **kw):
 	The given &main is executed with the given positionals &args and keywords &kw inside
 	of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
 	"""
+	global kernel
+	global Interruption, Fork
+	global __control_lock__
 
 	# Registers the atfork functions.
 	kernel.initialize(sys.modules[__name__])
