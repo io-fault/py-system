@@ -891,7 +891,8 @@ KInvocation = kernel.Invocation
 
 class Pipeline(tuple):
 	"""
-	Object holding the file descriptors associated with a running pipeline.
+	Object holding the file descriptors associated with a running pipeline of operating system
+	processes.
 	"""
 	__slots__ = ()
 
