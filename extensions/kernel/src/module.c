@@ -1,7 +1,11 @@
 #include <spawn.h>
 #include <pthread.h>
-#include <frameobject.h>
 #include <signal.h>
+
+#include <fault/roles.h>
+#include <fault/python/environ.h>
+#include <fault/python/module.h>
+#include <frameobject.h>
 
 /* For fork callbacks */
 static PyObj libsys = NULL;
@@ -285,7 +289,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 			{
 				register int size = keysize+valuesize+2;
 				envp[k] = malloc(size);
-				snprintf(envp[k], size, "%s=%s\0", key, value);
+				snprintf(envp[k], size, "%s=%s", key, value);
 				k += 1;
 			}
 			PyLoop_CatchError(env)
@@ -537,7 +541,9 @@ parent(void)
 
 	retry:
 	{
-		if (Py_AddPendingCall(_after_fork_parent, (void *) fork_data.process_id))
+		uintptr_t param = fork_data.process_id;
+
+		if (Py_AddPendingCall(_after_fork_parent, (void *) param))
 		{
 			goto retry;
 		}
@@ -590,6 +596,7 @@ ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 	/*
 	 * TODO: debugger control tracefunc
 	 */
+	return(0);
 }
 
 /*
@@ -794,26 +801,9 @@ INIT(PyDoc_STR("Operating system kernel interfaces and Python ('kernel') interfa
 {
 	PyObj mod = NULL;
 
-	#if TEST()
-		Py_XDECREF(__EOVERRIDE__);
-		__EOVERRIDE__ = PyDict_New();
-		if (__EOVERRIDE__ == NULL)
-			return(NULL); XCOVERAGE
-
-		Py_XDECREF(__POVERRIDE__);
-		__POVERRIDE__ = PyDict_New();
-		if (__POVERRIDE__ == NULL)
-			return(NULL); XCOVERAGE
-	#endif
-
 	CREATE_MODULE(&mod);
 	if (mod == NULL)
 		return(NULL);
-
-	#if TEST()
-		PyModule_AddObject(mod, "EOVERRIDE", __EOVERRIDE__);
-		PyModule_AddObject(mod, "POVERRIDE", __POVERRIDE__);
-	#endif
 
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
