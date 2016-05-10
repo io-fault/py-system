@@ -117,7 +117,7 @@ def test_Matrix(test):
 	"""
 	&library.Matrix
 	"""
-	matrix = library.Matrix()
+	matrix = library.Matrix('id', ())
 
 def test_Command(test):
 	"""
@@ -128,9 +128,9 @@ def test_Command(test):
 	"""
 
 	cat_route = library.libroutes.File.which('cat')
-	matrix = library.Matrix()
+	matrix = library.Matrix('id', ())
 
-	si = library.Command('exec', cat_route, None)
+	si = library.Command('exec', cat_route, None, {})
 
 def test_Feature(test):
 	"""
@@ -148,26 +148,26 @@ def test_Feature(test):
 	test/feature.identifier == 'feature-id'
 	test/feature.parameter == bool
 	test/feature.apply == library.Sequencing.options
-	test/feature.reference == (library.__name__, library.Sequencing.options.__name__, None)
+	test/feature.reference == (library.__name__, 'Sequencing.options', None)
 
-	feature_not_partial = b''.join(feature.serialize(xml))
+	feature_not_partial = b''.join(feature.serialize(xml, None, None))
 
 	feature = Type.construct('feature-2', partial(library.Sequencing.options, signal='-I'), bool, 'v1')
 	test/feature.identifier == 'feature-2'
 	test/feature.parameter == bool
 	test/feature.apply.func == library.Sequencing.options
-	test/feature.reference == (library.__name__, library.Sequencing.options.__name__, {'signal':'-I'})
+	test/feature.reference == (library.__name__, 'Sequencing.options', {'signal':'-I'})
 
-	feature_with_partial = b''.join(feature.serialize(xml))
+	feature_with_partial = b''.join(feature.serialize(xml, None, None))
 
 def test_Reference(test):
 	"""
 	&library.Reference
 	"""
 
-	m = library.Matrix()
+	m = library.Matrix('id', ())
 	ir = library.libroutes.File.which('ls')
-	mi = library.Command('list-path', ir, None)
+	mi = library.Command('list-path', ir, None, {})
 	m.commands['list-path'] = mi
 	f = library.Feature.construct('feature-id',
 		functools.partial(library.Sequencing.options, enable_option='-X'),

@@ -3,6 +3,12 @@ import os
 from .. import library
 from .test_kernel import perform_cat
 
+class Trapped(Exception):
+	"""
+	Exception Fixture for test_critical.
+	"""
+	pass
+
 def test_PInvocation(test):
 	data = b'data sent through a cat pipeline\n'
 	for count in range(0, 16):
@@ -20,6 +26,8 @@ def test_critical(test):
 	"""
 	&.library.critical
 	"""
+	global Trapped
+	test/Trapped - Exception # sanity
 
 	# Check that critical returns.
 	# It's only fatal when an exception is raised.
@@ -29,15 +37,18 @@ def test_critical(test):
 	test/result[0] == ("positional",)
 	test/result[1] == {"keyword":'value'}
 
-	class Trapped(Exception):
-		pass
-
 	def raise_trap():
+		global Trapped
 		raise Trapped("exception")
 
-	def raised(exc):
-		raise exc
+	raised_called = False
+	def raised(replacement):
+		nonlocal raised_called
+		raised_called = True
+		replacement()
 
+	# Interject is not being tested here, so override
+	# it to derive the effect that we're looking for.
 	original = library.interject
 	try:
 		library.interject = raised
@@ -51,6 +62,8 @@ def test_critical(test):
 			test.fail("critical did not raise panic")
 	finally:
 		library.interject = original
+
+	test/raised_called == True
 
 if __name__ == '__main__':
 	import sys; from ...development import libtest
