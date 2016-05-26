@@ -65,6 +65,22 @@ def test_critical(test):
 
 	test/raised_called == True
 
+def test_interject(test):
+	"""
+	Validate that interject manages to run a callable in a reasonable number of cycles.
+	"""
+	executed = False
+	def call():
+		nonlocal executed
+		executed = True
+
+	test/executed == False # sanity
+	library.interject(call)
+	for x in range(32):
+		pass
+
+	test/executed == True
+
 if __name__ == '__main__':
 	import sys; from ...development import libtest
 	libtest.execute(sys.modules[__name__])
