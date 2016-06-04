@@ -49,6 +49,8 @@ create_thread = _thread.start_new_thread
 create_lock = _thread.allocate_lock
 identify_thread = _thread.get_ident
 
+_main_thread_id = identify_thread() # Presume import of system.library occurs on main thread.
+
 def interrupt_thread(tid, exception=None,
 		setexc=kernel.interrupt,
 		pthread_kill=signal.pthread_kill
@@ -189,14 +191,14 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	running system call to exit early. Used in conjunction with
 	&kernel.interject
 	"""
-	global os
+	global signal
 
 	if replacement:
 		# One interjection at a time if replacing.
 		__interject_lock__.acquire()
 
 	kernel.interject(main_thread_exec) # executed in main thread
-	os.kill(current_process_id, signo)
+	signal.pthread_kill(_main_thread_id, signo)
 
 def clear_atexit_callbacks(pid = None):
 	"""
