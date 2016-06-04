@@ -715,12 +715,13 @@ def protect(*init, looptime = 8):
 
 	Used by &control to hold the main thread in &Fork.trap.
 	"""
-	from ..chronometry import kernel
-	ltms = looptime * 1000000
 	global current_process_id, parent_process_id, process_signals
 
+	from ..chronometry import kernel # kernel.sleep_us
+	ltus = looptime * 1000000
+
 	while 1:
-		kernel.sleep_us(ltms) # main thread system call
+		kernel.sleep_us(ltus) # main thread system call
 
 		# Check for parent process changes.
 		newppid = os.getppid()
