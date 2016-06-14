@@ -3,8 +3,8 @@
 #include <signal.h>
 
 #include <fault/roles.h>
+#include <fault/internal.h>
 #include <fault/python/environ.h>
-#include <fault/python/module.h>
 #include <frameobject.h>
 
 /* For fork callbacks */
@@ -723,6 +723,8 @@ exit_by_signal(PyObj mod, PyObj ob)
 	Py_RETURN_NONE;
 }
 
+#include "python.h"
+
 static PyObj
 initialize(PyObj mod, PyObj ctx)
 {
@@ -740,62 +742,40 @@ initialize(PyObj mod, PyObj ctx)
 	if (pthread_atfork(prepare, parent, child))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
-		DROP_MODULE(mod);
 		return(NULL);
 	}
 
 	Py_RETURN_NONE;
 }
 
-#include "python.h"
-
-METHODS() = {
-	{"set_process_title",
-		(PyCFunction) set_process_title, METH_O,
-		PyDoc_STR(
-			"Set the process title on supporting platforms."
-		)
-	},
-
-	{"exit_by_signal", (PyCFunction) exit_by_signal, METH_O,
-		PyDoc_STR(
-			"Register an &/unix/man/2/atexit handler that causes the process to exit with the given signal number.\n"
-			"This may only be called once per-process."
-		)
-	},
-
-	{"initialize", (PyCFunction) initialize, METH_O,
-		PyDoc_STR(
-			"Initialize the after fork callbacks."
-		)
-	},
-
-	/* Python "kernel" control */
-	{"interrupt", (PyCFunction) interrupt, METH_VARARGS,
-		PyDoc_STR(
-			"Interrupt a Python thread with the given exception."
-		)
-	},
-
-	{"interject", (PyCFunction) interject, METH_O,
-		PyDoc_STR(
-			"Interject the callable in the *main thread* using Py_AddPendingCall. "
-			"Usually, the called object should dispatch a task."
-		)
-	},
-
-	{"trace", (PyCFunction) trace, METH_VARARGS,
-		PyDoc_STR(
-			"Apply the trace function to the given thread identifiers. "
-			"Normally used by Context injections that take over the process for debugging."
-		)
-	},
-
-	{NULL,}
-};
-
 #define PYTHON_TYPES() \
 	ID(Invocation)
+
+#define MODULE_FUNCTIONS() \
+	PYMETHOD( \
+		set_process_title, set_process_title, METH_O, \
+			"Set the process title on supporting platforms.") \
+	PYMETHOD( \
+		exit_by_signal, exit_by_signal, METH_O, \
+			"Register an &/unix/man/2/atexit handler that causes the " \
+			"process to exit with the given signal number." \
+			"\n\nThis may only be called once per-process.") \
+	PYMETHOD( \
+		initialize, initialize, METH_O, \
+			"Initialize the after fork callbacks.") \
+	PYMETHOD( \
+		interrupt, interrupt, METH_VARARGS, \
+			"Interrupt a Python thread with the given exception.") \
+	PYMETHOD( \
+		interject, interject, METH_O, \
+			"Interject the callable in the *main thread* using Py_AddPendingCall. " \
+			"Usually, the called object should dispatch a task.") \
+	PYMETHOD( \
+		trace, trace, METH_VARARGS, \
+			"Apply the trace function to the given thread identifiers. " \
+			"Normally used by Context injections that take over the process for debugging.")
+
+#include <fault/python/module.h>
 
 INIT(PyDoc_STR("Operating system kernel interfaces and Python ('kernel') interfaces.\n"))
 {
