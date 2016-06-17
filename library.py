@@ -130,7 +130,7 @@ fork_prepare_callset = set()
 fork_parent_callset = set()
 
 # Add callables to be dispatched in the child after a fork call is performed.
-# If &.library did not perform the :manpage:`fork(2)` operation,
+# If &.library did not perform the (system:manual)`fork(2)` operation,
 # these callables will *not* be ran.
 fork_child_callset = set()
 
@@ -209,8 +209,8 @@ def clear_atexit_callbacks(pid = None):
 
 	if 'atexit' in sys.modules:
 		# It's somewhat uncommon to retain the forked process image,
-		# so Python just leaves atexit alone. In the context of a nucleus
-		# managed process, we anticipate that it will exit normally and
+		# so Python just leaves atexit alone. In the context of a fault.system
+		# managed process, it is anticipated that it will exit normally and
 		# fire the atexit callbacks which will be redundant with the parent.
 		try:
 			sys.modules['atexit']._clear()
@@ -841,7 +841,7 @@ def concurrently(controller, exe = Fork.dispatch):
 	"""
 	Dispatch the given controller in a child process of a system.library controlled process.
 	The returned object is a reference to the result that will block until the child
-	process has written the pickled response to a pipe.
+	process has written the serialized response to a pipe.
 
 	[ Parameters ]
 	/controller
@@ -854,6 +854,7 @@ def concurrently(controller, exe = Fork.dispatch):
 
 	import io
 	import pickle
+	import atexit
 
 	dump = pickle.dump
 	load = pickle.load
@@ -861,6 +862,7 @@ def concurrently(controller, exe = Fork.dispatch):
 	def execute_controller(call = controller, rw = rw):
 		os.close(rw[0])
 		try:
+			atexit._clear()
 			result = call()
 		except SystemExit:
 			result = None
@@ -872,6 +874,8 @@ def concurrently(controller, exe = Fork.dispatch):
 
 	# child never returns
 	pid = exe(execute_controller)
+
+	# Parent Only:
 	del execute_controller
 
 	os.close(rw[1])
