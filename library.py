@@ -945,7 +945,7 @@ class Pipeline(tuple):
 class PInvocation(tuple):
 	"""
 	A sequence of &KInvocation instances used to form a pipeline for
-	unix processes; a process image where the file descriptors 0, 1, and 2
+	system processes; a process image where the file descriptors 0, 1, and 2
 	refer to standard input, standard output, and standard error.
 
 	Pipelines of zero commands can be created; it will merely represent a pipe
