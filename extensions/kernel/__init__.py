@@ -1,3 +1,2 @@
-from ....development import libfactor
 from ....development.probes import libpython
-libfactor.load('system.extension')
+__factor_type__ = 'system.extension'
