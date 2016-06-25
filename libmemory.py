@@ -119,8 +119,13 @@ class Segments(object):
 		to the contents.
 		"""
 		global os
+
 		fd = os.open(path, os.O_RDONLY|os.O_CLOEXEC)
-		s = Class(Class.MemoryMap(fd, 0, access=Class.ACCESS_MODE))
+		try:
+			s = Class(Class.MemoryMap(fd, 0, access=Class.ACCESS_MODE), fd)
+		finally:
+			os.close(fd)
+
 		return s
 
 	def __init__(self, memory:MemoryMap):
