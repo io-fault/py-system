@@ -28,11 +28,16 @@ def perform_cat(pids, input, output, data, *errors):
 	input = io.open(input, mode='wb')
 	output = io.open(output, mode='rb')
 
-	input.write(data)
+	idata = data
+	while idata:
+		idata = idata[input.write(idata):]
+
 	input.flush()
 	input.close()
 
-	out = output.read(len(data))
+	out = b''
+	while out != data:
+		out += output.read(len(data) - len(out))
 
 	for e in error:
 		e.close()
@@ -59,7 +64,7 @@ def test_invocation_execute(test):
 	os.close(stderr[1])
 
 	# process launched?
-	os.kill(pid, 0)
+	os.kill(pid, 0) # Check that process exists.
 
 	data = b'data\n'
 	out, status = perform_cat([pid], stdin[1], stdout[0], data, stderr[0])
