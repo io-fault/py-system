@@ -1,11 +1,9 @@
+identity = 'https://fault.io/project/python/fault.system'
 name = 'system'
-fork = 'panic'
-identity = 'https://fault.io/project/python/system'
-abstract = 'process management tools and kernel event interfaces'
+abstract = 'Process management tools and kernel event interfaces'
 icon = '⚙'
-release = None
+
+fork = 'panic'
 
 controller = 'fault.io'
 contact = 'mailto:critical@fault.io'
-
-version_info = (0, 0, 0)
