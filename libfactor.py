@@ -205,8 +205,9 @@ def dependencies(factor:types.ModuleType):
 		if isinstance(v, ModuleType) and getattr(v, '__factor_type__', None) is not None:
 			yield v
 
-def python_extension(module, probe_id='.'.join((__package__, 'probes', 'libpython'))):
+def python_extension(module):
 	for x in module.__dict__.values():
-		if isinstance(x, types.ModuleType) and x.__name__ == probe_id:
-			return True
+		if isinstance(x, types.ModuleType):
+			if getattr(x, 'context_extension_probe', False):
+				return True
 	return False
