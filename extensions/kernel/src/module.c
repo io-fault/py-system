@@ -214,7 +214,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 
 	if (env != NULL && !PyDict_Check(env))
 	{
-		PyErr_SetString(PyExc_TypeError, "environ keyword requires a dictionary type");
+		PyErr_SetString(PyExc_TypeError, "environ keyword requires a builtins.dict instance");
 		return(NULL);
 	}
 
@@ -475,7 +475,7 @@ set_process_title(PyObj mod, PyObj title)
 {
 	PyObj bytes;
 
-	#ifdef __MACH__
+	#if defined(__MACH__) || defined(__linux__)
 		;
 	#else
 		/*
@@ -499,12 +499,12 @@ struct inherit {
 	pid_t process_id;
 };
 
-/*
- * Communicate child's parent to parent.
- *
- * This allows fork to track fork(2)'s that weren't explicitly performed by
- * a Context.spawn operation.
- */
+/**
+	# Communicate child's parent to parent.
+
+	# This allows fork to track (system:manual)`fork`'s that weren't explicitly performed by
+	# an &.library interface.
+*/
 static void
 prepare(void)
 {
@@ -754,15 +754,18 @@ initialize(PyObj mod, PyObj ctx)
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
-			"Set the process title on supporting platforms.") \
+			"Set the process title on platforms supporting " \
+			"(system:manual)`setproctitle`. " \
+			"Does nothing if unsupported or unsafe.") \
 	PYMETHOD( \
 		exit_by_signal, exit_by_signal, METH_O, \
-			"Register an &/unix/man/2/atexit handler that causes the " \
+			"Register an (system:manual)`atexit` handler that causes the " \
 			"process to exit with the given signal number." \
 			"\n\nThis may only be called once per-process.") \
 	PYMETHOD( \
 		initialize, initialize, METH_O, \
-			"Initialize the after fork callbacks.") \
+			"Initialize the after fork callbacks. " \
+			"Called once by &.library. Do not use.") \
 	PYMETHOD( \
 		interrupt, interrupt, METH_VARARGS, \
 			"Interrupt a Python thread with the given exception.") \
@@ -776,8 +779,7 @@ initialize(PyObj mod, PyObj ctx)
 			"Normally used by Context injections that take over the process for debugging.")
 
 #include <fault/python/module.h>
-
-INIT(PyDoc_STR("Operating system kernel interfaces and Python ('kernel') interfaces.\n"))
+INIT(PyDoc_STR("Interfaces for the operating system.\n"))
 {
 	PyObj mod = NULL;
 
