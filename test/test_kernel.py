@@ -3,23 +3,6 @@ import os
 from .. import library as libsys
 from .. import kernel as library
 
-def test_invocation_create(test):
-	notreal = library.Invocation("some string", ())
-	test/notreal / library.Invocation
-
-	del notreal
-	test.garbage()
-
-	environ = library.Invocation("/bin/cat", ("-",), environ=dict(SOME_ENVIRON_VAR="foo"))
-
-	realish = library.Invocation("/bin/cat", ("filepath1", "filepath2", "n"*100,))
-	del realish
-	test.garbage()
-
-def test_invocation_file_not_found(test):
-	"Validate that a reasonable OSError is raised when the executable doesn't exist."
-	pass
-
 def perform_cat(pids, input, output, data, *errors):
 	error = []
 	for errfd in errors:
@@ -50,7 +33,29 @@ def perform_cat(pids, input, output, data, *errors):
 
 	return data, status
 
-def test_invocation_execute(test):
+def test_Invocation(test):
+	"""
+	Sanity and operations.
+	"""
+	notreal = library.Invocation("some string", ())
+	test/notreal / library.Invocation
+
+	del notreal
+	test.garbage()
+
+	environ = library.Invocation("/bin/cat", ("cat", "-",), environ=dict(SOME_ENVIRON_VAR="foo"))
+
+	realish = library.Invocation("/bin/cat", ("cat", "filepath1", "filepath2", "n"*100,))
+	del realish
+	test.garbage()
+
+def test_Invocation_file_not_found(test):
+	"""
+	Validate that a reasonable OSError is raised when the executable doesn't exist.
+	"""
+	pass
+
+def test_Invocation_execute(test):
 	# echo data through cat
 	stdin = os.pipe()
 	stdout = os.pipe()
