@@ -979,7 +979,15 @@ class PInvocation(tuple):
 		Create a &PInvocation instance from a sequences of commands.
 
 		#!/pl/python
-			pr = libsys.PInvocation.from_commands(('cat', 'somefile'), ('process', '--flags'))
+			pr = libsys.PInvocation.from_commands(
+				('/bin/cat', '/bin/cat', 'somefile'),
+				('/usr/bin/tee', 'tee', 'duplicate-1', 'duplicate-2'),
+			)
+
+		The command tuples must specify the absolute path to the executable
+		as the first item, the second item is the program's runtime name
+		that is accessible as the first argument. Often, the filename of the
+		command if it were invoked using (system:environment)`PATH` resolution.
 		"""
 		return Class([
 			Class.Invocation(path, args)
@@ -993,7 +1001,7 @@ class PInvocation(tuple):
 		pairs.
 
 		#!/pl/python
-			pr = libsys.PInvocation.from_pairs([("/bin/cat", ("file", "-")), ...])
+			pr = libsys.PInvocation.from_pairs([("/bin/cat", ("cat", "file", "-")), ...])
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
 
@@ -1007,6 +1015,7 @@ class PInvocation(tuple):
 		# one for each command, split read and write ends into separate lists
 		stderr = []
 		pipes = []
+		pids = []
 
 		try:
 			for i in range(n):
@@ -1024,7 +1033,6 @@ class PInvocation(tuple):
 			input = pipes[0][1]
 			output = pipes[-1][0]
 
-			pids = []
 			for i, inv, err in zip(range(n), self, child_errors):
 				pid = inv(((pipes[i][0], 0), (pipes[i+1][1], 1), (err, 2)))
 				pids.append(pid)
@@ -1033,13 +1041,15 @@ class PInvocation(tuple):
 		except:
 			# Close file descriptors that were going to be kept given the
 			# success; the finally clause will make sure everything else is closed.
-			close(pipes[0][1])
-			close(pipes[-1][0])
+			if pipes:
+				close(pipes[0][1])
+				close(pipes[-1][0])
 
 			# kill any invoked processes
 			for pid in pids:
 				os.kill(pid, 9)
 				os.waitpid(pid)
+
 			raise
 		finally:
 			# fd's inherited in the child processes will
