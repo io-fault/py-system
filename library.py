@@ -620,10 +620,13 @@ class Fork(Control):
 		/kw
 			Keywords given to the callable.
 
-		[Effects]
-
-		/Product
+		[Returns]
+		/&int
 			The child process' PID.
+
+		[Exceptions]
+		/&Panic
+			Raised when the returns in the branches did not return.
 		"""
 		global interject, identify_thread
 
@@ -650,7 +653,7 @@ class Fork(Control):
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
 			return T.commit()
-		raise RuntimeError("method branches did not return process identifier")
+		raise Panic("method branches did not return process identifier")
 
 	@classmethod
 	def trap(Class, controller, *args, **kw):
@@ -722,6 +725,10 @@ def protect(*init, looptime = 8):
 	using an interjection.
 
 	Used by &control to hold the main thread in &Fork.trap.
+
+	[ Exceptions ]
+	/&Panic
+		Raised in cases where the infinite loop exits.
 	"""
 	global current_process_id, parent_process_id, process_signals
 
