@@ -13,7 +13,7 @@ def test_PInvocation(test):
 	data = b'data sent through a cat pipeline\n'
 	for count in range(0, 16):
 		s = library.PInvocation.from_commands(
-			*([('/bin/cat',)] * count)
+			*([('/bin/cat', 'cat')] * count)
 		)
 		pl = s()
 		out, status = perform_cat(pl.process_identifiers, pl.input, pl.output, data, *pl.standard_errors.values())
