@@ -5,6 +5,9 @@ Main thread protection, thread primitives, and system process invocation interfa
 with the operating system. Notably, it provides access to POSIX atfork callbacks used
 to manage the re-initialization of child processes.
 
+#!/pl/python
+	from fault.system import library as libsys
+
 [ Functions ]
 
 /create_thread
@@ -164,7 +167,7 @@ process_signals = {
 # Signal numeric identifier to Signal Names mapping.
 process_signal_names = dict([(v, k) for k, v in process_signals.items()])
 
-# Signals that *would* terminate the process *iff* SIG_DFL was set.
+# Signals that *would* terminate the process *if* SIG_DFL was set.
 # Notably, this set is used to help preserve the appropriate exit code.
 process_fatal_signals = {
 	signal.SIGINT,
@@ -600,7 +603,7 @@ class Fork(Control):
 		raise Class(callable, *args, **kw)
 
 	@classmethod
-	def dispatch(Class, controller, *args, **kw):
+	def dispatch(Class, controller, *args, **kw) -> int:
 		"""
 		Execute the given callable with the given arguments in a child process.
 		This performs an &interject call. Given that &pivot was called to execute the
@@ -616,9 +619,10 @@ class Fork(Control):
 		/kw
 			Keywords given to the callable.
 
-		[Return]
+		[Effects]
 
-		The child process' PID.
+		/Product
+			The child process' PID.
 		"""
 		global interject, identify_thread
 
@@ -713,7 +717,8 @@ def critical(context, callable, *args, **kw):
 
 def protect(*init, looptime = 8):
 	"""
-	Perpetually protect the main thread.
+	Perpetually protect the main thread using a sleep loop that can only exit
+	using an interjection.
 
 	Used by &control to hold the main thread in &Fork.trap.
 	"""
@@ -793,24 +798,25 @@ def process_delta(
 		In cases of (system:signal)`SIGCHLD` events, the process-id associated
 		with the received signal.
 
-	[ Return ]
+	[ Effects ]
 
-	A triple describing the event: `(event, status, core)`.
+	/Product
+		A triple describing the event: `(event, status, core)`.
 
-	The event is one of:
+		The event is one of:
 
-		- `'exit'`
-		- `'signal'`
-		- `'stop'`
-		- `'continue'`
+			- `'exit'`
+			- `'signal'`
+			- `'stop'`
+			- `'continue'`
 
-	The first two events mean that the process has been reaped and their `core` field will be
-	&True or &False indicating whether or not the process left a process image
-	behind. If the `core` field is &None, it's an authoritative statement that
-	the process did *not* exit regardless of the platform.
+		The first two events mean that the process has been reaped and their `core` field will be
+		&True or &False indicating whether or not the process left a process image
+		behind. If the `core` field is &None, it's an authoritative statement that
+		the process did *not* exit regardless of the platform.
 
-	The status (code) is the exit status if an exit event, the signal number that killed or
-	stopped the process, or &None in the case of `'continue'` event.
+		The status (code) is the exit status if an exit event, the signal number that killed or
+		stopped the process, or &None in the case of `'continue'` event.
 	"""
 
 	try:
@@ -906,22 +912,30 @@ class Pipeline(tuple):
 
 	@property
 	def input(self):
-		"Pipe file descriptor for the pipeline's input"
+		"""
+		Pipe file descriptor for the pipeline's input.
+		"""
 		return self[0]
 
 	@property
 	def output(self):
-		"Pipe file descriptor for the pipeline's output"
+		"""
+		Pipe file descriptor for the pipeline's output.
+		"""
 		return self[1]
 
 	@property
 	def process_identifiers(self):
-		"The sequence of process identifiers of the commands that make up the pipeline"
+		"""
+		The sequence of process identifiers of the commands that make up the pipeline.
+		"""
 		return self[2]
 
 	@property
 	def standard_errors(self):
-		"Mapping of process identifiers to the standard error file descriptor."
+		"""
+		Mapping of process identifiers to the standard error file descriptor.
+		"""
 		return self[3]
 
 	def __new__(Class, input, output, pids, errfds, tuple=tuple):
@@ -933,7 +947,9 @@ class Pipeline(tuple):
 		))
 
 	def void(self, close=os.close):
-		"Close all file descriptors and kill -9 all processes involved in the pipeline."
+		"""
+		Close all file descriptors and kill -9 all processes involved in the pipeline.
+		"""
 		for x in self.standard_errors:
 			close(x)
 		close(self[0])
