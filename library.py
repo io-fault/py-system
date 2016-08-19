@@ -41,6 +41,7 @@ import functools
 import contextlib
 import typing
 import types
+import builtins
 
 from . import kernel
 from ..computation import library as libc
@@ -1005,17 +1006,21 @@ class PInvocation(tuple):
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
 
-	def __call__(self, pipe=os.pipe, close=os.close):
+	def __call__(self, signal=9, pipe=os.pipe, close=os.close):
 		"""
 		Execute the series of invocations returning a &Pipeline instance containing
 		the file descriptors used for input, output and the standard error of all the commands.
 		"""
-		n = len(self)
+		global Pipeline
+		global os
+		global builtins
+		range = builtins.range
 
 		# one for each command, split read and write ends into separate lists
 		stderr = []
 		pipes = []
 		pids = []
+		n = self.__len__()
 
 		try:
 			for i in range(n):
@@ -1047,7 +1052,7 @@ class PInvocation(tuple):
 
 			# kill any invoked processes
 			for pid in pids:
-				os.kill(pid, 9)
+				os.kill(pid, signal)
 				os.waitpid(pid)
 
 			raise
