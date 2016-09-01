@@ -374,7 +374,8 @@ class Invocation(object):
 	of the means of exiting. Normally, used to describe how the process was invoked and the
 	corresponding parameters, argv and environ, in which the invocation should be reacting to.
 
-	For system invocation, the &parameters dictionary will have two entries by default
+	For system invocation, the &parameters dictionary will have two entries by default:
+	`'system'` and `'type'`.
 	"""
 
 	def __init__(self, exit_method, context = None):
@@ -628,7 +629,9 @@ class Fork(Control):
 		/&Panic
 			Raised when the returns in the branches did not return.
 		"""
-		global interject, identify_thread
+		global __fork_lock__
+		global interject
+		global identify_thread
 
 		fcontroller = Class(controller, *args, **kw)
 
@@ -672,12 +675,14 @@ class Fork(Control):
 			Class.__controlled_thread_id__ = identify_thread()
 			try:
 				if not __interject_lock__.locked():
-					raise Panic("interjection lock not configured")
+					raise Panic("interject lock not held")
+
 				try:
 					__interject_lock__.release()
 					return controller(*args, **kw) # Process replacement point.
 				finally:
 					__interject_lock__.acquire(0) # block subsequent acquisitions
+
 			except Class as exe:
 
 				# Raised a Fork exception.
@@ -690,8 +695,11 @@ class Fork(Control):
 
 def critical(context, callable, *args, **kw):
 	"""
-	A Callable used to trap exceptions and interject a &Panic instance caused by the
-	original.
+	A callable used to trap exceptions and interject a &Panic instance caused by the
+	original. This function is intended for critical sections where the failure is likely
+	to cause the application to become unresponsive via usual routes.
+
+	&critical may return, but must never raise.
 
 	For example:
 
@@ -714,6 +722,7 @@ def critical(context, callable, *args, **kw):
 		ce.__cause__ = exc
 
 		if __control_lock__.locked():
+			# Only use interject when the control() lock has been used.
 			raise_panic = ce.raised
 			interject(raise_panic) # fault.system.library.critical
 		else:
@@ -729,6 +738,9 @@ def protect(*init, looptime = 8):
 	[ Exceptions ]
 	/&Panic
 		Raised in cases where the infinite loop exits.
+
+	/&SystemExit
+		Raised by an application thread using &interject.
 	"""
 	global current_process_id, parent_process_id, process_signals
 
@@ -758,7 +770,8 @@ def control(main, *args, **kw):
 	of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
 	"""
 	global kernel
-	global Interruption, Fork
+	global Interruption
+	global Fork
 	global __control_lock__
 
 	# Registers the atfork functions.
@@ -768,7 +781,7 @@ def control(main, *args, **kw):
 		try:
 			Fork.trap(main, *args, **kw)
 			# Fork.trap() should not return.
-			raise RuntimeError("libsys.Fork.trap did not raise SystemExit or Interruption")
+			raise Panic("fault.system.library.Fork.trap did not raise SystemExit or Interruption")
 		except Interruption as e:
 			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
@@ -857,7 +870,11 @@ def concurrently(controller, exe = Fork.dispatch):
 	The returned object is a reference to the result that will block until the child
 	process has written the serialized response to a pipe.
 
+	Used to create *very simple* fork trees that need to send completion reports back to
+	the parent.
+
 	[ Parameters ]
+
 	/controller
 		The object to call to use the child's controller. &collections.Callable
 	"""
@@ -913,8 +930,8 @@ KInvocation = kernel.Invocation
 
 class Pipeline(tuple):
 	"""
-	Object holding the file descriptors associated with a running pipeline of operating system
-	processes.
+	Object holding the file descriptors associated with a *running* pipeline
+	of operating system processes.
 	"""
 	__slots__ = ()
 
@@ -994,7 +1011,7 @@ class PInvocation(tuple):
 
 		The command tuples must specify the absolute path to the executable
 		as the first item, the second item is the program's runtime name
-		that is accessible as the first argument. Often, the filename of the
+		that is accessible as the first argument. Often, the basename of the
 		command if it were invoked using (system:environment)`PATH` resolution.
 		"""
 		return Class([
