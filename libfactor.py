@@ -34,6 +34,10 @@ python_triplet = python_context(
 	sys.implementation.name, sys.version_info, sys.abiflags, sys.platform
 )
 
+bytecode_triplet = python_context(
+	sys.implementation.name, sys.version_info, sys.abiflags, 'bytecode'
+)
+
 selections = None
 
 _factor_role_patterns = None
@@ -147,6 +151,9 @@ def sources(factor:libroutes.Import, dirname='src', module=None):
 
 	if module is not None:
 		pkgdir = libroutes.File.from_absolute(module.__file__).container
+		if module.__factor_type__ == 'python.extension':
+			# Likely simulated composite.
+			return pkgdir
 	else:
 		pkgdir = package_directory(factor)
 
