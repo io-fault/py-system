@@ -1,25 +1,42 @@
 """
 Factor support for Python extensions, archive files, shared objects, and executables.
 
+For composite factors that are not Python extensions, a context and role need to be
+selected in order to get the appropriate output to use with the program.
+&.system.libfactor provides the necessary configuration and functions for identifying
+the appropriate files to use at runtime.
+
+&.system.libfactor is canonical; &.development.libconstruct uses it to identify where
+targets should be processed and how to access them for implementation or installation.
+
 [ Properties ]
+
+/selected_context
+	Construction context to load from.
+
+/selected_role
+	Construction role to load from.
 
 /selections
 	A mapping providing the selected role to use for the factor module.
 
-/import_role
-	The default role to import modules with.
-
 /python_triplet
 	The `-` separated strings representing the currently executing Python context.
 	Used to construct directories for Python extension builds.
+
+/bytecode_triplet
+	The `-` separated strings representing the bytecode used by the executing Python
+	context.
 """
 import sys
 import imp
 import types
 import importlib
 
-from ..computation import libmatch
 from ..routes import library as libroutes
+
+selected_context = 'host'
+selected_role = 'optimal'
 
 def python_context(implementation, version_info, abiflags, platform):
 	"""
@@ -35,7 +52,7 @@ python_triplet = python_context(
 )
 
 bytecode_triplet = python_context(
-	sys.implementation.name, sys.version_info, sys.abiflags, 'bytecode'
+	sys.implementation.name, sys.version_info, '', 'bytecode'
 )
 
 selections = None
