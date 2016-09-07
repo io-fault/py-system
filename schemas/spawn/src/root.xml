@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- XML description of a language agnostic Traceback; a stack of frames !-->
+<grammar
+	xmlns="http://relaxng.org/ns/structure/1.0"
+	ns="http://fault.io/xml/system/spawn"
+	xmlns:lo="http://fault.io/xml/literal#octets"
+	datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
+	xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">
+
+	<a:documentation>
+		Grammar for representing system invocations.
+	</a:documentation>
+
+	<define name="spawn.xmlid">
+		<a:documentation>xml:id attribute</a:documentation>
+		<attribute name="xml:id">
+			<a:documentation>
+			</a:documentation>
+			<data type="ID"/>
+		</attribute>
+	</define>
+
+	<define name="spawn.xml.space">
+		<attribute name="xml:space">
+			<choice>
+				<value>default</value>
+				<value>preserve</value>
+			</choice>
+		</attribute>
+	</define>
+
+	<define name="spawn.field">
+		<element name="field">
+			<choice>
+				<attribute name="literal">
+					<data type="string"/>
+				</attribute>
+				<attribute name="environment">
+					<data type="string"/>
+				</attribute>
+			</choice>
+		</element>
+	</define>
+
+	<define name="any">
+		<element>
+			<anyName/>
+			<zeroOrMore>
+				<choice>
+					<attribute><anyName/></attribute>
+					<ref name="any"/>
+					<text/>
+				</choice>
+			</zeroOrMore>
+		</element>
+	</define>
+
+	<define name="spawn.field.construction">
+		<oneOrMore>
+			<choice>
+				<element ns="http://fault.io/xml/literal#octets">
+					<anyName/>
+					<zeroOrMore>
+						<attribute><anyName/></attribute>
+					</zeroOrMore>
+					<optional>
+						<ref name="any"/>
+					</optional>
+				</element>
+				<text/>
+			</choice>
+		</oneOrMore>
+	</define>
+
+	<define name="spawn.executable">
+		<element name="executable">
+			<optional>
+				<attribute name="program.name">
+					<!--argv[0] contents-->
+					<data type="string"/>
+				</attribute>
+			</optional>
+			<choice>
+				<attribute name="path">
+					<data type="string"/>
+				</attribute>
+				<ref name="spawn.field.construction"/>
+			</choice>
+		</element>
+	</define>
+
+	<define name="spawn.environment">
+		<element name="environment">
+			<optional>
+				<attribute name="alteration">
+					<choice>
+						<value>update</value><!--default-->
+						<value>replace</value>
+						<value>truncate</value>
+						<value>none</value>
+					</choice>
+				</attribute>
+			</optional>
+			<zeroOrMore>
+				<choice>
+					<element name="setting">
+						<attribute name="name">
+							<data type="string"/>
+						</attribute>
+						<attribute name="value">
+							<data type="string"/>
+						</attribute>
+					</element>
+					<element name="default">
+						<attribute name="name">
+							<data type="string"/>
+						</attribute>
+						<attribute name="value">
+							<data type="string"/>
+						</attribute>
+					</element>
+					<element name="clear">
+						<attribute name="name">
+							<data type="string"/>
+						</attribute>
+					</element>
+				</choice>
+			</zeroOrMore>
+		</element>
+	</define>
+
+	<define name="spawn.system">
+		<a:documentation>Root element.</a:documentation>
+
+		<element name="system">
+			<optional>
+				<attribute name="type">
+					<!--arbitrary annotation-->
+					<data type="string"/>
+				</attribute>
+			</optional>
+
+			<optional>
+				<ref name="spawn.environment"/>
+			</optional>
+
+			<ref name="spawn.executable"/>
+			<zeroOrMore>
+				<ref name="spawn.field"/>
+			</zeroOrMore>
+		</element>
+	</define>
+
+	<start>
+		<choice>
+			<ref name="spawn.system"/>
+			<ref name="spawn.environment"/>
+		</choice>
+	</start>
+</grammar>
