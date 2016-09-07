@@ -43,7 +43,8 @@ elif 'freebsd' in sys.platform or 'darwin' in sys.platform:
 		import subprocess
 		p = subprocess.Popen(('sysctl', 'kern.corefile'),
 			stdout = subprocess.PIPE, stderr = None, stdin = None)
-		corepat = p.stdout.read().decode('utf-8')
+		stdout, stderr = p.communicate(None)
+		corepat = stdout.decode('utf-8')
 		prefix, corefile = corepat.split(':', 1)
 		return corefile.strip()
 else:

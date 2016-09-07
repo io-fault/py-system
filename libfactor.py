@@ -75,6 +75,7 @@ def select(module, role, context=None):
 
 	if module.endswith('.'):
 		path = tuple(module.split('.')[:-1])
+		from ..computation import libmatch
 
 		if _factor_role_patterns is None:
 			_factor_role_patterns = libmatch.SubsequenceScan([path])

@@ -974,6 +974,9 @@ class Pipeline(tuple):
 	def void(self, close=os.close):
 		"""
 		Close all file descriptors and kill -9 all processes involved in the pipeline.
+
+		Normally used in exception cases where the caller failed to construct an interface
+		to the running pipeline.
 		"""
 		for x in self.standard_errors:
 			close(x)
@@ -1030,7 +1033,7 @@ class PInvocation(tuple):
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
 
-	def __call__(self, signal=9, pipe=os.pipe, close=os.close):
+	def __call__(self, signal=9, pipe=os.pipe, close=os.close) -> Pipeline:
 		"""
 		Execute the series of invocations returning a &Pipeline instance containing
 		the file descriptors used for input, output and the standard error of all the commands.
@@ -1074,7 +1077,10 @@ class PInvocation(tuple):
 				close(pipes[0][1])
 				close(pipes[-1][0])
 
-			# kill any invoked processes
+			# kill -9 any invoked processes.
+			# There is no guarantee that the process will properly
+			# terminate from closing the pipes, so try to ensure
+			# that the process was cleaned up as well.
 			for pid in pids:
 				os.kill(pid, signal)
 				os.waitpid(pid)
