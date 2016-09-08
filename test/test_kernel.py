@@ -1,5 +1,6 @@
 import io
 import os
+from ...routes import library as libroutes
 from .. import library as libsys
 from .. import kernel as library
 
@@ -53,7 +54,13 @@ def test_Invocation_file_not_found(test):
 	"""
 	Validate that a reasonable OSError is raised when the executable doesn't exist.
 	"""
-	pass
+	tr = test.exits.enter_context(libroutes.File.temporary())
+	r = tr / 'no-such.exe'
+	i = library.Invocation(str(r), ())
+
+	with open(os.devnull) as f:
+		invoke = lambda: i(((f.fileno(), 0), (f.fileno(), 1), (f.fileno(), 2)))
+		test/FileNotFoundError ^ invoke
 
 def test_Invocation_execute(test):
 	# echo data through cat
