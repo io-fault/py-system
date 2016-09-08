@@ -1,10 +1,10 @@
-identity = 'http://fault.io/python/fault.system'
+identity = 'http://fault.io/python/system'
 name = 'system'
 abstract = 'Process management tools and kernel event interfaces'
 icon = '⚙'
 
-versioning = 'continuous'
 fork = 'panic'
+versioning = 'continuous'
 status = 'flux'
 
 controller = 'fault.io'
