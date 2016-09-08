@@ -80,7 +80,6 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	 * Modify attributes per-invocation.
 	 * Attributes like process group need to be per-invocation.
 	 */
-
 	if (posix_spawnattr_getflags(&(inv->invocation_spawnattr), &flags))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
@@ -104,9 +103,7 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 		return(NULL);
 	}
 
-	/*
-	 * Handle the fdmap parameter.
-	 */
+	/* fdmap parameter */
 	if (fdmap != NULL)
 	{
 		int fd, newfd, r;
@@ -165,9 +162,6 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 		}
 	#endif
 
-	/*
-	 * run the spawn
-	 */
 	r = posix_spawn(&child, (const char *) inv->invocation_path, &fa,
 			&(inv->invocation_spawnattr),
 			inv->invocation_argv,
@@ -177,12 +171,12 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	{
 		/*
 		 * A warning would be appropriate.
-		PyErr_SetFromErrno(PyExc_OSError);
 		 */
 	}
 
 	if (r != 0)
 	{
+		errno = r;
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
 	}
