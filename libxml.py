@@ -14,7 +14,7 @@ from .library import Reference
 
 namespaces = libxml.index_namespace_labels(schemas)
 
-class Spawn(typing.Final):
+class Execute(typing.Final):
 	"""
 	System invocation descriptor.
 
@@ -45,8 +45,7 @@ class Spawn(typing.Final):
 
 		global namespaces
 
-		compose = Spawn.compose
-		construct_param = Spawn.parameter
+		construct_param = Execute.parameter
 
 		find = lambda x: document.find(x, namespaces)
 		findall = lambda x: document.findall(x, namespaces)
@@ -54,22 +53,22 @@ class Spawn(typing.Final):
 		typ = document.attrib.get("type")
 		doc = document.attrib.get("abstract")
 
-		exe_element = find("spawn:executable")
+		exe_element = find("execute:executable")
 		exe = exe_element.attrib.get("path", None)
 		exe_name = exe_element.attrib.get("program.name", None)
 
-		env_element = find("spawn:environment")
+		env_element = find("execute:environment")
 		alt = env_element.attrib.get('alteration')
-		params = find("spawn:parameters")
+		params = find("execute:parameters")
 
 		env = {
 			x.attrib["name"]: x.attrib["value"]
-			for x in list(env_element.findall("spawn:setting", namespaces))
+			for x in list(env_element.findall("execute:setting", namespaces))
 		}
 
 		defaults = {
 			x.attrib["name"]: x.attrib["value"]
-			for x in list(env_element.findall("spawn:default", namespaces))
+			for x in list(env_element.findall("execute:default", namespaces))
 		}
 
 		fields = [construct_param(None, x) for x in list(params)]
@@ -92,11 +91,11 @@ class Spawn(typing.Final):
 
 	@staticmethod
 	def serialize(struct, encoding="ascii",
-			namespace=namespaces['spawn'],
+			namespace=namespaces['execute'],
 			chain=itertools.chain.from_iterable
 		):
 		"""
-		Construct an XML configuration for a service spawn.
+		Construct an XML configuration for a service execute.
 		"""
 
 		xmlctx = libxml.Serialization()
@@ -132,7 +131,7 @@ class Spawn(typing.Final):
 			)
 		)
 
-		return xmlctx.root('spawn',
+		return xmlctx.root('frame',
 			chain((env, exe, params)),
 			('type', struct["type"]),
 			('abstract', struct.get('abstract')),

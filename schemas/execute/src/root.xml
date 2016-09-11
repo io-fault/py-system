@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- XML description of a language agnostic Traceback; a stack of frames !-->
+<!-- XML description of a execution template/frame for system invocations. !-->
 <grammar
 	xmlns="http://relaxng.org/ns/structure/1.0"
-	ns="http://fault.io/xml/system/spawn"
+	ns="http://fault.io/xml/system/execute"
 	xmlns:lo="http://fault.io/xml/literal#octets"
 	datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
 	xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">
@@ -11,7 +11,7 @@
 		Grammar for representing system invocations.
 	</a:documentation>
 
-	<define name="spawn.xmlid">
+	<define name="execute.xmlid">
 		<a:documentation>xml:id attribute</a:documentation>
 		<attribute name="xml:id">
 			<a:documentation>
@@ -20,7 +20,7 @@
 		</attribute>
 	</define>
 
-	<define name="spawn.xml.space">
+	<define name="execute.xml.space">
 		<attribute name="xml:space">
 			<choice>
 				<value>default</value>
@@ -29,7 +29,7 @@
 		</attribute>
 	</define>
 
-	<define name="spawn.field">
+	<define name="execute.field">
 		<element name="field">
 			<choice>
 				<attribute name="literal">
@@ -55,7 +55,7 @@
 		</element>
 	</define>
 
-	<define name="spawn.field.construction">
+	<define name="execute.field.construction">
 		<oneOrMore>
 			<choice>
 				<element ns="http://fault.io/xml/literal#octets">
@@ -72,7 +72,7 @@
 		</oneOrMore>
 	</define>
 
-	<define name="spawn.executable">
+	<define name="execute.executable">
 		<element name="executable">
 			<optional>
 				<attribute name="program.name">
@@ -84,12 +84,12 @@
 				<attribute name="path">
 					<data type="string"/>
 				</attribute>
-				<ref name="spawn.field.construction"/>
+				<ref name="execute.field.construction"/>
 			</choice>
 		</element>
 	</define>
 
-	<define name="spawn.environment">
+	<define name="execute.environment">
 		<element name="environment">
 			<optional>
 				<attribute name="alteration">
@@ -129,10 +129,10 @@
 		</element>
 	</define>
 
-	<define name="spawn.system">
+	<define name="execute.frame">
 		<a:documentation>Root element.</a:documentation>
 
-		<element name="system">
+		<element name="frame">
 			<optional>
 				<attribute name="type">
 					<!--arbitrary annotation-->
@@ -141,20 +141,22 @@
 			</optional>
 
 			<optional>
-				<ref name="spawn.environment"/>
+				<ref name="execute.environment"/>
 			</optional>
 
-			<ref name="spawn.executable"/>
+			<ref name="execute.executable"/>
 			<zeroOrMore>
-				<ref name="spawn.field"/>
+				<ref name="execute.field"/>
 			</zeroOrMore>
 		</element>
 	</define>
 
 	<start>
 		<choice>
-			<ref name="spawn.system"/>
-			<ref name="spawn.environment"/>
+			<ref name="execute.frame"/>
+			<ref name="execute.environment"/>
+			<ref name="execute.executable"/>
+			<ref name="execute.parameters"/>
 		</choice>
 	</start>
 </grammar>
