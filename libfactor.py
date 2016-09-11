@@ -61,11 +61,21 @@ def extension_composite_name(name:str) -> str:
 def package_directory(import_route:libroutes.Import) -> libroutes.File:
 	return import_route.file().container
 
-def inducted(factor:libroutes.Import) -> libroutes.File:
+def inducted(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
 	"""
 	Return the &libroutes.File instance to the inducted target.
+
+	The selected construction context can designate that a different
+	slot be used for inductance. This is to allow inspect output to reside
+	alongside functioning output.
+
+	[ Parameters ]
+	/slot
+		The inducted entry to use; defaults to `'factor'`, but
+		specified for cases where the providing context inducts
+		the data into another directory.
 	"""
-	return (factor.file().container / '__pycache__' / 'factor')
+	return (factor.file().container / '__pycache__' / slot)
 
 def sources(factor:libroutes.Import, dirname='src', module=None):
 	"""
@@ -76,7 +86,7 @@ def sources(factor:libroutes.Import, dirname='src', module=None):
 	if module is not None:
 		pkgdir = libroutes.File.from_absolute(module.__file__).container
 		if module.__factor_type__ == 'python.extension':
-			# Likely simulated composite.
+			# Likely simulated composite. This is *not* a 'system.extension'.
 			return pkgdir
 	else:
 		pkgdir = package_directory(factor)
@@ -102,7 +112,10 @@ def probe(module:types.ModuleType):
 	"""
 	Whether the module is declared to be a system probe.
 	"""
-	return module.__factor_type__ == 'system.probe'
+	return (
+		module.__factor_type__ == 'system' and \
+		module.__factor_dynamics__ == 'probe'
+	)
 
 def dependencies(factor:types.ModuleType) -> typing.Iterable[types.ModuleType]:
 	"""

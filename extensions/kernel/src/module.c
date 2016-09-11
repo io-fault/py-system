@@ -2,7 +2,7 @@
 #include <pthread.h>
 #include <signal.h>
 
-#include <fault/roles.h>
+#include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 #include <frameobject.h>
@@ -424,7 +424,7 @@ PyDoc_STRVAR(invocation_doc,
 PyTypeObject
 InvocationType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	QPATH("Invocation"),        /* tp_name */
+	MODULE_QPATH("Invocation"), /* tp_name */
 	sizeof(struct Invocation),  /* tp_basicsize */
 	0,                          /* tp_itemsize */
 	invocation_dealloc,         /* tp_dealloc */
