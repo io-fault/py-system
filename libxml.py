@@ -109,7 +109,11 @@ class Execute(typing.Final):
 				),
 				chain(
 					xmlctx.element('default', None, ('name', k), ('value', v))
-					for k, v in struct.get('defaults').items()
+					for k, v in (
+						struct['defaults'].items()
+						if 'defaults' in struct
+						else ()
+					)
 				),
 			)),
 			('alteration', alt)
