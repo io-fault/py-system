@@ -77,6 +77,23 @@ def inducted(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
 	"""
 	return (factor.file().container / '__pycache__' / slot)
 
+def package_inducted(modudle, slot:str='factor') -> libroutes.File:
+	"""
+	Return the &libroutes.File instance to the inducted factor.
+
+	The selected construction context can designate that a different
+	slot be used for inductance. This is to allow inspect output to reside
+	alongside functioning output.
+
+	[ Parameters ]
+	/slot
+		The inducted entry to use; defaults to `'factor'`, but
+		specified for cases where the providing context inducts
+		the data into another directory.
+	"""
+	c = libroutes.File.from_absolute(module.__file__).container
+	return c / '__pycache__' / slot
+
 def sources(factor:libroutes.Import, dirname='src', module=None):
 	"""
 	Return the &libroutes.File instance to the set of sources.
