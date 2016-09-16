@@ -120,7 +120,7 @@ class Segments(object):
 		"""
 		global os
 
-		fd = os.open(path, os.O_RDONLY|os.O_CLOEXEC)
+		fd = os.open(path, os.O_RDONLY)
 		try:
 			s = Class(Class.MemoryMap(fd, 0, access=Class.ACCESS_MODE))
 		finally:
