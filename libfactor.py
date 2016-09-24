@@ -94,7 +94,7 @@ def inducted(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
 	"""
 	return (factor.file().container / '__pycache__' / slot)
 
-def package_inducted(modudle, slot:str='factor') -> libroutes.File:
+def package_inducted(module, slot:str='factor') -> libroutes.File:
 	"""
 	Return the &libroutes.File instance to the inducted factor.
 
