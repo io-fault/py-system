@@ -3,7 +3,7 @@
 <grammar
 	xmlns="http://relaxng.org/ns/structure/1.0"
 	ns="http://fault.io/xml/system/execute"
-	xmlns:lo="http://fault.io/xml/literal#octets"
+	xmlns:l="http://fault.io/xml/literal"
 	datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
 	xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">
 
@@ -58,7 +58,7 @@
 	<define name="execute.field.construction">
 		<oneOrMore>
 			<choice>
-				<element ns="http://fault.io/xml/literal#octets">
+				<element ns="http://fault.io/xml/literal">
 					<anyName/>
 					<zeroOrMore>
 						<attribute><anyName/></attribute>
@@ -72,6 +72,14 @@
 		</oneOrMore>
 	</define>
 
+	<define name="execute.parameters">
+		<element name="parameters">
+			<zeroOrMore>
+				<ref name="execute.field"/>
+			</zeroOrMore>
+		</element>
+	</define>
+
 	<define name="execute.executable">
 		<element name="executable">
 			<optional>
@@ -80,6 +88,7 @@
 					<data type="string"/>
 				</attribute>
 			</optional>
+
 			<choice>
 				<attribute name="path">
 					<data type="string"/>
@@ -101,6 +110,7 @@
 					</choice>
 				</attribute>
 			</optional>
+
 			<zeroOrMore>
 				<choice>
 					<element name="setting">
@@ -139,15 +149,18 @@
 					<data type="string"/>
 				</attribute>
 			</optional>
+			<optional>
+				<attribute name="abstract">
+					<data type="string"/>
+				</attribute>
+			</optional>
 
 			<optional>
 				<ref name="execute.environment"/>
 			</optional>
 
 			<ref name="execute.executable"/>
-			<zeroOrMore>
-				<ref name="execute.field"/>
-			</zeroOrMore>
+			<ref name="execute.parameters"/>
 		</element>
 	</define>
 
