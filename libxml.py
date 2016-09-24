@@ -13,7 +13,7 @@ from . import schemas
 from .library import Reference
 from . import libfactor
 
-namespaces = libxml.index_namespace_labels(schemas)
+namespaces = libschema.index_namespace_labels(schemas)
 
 class Execute(libschema.Interface):
 	"""
