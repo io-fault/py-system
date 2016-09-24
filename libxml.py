@@ -8,13 +8,14 @@ XML interface set for &..system.
 """
 import itertools
 import typing
-from ..xml import library as libxml
+from ..xml import library as libxml, libschema
 from . import schemas
 from .library import Reference
+from . import libfactor
 
 namespaces = libxml.index_namespace_labels(schemas)
 
-class Execute(typing.Final):
+class Execute(libschema.Interface):
 	"""
 	System invocation descriptor.
 
@@ -25,6 +26,23 @@ class Execute(typing.Final):
 	! DEVELOPMENT: Testing
 		There are few or no tests for many of the features implemented here.
 	"""
+	from .schemas import execute as schema
+	schema = libfactor.package_inducted(schema) / 'pf.lnk'
+	namespace = namespaces['execute']
+
+	type = typing.NamedTuple(
+		'ExecutionFrame', [
+			('type', typing.Text),
+			('abstract', typing.Text),
+
+			('environment', typing.Mapping[str, str]),
+			('alteration', str),
+
+			('executable', str),
+			('program_name', str),
+			('parameters', typing.Sequence[typing.Tuple[str, str]]),
+		]
+	)
 
 	@staticmethod
 	def parameter(reference, element):
@@ -40,7 +58,7 @@ class Execute(typing.Final):
 	@staticmethod
 	def structure(document, reference=None):
 		"""
-		Extract a service's invocation configuration from an XML file.
+		Extract the pertinent data from an execution frame.
 		"""
 
 		global namespaces

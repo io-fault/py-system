@@ -1,7 +1,7 @@
 """
 Generate a reference to an execution.
 
-Creates a &.schemas.spawn instance for subsequent system invocation.
+Creates a &.schemas.execute instance for subsequent system invocation.
 Initial parameters containing an `=` sign will be perceived as environment
 settings; a `?` placed directly before the `=` will cause it to be perceived
 as a default instead of a setting. The first parameter not containing an `=`
@@ -9,7 +9,7 @@ will be identified as the executable, even if it's an emtpy string, and the
 ones that follow will be used as literal parameters to the execution of
 the program.
 
-The resulting XML will be written standard out.
+The resulting XML will be written standard output.
 """
 import sys
 from ..library import Reference
@@ -18,6 +18,7 @@ from .. import libxml
 def main(args):
 	senv = {}
 	denv = {}
+	x = None
 
 	i = iter(args)
 	for x in i:
@@ -44,7 +45,7 @@ def main(args):
 	if denv:
 		struct['defaults'] = denv
 
-	sys.stdout.buffer.writelines(libxml.Spawn.serialize(struct))
+	sys.stdout.buffer.writelines(libxml.Execute.serialize(struct))
 
 if __name__ == '__main__':
 	main(sys.argv[1:])
