@@ -1,6 +1,6 @@
 """
-Memory management classes for implementing usage constraints
-in parts of processes.
+# Memory management classes for implementing usage constraints
+# in parts of processes.
 """
 import os
 import weakref
@@ -8,8 +8,8 @@ import collections
 
 class Memory(bytearray):
 	"""
-	bytearray subclass supporting weak-references and
-	identifier hashing for memory-free signalling.
+	# bytearray subclass supporting weak-references and
+	# identifier hashing for memory-free signalling.
 	"""
 	try:
 		import resource
@@ -22,13 +22,13 @@ class Memory(bytearray):
 
 	def __hash__(self, id=id):
 		"""
-		Object Identifier based hash for allowing indexing of allocated instances.
+		# Object Identifier based hash for allowing indexing of allocated instances.
 		"""
 		return id(self)
 
 class MemoryContext(object):
 	"""
-	Memory pool that uses weakref's and context managers to reclaim memory.
+	# Memory pool that uses weakref's and context managers to reclaim memory.
 	"""
 	Memory = Memory # bytearray subclass with weakref support
 	Reference = weakref.ref # for reclaiming memory
@@ -36,7 +36,7 @@ class MemoryContext(object):
 	@classmethod
 	def from_mib(typ, size):
 		"""
-		Construct a Reservoir from the given number of Mebibytes desired.
+		# Construct a Reservoir from the given number of Mebibytes desired.
 		"""
 		pages, remainder = divmod((size * (2**20)), self.Memory.pagesize)
 		if remainder:
@@ -60,21 +60,21 @@ class MemoryContext(object):
 	@property
 	def used(self):
 		"""
-		Memory units currently in use.
+		# Memory units currently in use.
 		"""
 		return len(self._allocated)
 
 	@property
 	def available(self):
 		"""
-		Number of memory units available.
+		# Number of memory units available.
 		"""
 		return len(self.segments)
 
 	def allocate(self):
 		"""
-		Allocate a unit of memory for use. When Python references to the memory object
-		no longer exist, another unit will be added.
+		# Allocate a unit of memory for use. When Python references to the memory object
+		# no longer exist, another unit will be added.
 		"""
 		if not self.segments:
 			raise RuntimeError("empty")
@@ -97,15 +97,15 @@ class MemoryContext(object):
 
 	def acquire(self, event):
 		"""
-		Explicitly add an object to the available segments.
+		# Explicitly add an object to the available segments.
 		"""
 		self.segments.extend(event)
 
 class Segments(object):
 	"""
-	Iterate over the slices of an active memory map;
-	Weak references of the slices are held to track when
-	its appropriate to close the memory map.
+	# Iterate over the slices of an active memory map;
+	# Weak references of the slices are held to track when
+	# its appropriate to close the memory map.
 	"""
 
 	from mmap import mmap as MemoryMap
@@ -114,9 +114,9 @@ class Segments(object):
 	@classmethod
 	def open(Class, path):
 		"""
-		Open the file at the given path in read-only mode and
-		create a &Segments providing a &MemoryMap interface
-		to the contents.
+		# Open the file at the given path in read-only mode and
+		# create a &Segments providing a &MemoryMap interface
+		# to the contents.
 		"""
 		global os
 
@@ -130,12 +130,12 @@ class Segments(object):
 
 	def __init__(self, memory:MemoryMap):
 		"""
-		Initialize an instance using the given &memory. An instance
-		created by &MemoryMap.
+		# Initialize an instance using the given &memory. An instance
+		# created by &MemoryMap.
 
-		[ Parameters ]
-		/memory
-			The `mmap.mmap` instance defining the total memory region.
+		# [ Parameters ]
+		# /memory
+			# The `mmap.mmap` instance defining the total memory region.
 		"""
 		global weakref
 		self.memory = memory
@@ -143,14 +143,14 @@ class Segments(object):
 
 	def __del__(self):
 		"""
-		Manage the final stages of &Segments deallocation by transitioning
-		to a finalization process where &select methods can no longer occur,
-		and existing &memoryview's referencing &self, &weaks, are
-		used to construct a sequence of &weakref.finalize callbacks.
+		# Manage the final stages of &Segments deallocation by transitioning
+		# to a finalization process where &select methods can no longer occur,
+		# and existing &memoryview's referencing &self, &weaks, are
+		# used to construct a sequence of &weakref.finalize callbacks.
 
-		Once in the final stage, a count of outstanding &memoryview instances
-		is tracked and decremented with &decrement until there are no more references
-		to the &Segments allowing the file descriptor associated with &memory to be closed.
+		# Once in the final stage, a count of outstanding &memoryview instances
+		# is tracked and decremented with &decrement until there are no more references
+		# to the &Segments allowing the file descriptor associated with &memory to be closed.
 		"""
 		# The delete method is used as its
 		# the precise functionality that is needed here.
@@ -177,8 +177,8 @@ class Segments(object):
 
 	def decrement(self):
 		"""
-		Used internally by &__del__ to manage the deallocation process
-		when there are outstanding references to the memory mapped region.
+		# Used internally by &__del__ to manage the deallocation process
+		# when there are outstanding references to the memory mapped region.
 		"""
 		self.count -= 1
 		if self.count == 0:
@@ -188,8 +188,8 @@ class Segments(object):
 
 	def select(self, start, stop, size, memoryview=memoryview, iter=iter, range=range):
 		"""
-		Constructs an iterator to the parameterized range over the
-		&memory the &Segments instance was initialized with.
+		# Constructs an iterator to the parameterized range over the
+		# &memory the &Segments instance was initialized with.
 		"""
 		add_weak = self.weaks.add # (__del__ triggered finalization)
 		stop = stop if stop is not None else len(self.memory)
@@ -213,6 +213,6 @@ class Segments(object):
 
 	def __iter__(self):
 		"""
-		Return an iterator to the entire region in sixteen kilobyte sizes.
+		# Return an iterator to the entire region in sixteen kilobyte sizes.
 		"""
 		return self.select(0, len(self.memory), 1024*16)

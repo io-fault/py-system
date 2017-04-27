@@ -2,7 +2,7 @@ from .. import libfactor as library
 
 def test_composite(test):
 	"""
-	Validate &library.composite
+	# Validate &library.composite
 	"""
 	test.warning("not implemented")
 

@@ -1,15 +1,15 @@
 """
-Manage system core dumps.
+# Manage system core dumps.
 
-Provides access to core-file location after process exits and controlling
-the limits of core file sizes produced by the system. For systems
-that do not have &resource modules, the functionality is essentially
-a no-op and performs empty functions in order to allow existing code to work.
+# Provides access to core-file location after process exits and controlling
+# the limits of core file sizes produced by the system. For systems
+# that do not have &resource modules, the functionality is essentially
+# a no-op and performs empty functions in order to allow existing code to work.
 
-[ Properties ]
+# [ Properties ]
 
-/available
-	Whether or not core-file controls is available.
+# /available
+	# Whether or not core-file controls is available.
 """
 import sys
 import os
@@ -53,7 +53,8 @@ else:
 
 def location(pid, pattern = functools.partial(os.environ.get, 'COREPATTERN', '/cores/core.{pid}')):
 	"""
-	Given a process identifier, 
+	# Given a process identifier, return the location of the corefile
+	# based on the &pattern.
 	"""
 	import getpass
 	return pattern().format(**{'pid': pid, 'uid': os.getuid(), 'user': getpass.getuser(), 'home': os.environ['HOME']})
@@ -67,32 +68,32 @@ def constraint(
 		rtype=resource.RLIMIT_CORE
 	):
 	"""
-	Constrain core dumps during the execution of the context. Useful for managing tests that may dump core.
-	Alternatively, &enabled and &disabled can be used as shorthands for clarity.
+	# Constrain core dumps during the execution of the context. Useful for managing tests that may dump core.
+	# Alternatively, &enabled and &disabled can be used as shorthands for clarity.
 
-	! WARNING:
-		&constraint is *not* thread safe.
-		Conccurrent execution will render inconsistent effects on the limit.
+	# ! WARNING:
+		# &constraint is *not* thread safe.
+		# Conccurrent execution will render inconsistent effects on the limit.
 
-	When executed on systems where &available is `False`, &constraint does nothing.
+	# When executed on systems where &available is `False`, &constraint does nothing.
 
-	Typical use:
+	# Typical use:
 
 	#!/pl/python
 		with libcore.constraint(None):
 			...
 
-	Core dumps can disabled by designating zero size:
+	# Core dumps can disabled by designating zero size:
 
 	#!/pl/python
 		with libcore.constraint(0):
 			...
 
-	[ Parameters ]
+	# [ Parameters ]
 
-	/image_size_limit
-		The limit of the core file's size emitted by the system.
-		A size of `0` will disable core files from being generated.
+	# /image_size_limit
+		# The limit of the core file's size emitted by the system.
+		# A size of `0` will disable core files from being generated.
 	"""
 
 	if image_size_limit is None:

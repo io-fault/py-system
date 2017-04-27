@@ -5,7 +5,7 @@ from .test_kernel import perform_cat
 
 class Trapped(Exception):
 	"""
-	Exception Fixture for test_critical.
+	# Exception Fixture for test_critical.
 	"""
 	pass
 
@@ -24,7 +24,7 @@ def test_PInvocation(test):
 
 def test_critical(test):
 	"""
-	&.library.critical
+	# &.library.critical
 	"""
 	global Trapped
 	test/Trapped - Exception # sanity
@@ -67,7 +67,7 @@ def test_critical(test):
 
 def test_interject(test):
 	"""
-	Validate that interject manages to run a callable in a reasonable number of cycles.
+	# Validate that interject manages to run a callable in a reasonable number of cycles.
 	"""
 	executed = False
 	def call():

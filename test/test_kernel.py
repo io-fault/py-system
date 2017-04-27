@@ -36,7 +36,7 @@ def perform_cat(pids, input, output, data, *errors):
 
 def test_Invocation(test):
 	"""
-	Sanity and operations.
+	# Sanity and operations.
 	"""
 	notreal = library.Invocation("some string", ())
 	test/notreal / library.Invocation
@@ -52,7 +52,7 @@ def test_Invocation(test):
 
 def test_Invocation_file_not_found(test):
 	"""
-	Validate that a reasonable OSError is raised when the executable doesn't exist.
+	# Validate that a reasonable OSError is raised when the executable doesn't exist.
 	"""
 	tr = test.exits.enter_context(libroutes.File.temporary())
 	r = tr / 'no-such.exe'

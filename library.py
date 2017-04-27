@@ -1,38 +1,33 @@
 """
-Main thread protection, thread primitives, and system process invocation interfaces.
+# Main thread protection, thread primitives, and system process invocation interfaces.
 
-&.library provides a framework for managing a process and the resources that interact
-with the operating system. Notably, it provides access to POSIX atfork callbacks used
-to manage the re-initialization of child processes.
+# &.library provides a framework for managing a process and the resources that interact
+# with the operating system. Notably, it provides access to POSIX atfork callbacks used
+# to manage the re-initialization of child processes.
 
 #!/pl/python
 	from fault.system import library as libsys
 
-[ Functions ]
+# [ Functions ]
 
-/create_thread
-	Create a new thread and run the given callable inside of it.
+# /create_thread
+	# Create a new thread and run the given callable inside of it.
+# /create_lock
+	# Create a lock for mutual exclusion across threads.
+# /identify_thread
+	# When executed inside a thread, return the identifier
+	# of the running thread.
 
-/create_lock
-	Create a lock for mutual exclusion across threads.
+# [ Properties ]
 
-/identify_thread
-	When executed inside a thread, return the identifier
-	of the running thread.
-
-[ Properties ]
-
-/process_signals
-	Mapping of generalized signal names to signal identifiers.
-
-/process_signal_names
-	Mapping of signal identifiers to names.
-
-/process_fatal_signals
-	Set of signals that would cause an immediate exit if `SIG_DFL` were set.
-
-/process_signal_identifier
-	Mapping of signal identifiers to names used in POSIX header files.
+# /process_signals
+	# Mapping of generalized signal names to signal identifiers.
+# /process_signal_names
+	# Mapping of signal identifiers to names.
+# /process_fatal_signals
+	# Set of signals that would cause an immediate exit if `SIG_DFL` were set.
+# /process_signal_identifier
+	# Mapping of signal identifiers to names used in POSIX header files.
 """
 import sys
 import os
@@ -60,22 +55,22 @@ def interrupt_thread(tid, exception=None,
 		pthread_kill=signal.pthread_kill
 	):
 	"""
-	Raise the given exception in the thread with the given identifier, &tid.
+	# Raise the given exception in the thread with the given identifier, &tid.
 
-	The thread being interrupted will be signalled after the exception has been set.
-	This helps ensure that system calls will not stop the exception from being raised
-	in order to kill the thread.
+	# The thread being interrupted will be signalled after the exception has been set.
+	# This helps ensure that system calls will not stop the exception from being raised
+	# in order to kill the thread.
 
-	! WARNING:
-		Cases where usage is appropriate is rare. Managing the interruption
-		of threads in this fashion is only appropriate in certain applications.
+	# ! WARNING:
+		# Cases where usage is appropriate is rare. Managing the interruption
+		# of threads in this fashion is only appropriate in certain applications.
 
-	[ Parameters ]
+	# [ Parameters ]
 
-	/tid
-		The thread's low-level identifier to interrupt.
-	/exception
-		The exception that is raised in the thread.
+	# /tid
+		# The thread's low-level identifier to interrupt.
+	# /exception
+		# The exception that is raised in the thread.
 	"""
 	global Sever
 
@@ -86,19 +81,19 @@ def interrupt_thread(tid, exception=None,
 
 def select_thread_frame(tid:int) -> types.FrameType:
 	"""
-	Select the frame of the thread's identifier.
+	# Select the frame of the thread's identifier.
 
-	[Parameters]
-	/tid
-		Identifier of the thread returned by &create_thread or &identify_thread.
-		Returns &None when the thread is not running.
+	# [Parameters]
+	# /tid
+		# Identifier of the thread returned by &create_thread or &identify_thread.
+		# Returns &None when the thread is not running.
 	"""
 	global sys
 	return sys._current_frames().get(x)
 
 def select_fabric(tids:typing.Sequence[int]) -> typing.Sequence[typing.Tuple[int, types.FrameType]]:
 	"""
-	Select a set of threads from the same snapshot of frames.
+	# Select a set of threads from the same snapshot of frames.
 	"""
 	global sys
 	snapshot = sys._current_frames()
@@ -191,9 +186,9 @@ del getattr
 
 def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	"""
-	Trip the main thread by sending the process a SIGUSR2 signal in order to cause any
-	running system call to exit early. Used in conjunction with
-	&kernel.interject
+	# Trip the main thread by sending the process a SIGUSR2 signal in order to cause any
+	# running system call to exit early. Used in conjunction with
+	# &kernel.interject
 	"""
 	global signal
 
@@ -206,8 +201,8 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 
 def clear_atexit_callbacks(pid = None):
 	"""
-	In cases where there may be process dependent callbacks, add this to the
-	&fork_child_callset to clear the callbacks.
+	# In cases where there may be process dependent callbacks, add this to the
+	# &fork_child_callset to clear the callbacks.
 	"""
 	global sys
 
@@ -261,50 +256,50 @@ def _after_fork_child():
 
 class Sever(BaseException):
 	"""
-	Exception used to signal thread kills.
+	# Exception used to signal thread kills.
 	"""
 	__kill__ = True
 
 class SystemExit(SystemExit):
 	"""
-	Extension of SystemExit for use with interjections.
+	# Extension of SystemExit for use with interjections.
 
-	[ Properties ]
+	# [ Properties ]
 
-	/exiting_with_information
-		Exit code indicating the type of information presented on standard error.
-		Indicates that the standard error contains help output.
+	# /exiting_with_information
+		# Exit code indicating the type of information presented on standard error.
+		# Indicates that the standard error contains help output.
 
-	/exiting_for_termination
-		Exit code indicating that the daemon was signalled to shutdown
-		by an administrative function.
+	# /exiting_for_termination
+		# Exit code indicating that the daemon was signalled to shutdown
+		# by an administrative function.
 
-	/exiting_for_restart
-		Code used to communicate to the parent that it should be restarted.
-		Primarily used by forking daemons to signal the effect of its exit
-		without maintaining specific context.
+	# /exiting_for_restart
+		# Code used to communicate to the parent that it should be restarted.
+		# Primarily used by forking daemons to signal the effect of its exit
+		# without maintaining specific context.
 
-		Parent processes should, naturally, restart the process when this
-		code is used; usually it is used for automatic process cycling.
+		# Parent processes should, naturally, restart the process when this
+		# code is used; usually it is used for automatic process cycling.
 
-	/exiting_for_reduction
-		Essentially exiting for termination, but gives a clear indicator
-		about the purpose of the exit. Used by forking processes to
-		indicate that the exit is purposeful and should essentially be ignored.
+	# /exiting_for_reduction
+		# Essentially exiting for termination, but gives a clear indicator
+		# about the purpose of the exit. Used by forking processes to
+		# indicate that the exit is purposeful and should essentially be ignored.
 
-	/exiting_by_exception
-		Code used to communicate that the process exited due to an exception.
-		Details *may* be written standard error.
-		Essentially, this is a runtime coredump.
+	# /exiting_by_exception
+		# Code used to communicate that the process exited due to an exception.
+		# Details *may* be written standard error.
+		# Essentially, this is a runtime coredump.
 
-	/exiting_by_signal_status
-		&Invocation exit status code used to indicate that the
-		process will exit using a signal during &atexit(2).
-		The calling process will *not* see this code. Internal indicator.
+	# /exiting_by_signal_status
+		# &Invocation exit status code used to indicate that the
+		# process will exit using a signal during &atexit(2).
+		# The calling process will *not* see this code. Internal indicator.
 
-	/exiting_by_default_status
-		&Invocation exit status code used to indicate that the
-		the process failed to explicitly note status.
+	# /exiting_by_default_status
+		# &Invocation exit status code used to indicate that the
+		# the process failed to explicitly note status.
 	"""
 
 	exiting_with_information = 200
@@ -322,15 +317,15 @@ class SystemExit(SystemExit):
 
 class Transition(object):
 	"""
-	A synchronization mechanism used to manage the transition
-	of an arbitrary Container from one thread to another.
+	# A synchronization mechanism used to manage the transition
+	# of an arbitrary Container from one thread to another.
 
-	Transitions are used by two threads in order to synchronize
-	a single transfer.
+	# Transitions are used by two threads in order to synchronize
+	# a single transfer.
 
-	In terms of Python's threading library, Transitions would
-	be the kind of synchronization mechanism used to implement
-	&threading.Thread.join
+	# In terms of Python's threading library, Transitions would
+	# be the kind of synchronization mechanism used to implement
+	# &threading.Thread.join
 	"""
 	__slots__ = ('mutex', 'container')
 
@@ -343,10 +338,10 @@ class Transition(object):
 
 	def commit(self):
 		"""
-		Commit to the transition. If the object
-		hasn't been placed, block until it is.
+		# Commit to the transition. If the object
+		# hasn't been placed, block until it is.
 
-		A RuntimeError will be raised upon multiple invocations of commit.
+		# A RuntimeError will be raised upon multiple invocations of commit.
 		"""
 		mutex = self.mutex
 		if mutex is None:
@@ -357,7 +352,7 @@ class Transition(object):
 
 	def endpoint(self, container):
 		"""
-		Initiate the transition using the given container.
+		# Initiate the transition using the given container.
 		"""
 		mutex = self.mutex
 		if mutex is None:
@@ -370,12 +365,12 @@ class Transition(object):
 
 class Invocation(object):
 	"""
-	A means of representing the invocation of an abstract executable and the specification
-	of the means of exiting. Normally, used to describe how the process was invoked and the
-	corresponding parameters, argv and environ, in which the invocation should be reacting to.
+	# A means of representing the invocation of an abstract executable and the specification
+	# of the means of exiting. Normally, used to describe how the process was invoked and the
+	# corresponding parameters, argv and environ, in which the invocation should be reacting to.
 
-	For system invocation, the &parameters dictionary will have two entries by default:
-	`'system'` and `'type'`.
+	# For system invocation, the &parameters dictionary will have two entries by default:
+	# `'system'` and `'type'`.
 	"""
 
 	def __init__(self, exit_method, context = None):
@@ -385,7 +380,7 @@ class Invocation(object):
 
 	def exit(self, result):
 		"""
-		Perform the exit method designated during the initialization of the invocation.
+		# Perform the exit method designated during the initialization of the invocation.
 		"""
 
 		self.exit_method(result)
@@ -393,8 +388,8 @@ class Invocation(object):
 	@classmethod
 	def system(Class, context=None, environ=(), isinstance=isinstance, str=str):
 		"""
-		Create an instance representing that of the invocation from the operating
-		system. Primarily, information is retrieved from the &sys and &os module.
+		# Create an instance representing that of the invocation from the operating
+		# system. Primarily, information is retrieved from the &sys and &os module.
 		"""
 		global os, sys
 
@@ -422,7 +417,7 @@ class Invocation(object):
 	@classmethod
 	def system_exit_method(Class, exit_status):
 		"""
-		A means of exit used with a &Fork.trap managed process.
+		# A means of exit used with a &Fork.trap managed process.
 		"""
 		global interject
 
@@ -430,11 +425,11 @@ class Invocation(object):
 
 class Control(BaseException):
 	"""
-	Process control exceptions for significant events.
+	# Process control exceptions for significant events.
 
-	This is a control exception inheriting from &BaseException.
-	It should not be directly trapped, but subclasses may use it to classify
-	exceptions that are not necessarily indicative of a failure.
+	# This is a control exception inheriting from &BaseException.
+	# It should not be directly trapped, but subclasses may use it to classify
+	# exceptions that are not necessarily indicative of a failure.
 	"""
 
 	__kill__ = None
@@ -444,23 +439,23 @@ class Control(BaseException):
 
 class Panic(Control):
 	"""
-	An exception used to note the failure of a critical resource.
+	# An exception used to note the failure of a critical resource.
 
-	Instances of this class are usually interjected into the main thread causing
-	the process to immediately terminate.
+	# Instances of this class are usually interjected into the main thread causing
+	# the process to immediately terminate.
 
-	This is a control exception inheriting from &BaseException. It should not be trapped.
+	# This is a control exception inheriting from &BaseException. It should not be trapped.
 	"""
 
 	__kill__ = True
 
 class Interruption(Control):
 	"""
-	Similar to &KeyboardInterrupt, but causes &control to exit with the signal,
-	and calls critical status hooks.
+	# Similar to &KeyboardInterrupt, but causes &control to exit with the signal,
+	# and calls critical status hooks.
 
-	Primarily used to cause signal exit codes that are usually masked with
-	&KeyboardInterrupt.
+	# Primarily used to cause signal exit codes that are usually masked with
+	# &KeyboardInterrupt.
 	"""
 
 	__kill__ = True
@@ -482,8 +477,8 @@ class Interruption(Control):
 
 	def raised(self):
 		"""
-		Register a system-level atexit handler that will cause the process to exit with
-		the configured signal.
+		# Register a system-level atexit handler that will cause the process to exit with
+		# the configured signal.
 		"""
 		global process_fatal_signals
 
@@ -497,9 +492,9 @@ class Interruption(Control):
 	@classmethod
 	def interrupt(Class, signo, frame):
 		"""
-		Signal handler that interjects an Interruption instance into the main thread.
+		# Signal handler that interjects an Interruption instance into the main thread.
 
-		Default signal handler for SIGINT.
+		# Default signal handler for SIGINT.
 		"""
 		global process_fatal_signals
 
@@ -509,16 +504,16 @@ class Interruption(Control):
 	@staticmethod
 	def void(signo, frame):
 		"""
-		Python-level signal handler that does nothing.
+		# Python-level signal handler that does nothing.
 
-		When Interruption has set traps, a Context will respond to signals.
+		# When Interruption has set traps, a Context will respond to signals.
 		"""
 		pass
 
 	@classmethod
 	def filter(Class, *sigs, signal = signal.signal):
 		"""
-		Assign the void signal handler to the all of the given signal numbers.
+		# Assign the void signal handler to the all of the given signal numbers.
 		"""
 		for x in sigs:
 			signal(x, Class.void)
@@ -526,7 +521,7 @@ class Interruption(Control):
 	@classmethod
 	def catch(Class, *sigs, signal = signal.signal):
 		"""
-		Assign the interrupt signal handler to the all of the given signal numbers.
+		# Assign the interrupt signal handler to the all of the given signal numbers.
 		"""
 		for x in sigs:
 			signal(x, Class.interrupt)
@@ -539,7 +534,7 @@ class Interruption(Control):
 		signal = signal.signal, ign = signal.SIG_IGN,
 	):
 		"""
-		Signal handler for a root process.
+		# Signal handler for a root process.
 		"""
 		global process_fatal_signals
 		stored_signals = {}
@@ -561,17 +556,17 @@ class Interruption(Control):
 
 class Fork(Control):
 	"""
-	&Control exception used to signal &Fork.trap to replace the existing managed call.
+	# &Control exception used to signal &Fork.trap to replace the existing managed call.
 
-	Usual case is that a &Fork.trap call is made on the main thread where other threads are
-	created to run the actual program. Given that the program is finished and another should be ran
-	*as if the current program were never ran*, the &Control exception can be raised in the
-	main thread replacing the initial callable given to &Fork.trap.
+	# Usual case is that a &Fork.trap call is made on the main thread where other threads are
+	# created to run the actual program. Given that the program is finished and another should be ran
+	# *as if the current program were never ran*, the &Control exception can be raised in the
+	# main thread replacing the initial callable given to &Fork.trap.
 
-	The exception should only be used through the provided classmethods.
+	# The exception should only be used through the provided classmethods.
 
-	This exception should never be displayed in a traceback as it is intended to be caught
-	by &Fork.trap.
+	# This exception should never be displayed in a traceback as it is intended to be caught
+	# by &Fork.trap.
 	"""
 
 	__controlled_thread_id__ = None
@@ -596,40 +591,40 @@ class Fork(Control):
 	@classmethod
 	def substitute(Class, callable, *args, **kw):
 		"""
-		Substitute the existing control call with the given one.
+		# Substitute the existing control call with the given one.
 
-		Immediately raises a &Fork instance in the calling thread to be caught
-		by a corresponding &trap call.
+		# Immediately raises a &Fork instance in the calling thread to be caught
+		# by a corresponding &trap call.
 
-		Only to be used in cases where it is known that the current frame stack is
-		being managed by &trap.
+		# Only to be used in cases where it is known that the current frame stack is
+		# being managed by &trap.
 		"""
 		raise Class(callable, *args, **kw)
 
 	@classmethod
 	def dispatch(Class, controller, *args, **kw) -> int:
 		"""
-		Execute the given callable with the given arguments in a child process.
-		This performs an &interject call. Given that &pivot was called to execute the
-		program, the pivot function will catch the exception, in the child, and
-		execute the replacement.
+		# Execute the given callable with the given arguments in a child process.
+		# This performs an &interject call. Given that &pivot was called to execute the
+		# program, the pivot function will catch the exception, in the child, and
+		# execute the replacement.
 
-		[Parameters]
+		# [Parameters]
 
-		/controller
-			The object that will be called in the clone.
-		/args
-			Arguments given to the callable.
-		/kw
-			Keywords given to the callable.
+		# /controller
+			# The object that will be called in the clone.
+		# /args
+			# Arguments given to the callable.
+		# /kw
+			# Keywords given to the callable.
 
-		[Returns]
-		/&int
-			The child process' PID.
+		# [Returns]
+		# /&int
+			# The child process' PID.
 
-		[Exceptions]
-		/&Panic
-			Raised when the returns in the branches did not return.
+		# [Exceptions]
+		# /&Panic
+			# Raised when the returns in the branches did not return.
 		"""
 		global __fork_lock__
 		global interject
@@ -663,14 +658,14 @@ class Fork(Control):
 	@classmethod
 	def trap(Class, controller, *args, **kw):
 		"""
-		Establish a point for substituting the process. Trap provides an
-		exception trap for replacing the controlling stack. This is used to
-		perform safe fork operations that allow tear-down of process specific resources
-		in a well defined manner.
+		# Establish a point for substituting the process. Trap provides an
+		# exception trap for replacing the controlling stack. This is used to
+		# perform safe fork operations that allow tear-down of process specific resources
+		# in a well defined manner.
 
-		! NOTE:
-			Due to the varying global process state that may exist in a given process, it
-			is often better to start a new Python instance.
+		# ! NOTE:
+			# Due to the varying global process state that may exist in a given process, it
+			# is often better to start a new Python instance.
 		"""
 
 		while True:
@@ -697,13 +692,13 @@ class Fork(Control):
 
 def critical(context, callable, *args, **kw):
 	"""
-	A callable used to trap exceptions and interject a &Panic instance caused by the
-	original. This function is intended for critical sections where the failure is likely
-	to cause the application to become unresponsive via usual routes.
+	# A callable used to trap exceptions and interject a &Panic instance caused by the
+	# original. This function is intended for critical sections where the failure is likely
+	# to cause the application to become unresponsive via usual routes.
 
-	&critical may return, but must never raise.
+	# &critical may return, but must never raise.
 
-	For example:
+	# For example:
 
 	#!/pl/python
 		from fault.system.library import critical
@@ -732,17 +727,17 @@ def critical(context, callable, *args, **kw):
 
 def protect(*init, looptime = 8):
 	"""
-	Perpetually protect the main thread using a sleep loop that can only exit
-	using an interjection.
+	# Perpetually protect the main thread using a sleep loop that can only exit
+	# using an interjection.
 
-	Used by &control to hold the main thread in &Fork.trap.
+	# Used by &control to hold the main thread in &Fork.trap.
 
-	[ Exceptions ]
-	/&Panic
-		Raised in cases where the infinite loop exits.
+	# [ Exceptions ]
+	# /&Panic
+		# Raised in cases where the infinite loop exits.
 
-	/&SystemExit
-		Raised by an application thread using &interject.
+	# /&SystemExit
+		# Raised by an application thread using &interject.
 	"""
 	global current_process_id, parent_process_id, process_signals
 
@@ -764,12 +759,12 @@ def protect(*init, looptime = 8):
 
 def control(main, *args, **kw):
 	"""
-	A program that calls this is making an explicit declaration that signals should be
-	defaulted and the main thread should be protected from uninterruptable calls to allow
-	prompt process exits.
+	# A program that calls this is making an explicit declaration that signals should be
+	# defaulted and the main thread should be protected from uninterruptable calls to allow
+	# prompt process exits.
 
-	The given &main is executed with the given positionals &args and keywords &kw inside
-	of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
+	# The given &main is executed with the given positionals &args and keywords &kw inside
+	# of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
 	"""
 	global kernel
 	global Interruption
@@ -810,36 +805,36 @@ def process_delta(
 		options = os.WNOHANG | os.WUNTRACED,
 	) -> typing.Tuple[str, int, typing.Union[bool, None.__class__]]:
 	"""
-	Transform pending process events such as exits into a triple describing
-	the event. Normally used to respond to process exit events in order to reap
-	the process or SIGCHLD signals.
+	# Transform pending process events such as exits into a triple describing
+	# the event. Normally used to respond to process exit events in order to reap
+	# the process or SIGCHLD signals.
 
-	[ Parameters ]
+	# [ Parameters ]
 
-	/pid
-		The process identifier to reap.
-		In cases of (system:signal)`SIGCHLD` events, the process-id associated
-		with the received signal.
+	# /pid
+		# The process identifier to reap.
+		# In cases of (system:signal)`SIGCHLD` events, the process-id associated
+		# with the received signal.
 
-	[ Effects ]
+	# [ Effects ]
 
-	/Product
-		A triple describing the event: `(event, status, core)`.
+	# /Product
+		# A triple describing the event: `(event, status, core)`.
 
-		The event is one of:
+		# The event is one of:
 
-			- `'exit'`
-			- `'signal'`
-			- `'stop'`
-			- `'continue'`
+			# - `'exit'`
+			# - `'signal'`
+			# - `'stop'`
+			# - `'continue'`
 
-		The first two events mean that the process has been reaped and their `core` field will be
-		&True or &False indicating whether or not the process left a process image
-		behind. If the `core` field is &None, it's an authoritative statement that
-		the process did *not* exit regardless of the platform.
+		# The first two events mean that the process has been reaped and their `core` field will be
+		# &True or &False indicating whether or not the process left a process image
+		# behind. If the `core` field is &None, it's an authoritative statement that
+		# the process did *not* exit regardless of the platform.
 
-		The status (code) is the exit status if an exit event, the signal number that killed or
-		stopped the process, or &None in the case of `'continue'` event.
+		# The status (code) is the exit status if an exit event, the signal number that killed or
+		# stopped the process, or &None in the case of `'continue'` event.
 	"""
 
 	try:
@@ -868,17 +863,17 @@ def process_delta(
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""
-	Dispatch the given controller in a child process of a system.library controlled process.
-	The returned object is a reference to the result that will block until the child
-	process has written the serialized response to a pipe.
+	# Dispatch the given controller in a child process of a system.library controlled process.
+	# The returned object is a reference to the result that will block until the child
+	# process has written the serialized response to a pipe.
 
-	Used to create *very simple* fork trees that need to send completion reports back to
-	the parent.
+	# Used to create *very simple* fork trees that need to send completion reports back to
+	# the parent.
 
-	[ Parameters ]
+	# [ Parameters ]
 
-	/controller
-		The object to call to use the child's controller. &collections.Callable
+	# /controller
+		# The object to call to use the child's controller. &collections.Callable
 	"""
 	if not __control_lock__.locked():
 		raise RuntimeError("main thread is not managed with libsys.control")
@@ -932,36 +927,36 @@ KInvocation = kernel.Invocation
 
 class Pipeline(tuple):
 	"""
-	Object holding the file descriptors associated with a *running* pipeline
-	of operating system processes.
+	# Object holding the file descriptors associated with a *running* pipeline
+	# of operating system processes.
 	"""
 	__slots__ = ()
 
 	@property
 	def input(self):
 		"""
-		Pipe file descriptor for the pipeline's input.
+		# Pipe file descriptor for the pipeline's input.
 		"""
 		return self[0]
 
 	@property
 	def output(self):
 		"""
-		Pipe file descriptor for the pipeline's output.
+		# Pipe file descriptor for the pipeline's output.
 		"""
 		return self[1]
 
 	@property
 	def process_identifiers(self):
 		"""
-		The sequence of process identifiers of the commands that make up the pipeline.
+		# The sequence of process identifiers of the commands that make up the pipeline.
 		"""
 		return self[2]
 
 	@property
 	def standard_errors(self):
 		"""
-		Mapping of process identifiers to the standard error file descriptor.
+		# Mapping of process identifiers to the standard error file descriptor.
 		"""
 		return self[3]
 
@@ -975,10 +970,10 @@ class Pipeline(tuple):
 
 	def void(self, close=os.close):
 		"""
-		Close all file descriptors and kill -9 all processes involved in the pipeline.
+		# Close all file descriptors and kill -9 all processes involved in the pipeline.
 
-		Normally used in exception cases where the caller failed to construct an interface
-		to the running pipeline.
+		# Normally used in exception cases where the caller failed to construct an interface
+		# to the running pipeline.
 		"""
 		for x in self.standard_errors:
 			close(x)
@@ -990,12 +985,12 @@ class Pipeline(tuple):
 
 class PInvocation(tuple):
 	"""
-	A sequence of &KInvocation instances used to form a pipeline for
-	system processes; a process image where the file descriptors 0, 1, and 2
-	refer to standard input, standard output, and standard error.
+	# A sequence of &KInvocation instances used to form a pipeline for
+	# system processes; a process image where the file descriptors 0, 1, and 2
+	# refer to standard input, standard output, and standard error.
 
-	Pipelines of zero commands can be created; it will merely represent a pipe
-	with no standard errors and no process identifiers.
+	# Pipelines of zero commands can be created; it will merely represent a pipe
+	# with no standard errors and no process identifiers.
 	"""
 	__slots__ = ()
 
@@ -1006,7 +1001,7 @@ class PInvocation(tuple):
 	@classmethod
 	def from_commands(Class, *commands):
 		"""
-		Create a &PInvocation instance from a sequences of commands.
+		# Create a &PInvocation instance from a sequences of commands.
 
 		#!/pl/python
 			pr = libsys.PInvocation.from_commands(
@@ -1014,10 +1009,10 @@ class PInvocation(tuple):
 				('/usr/bin/tee', 'tee', 'duplicate-1', 'duplicate-2'),
 			)
 
-		The command tuples must specify the absolute path to the executable
-		as the first item, the second item is the program's runtime name
-		that is accessible as the first argument. Often, the basename of the
-		command if it were invoked using (system:environment)`PATH` resolution.
+		# The command tuples must specify the absolute path to the executable
+		# as the first item, the second item is the program's runtime name
+		# that is accessible as the first argument. Often, the basename of the
+		# command if it were invoked using (system:environment)`PATH` resolution.
 		"""
 		return Class([
 			Class.Invocation(path, args)
@@ -1027,8 +1022,8 @@ class PInvocation(tuple):
 	@classmethod
 	def from_pairs(Class, commands):
 		"""
-		Create a Pipeline Invocation from a sequence of process-path and process-arguments
-		pairs.
+		# Create a Pipeline Invocation from a sequence of process-path and process-arguments
+		# pairs.
 
 		#!/pl/python
 			pr = libsys.PInvocation.from_pairs([("/bin/cat", ("cat", "file", "-")), ...])
@@ -1037,8 +1032,8 @@ class PInvocation(tuple):
 
 	def __call__(self, signal=9, pipe=os.pipe, close=os.close) -> Pipeline:
 		"""
-		Execute the series of invocations returning a &Pipeline instance containing
-		the file descriptors used for input, output and the standard error of all the commands.
+		# Execute the series of invocations returning a &Pipeline instance containing
+		# the file descriptors used for input, output and the standard error of all the commands.
 		"""
 		global Pipeline
 		global os
@@ -1108,18 +1103,18 @@ class PInvocation(tuple):
 
 class Reference(object):
 	"""
-	Field reference for passing by reference.
+	# Field reference for passing by reference.
 
-	Primarily used in cases where the origin of a value should be retained
-	for structural purposes or origin tracking.
+	# Primarily used in cases where the origin of a value should be retained
+	# for structural purposes or origin tracking.
 
-	! DEVELOPMENT: Location
-		May not be the appropriate location for this class.
-		While an environment variable references are the primary use-case,
-		there are certainly others.
+	# ! DEVELOPMENT: Location
+		# May not be the appropriate location for this class.
+		# While an environment variable references are the primary use-case,
+		# there are certainly others.
 
-		Also, &libroutes.Route might be a more appropriate baseclass;
-		load instead of value, store for update/overwrite.
+		# Also, &libroutes.Route might be a more appropriate baseclass;
+		# load instead of value, store for update/overwrite.
 	"""
 	__slots__ = ('type', 'container_get', 'identifier', 'default')
 
@@ -1130,9 +1125,9 @@ class Reference(object):
 	@classmethod
 	def strings(Class, iterator):
 		"""
-		Process the iterator producing References or values such that
-		values are emitted directly and references are only emitted
-		if their determined value is not None.
+		# Process the iterator producing References or values such that
+		# values are emitted directly and references are only emitted
+		# if their determined value is not None.
 		"""
 		for x in iterator:
 			if isinstance(x, Class):
@@ -1150,10 +1145,10 @@ class Reference(object):
 
 	def __str__(self):
 		"""
-		Return the string form of the container's value for the configured
-		key when present, otherwise the configured default.
+		# Return the string form of the container's value for the configured
+		# key when present, otherwise the configured default.
 
-		If the resolved value is &None, an empty string will be returned.
+		# If the resolved value is &None, an empty string will be returned.
 		"""
 		v = self.container_get(self.identifier, self.default)
 		if v is None:
@@ -1163,20 +1158,20 @@ class Reference(object):
 
 	def item(self):
 		"""
-		Return the &identifier - &value pair.
+		# Return the &identifier - &value pair.
 		"""
 		i = self.identifier
 		return (i, self.container_get(i, self.default))
 
 	def items(self):
 		"""
-		Return &item in plural form; iterator that always returns a single pair.
+		# Return &item in plural form; iterator that always returns a single pair.
 		"""
 		yield self.item()
 
 	def value(self):
 		"""
-		Return the value of the container's entry using &identifier as the key.
-		If no key exists, &default will be returned.
+		# Return the value of the container's entry using &identifier as the key.
+		# If no key exists, &default will be returned.
 		"""
 		self.container_get(self.identifier, self.default)

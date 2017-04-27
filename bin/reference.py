@@ -1,15 +1,15 @@
 """
-Generate a reference to an execution.
+# Generate a reference to an execution.
 
-Creates a &.schemas.execute instance for subsequent system invocation.
-Initial parameters containing an `=` sign will be perceived as environment
-settings; a `?` placed directly before the `=` will cause it to be perceived
-as a default instead of a setting. The first parameter not containing an `=`
-will be identified as the executable, even if it's an emtpy string, and the
-ones that follow will be used as literal parameters to the execution of
-the program.
+# Creates a &.schemas.execute instance for subsequent system invocation.
+# Initial parameters containing an `=` sign will be perceived as environment
+# settings; a `?` placed directly before the `=` will cause it to be perceived
+# as a default instead of a setting. The first parameter not containing an `=`
+# will be identified as the executable, even if it's an emtpy string, and the
+# ones that follow will be used as literal parameters to the execution of
+# the program.
 
-The resulting XML will be written standard output.
+# The resulting XML will be written standard output.
 """
 import sys
 from ..library import Reference

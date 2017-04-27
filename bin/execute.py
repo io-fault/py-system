@@ -1,5 +1,5 @@
 """
-Execute the process in the environment described by the &.schemas.execute instance.
+# Execute the process in the environment described by the &.schemas.execute instance.
 """
 import sys
 import os

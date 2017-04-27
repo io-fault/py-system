@@ -1,5 +1,5 @@
 """
-Schema set for &..system related concepts.
+# Schema set for &..system related concepts.
 """
 #__factor_type__ 'set.xml'
 

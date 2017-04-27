@@ -1,10 +1,10 @@
 """
-XML interface set for &..system.
+# XML interface set for &..system.
 
-[ Properties ]
+# [ Properties ]
 
-/(&typing.Mapping)namespaces
-	The namespace label (schema module basename) associated with the namespace URI.
+# /(&typing.Mapping)namespaces
+	# The namespace label (schema module basename) associated with the namespace URI.
 """
 import itertools
 import typing
@@ -17,14 +17,14 @@ namespaces = libschema.index_namespace_labels(schemas)
 
 class Execute(libschema.Interface):
 	"""
-	System invocation descriptor.
+	# System invocation descriptor.
 
-	! DEVELOPMENT: Pending
-		Composition of fields and environment settings from elements
-		is not yet supported.
+	# ! DEVELOPMENT: Pending
+		# Composition of fields and environment settings from elements
+		# is not yet supported.
 
-	! DEVELOPMENT: Testing
-		There are few or no tests for many of the features implemented here.
+	# ! DEVELOPMENT: Testing
+		# There are few or no tests for many of the features implemented here.
 	"""
 	from .schemas import execute as schema
 	schema = libfactor.package_inducted(schema) / 'pf.lnk'
@@ -58,7 +58,7 @@ class Execute(libschema.Interface):
 	@staticmethod
 	def structure(document, reference=None):
 		"""
-		Extract the pertinent data from an execution frame.
+		# Extract the pertinent data from an execution frame.
 		"""
 
 		global namespaces
@@ -113,7 +113,7 @@ class Execute(libschema.Interface):
 			chain=itertools.chain.from_iterable
 		):
 		"""
-		Construct an XML configuration for a service execute.
+		# Construct an XML configuration for a service execute.
 		"""
 
 		xmlctx = libxml.Serialization()
