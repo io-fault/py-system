@@ -80,13 +80,13 @@ def constraint(
 	# Typical use:
 
 	#!/pl/python
-		with libcore.constraint(None):
+		with corefile.constraint(None):
 			...
 
 	# Core dumps can disabled by designating zero size:
 
 	#!/pl/python
-		with libcore.constraint(0):
+		with corefile.constraint(0):
 			...
 
 	# [ Parameters ]
