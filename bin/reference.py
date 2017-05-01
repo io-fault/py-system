@@ -13,7 +13,7 @@
 """
 import sys
 from ..library import Reference
-from .. import libxml
+from .. import xml
 
 def main(args):
 	senv = {}
@@ -45,7 +45,7 @@ def main(args):
 	if denv:
 		struct['defaults'] = denv
 
-	sys.stdout.buffer.writelines(libxml.Execute.serialize(struct))
+	sys.stdout.buffer.writelines(xml.Execute.serialize(struct))
 
 if __name__ == '__main__':
 	main(sys.argv[1:])
