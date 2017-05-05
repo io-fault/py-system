@@ -119,7 +119,7 @@ def sources(factor:libroutes.Import, dirname='src', module=None):
 
 	if module is not None:
 		pkgdir = libroutes.File.from_absolute(module.__file__).container
-		if module.__factor_type__ == 'python.extension':
+		if module.__factor_domain__ == 'python.extension':
 			# Likely simulated composite. This is *not* a 'system.extension'.
 			return pkgdir
 	else:
@@ -135,7 +135,7 @@ def composite(factor:libroutes.Import):
 
 	if not factor.is_container():
 		return False
-	if factor.module().__dict__.get('__factor_type__') is None:
+	if factor.module().__dict__.get('__factor_domain__') is None:
 		return False
 	if not sources(factor).exists():
 		return False
@@ -147,8 +147,8 @@ def probe(module:types.ModuleType):
 	# Whether the module is declared to be a system probe.
 	"""
 	return (
-		module.__factor_type__ == 'system' and \
-		module.__factor_dynamics__ == 'probe'
+		module.__factor_domain__ == 'system' and \
+		module.__factor_type__ == 'probe'
 	)
 
 def dependencies(factor:types.ModuleType) -> typing.Iterable[types.ModuleType]:
@@ -163,12 +163,12 @@ def dependencies(factor:types.ModuleType) -> typing.Iterable[types.ModuleType]:
 
 	# /&*Annotation
 		# An iterable producing modules referenced by &factor that have
-		# explicitly defined the (python:attribute)`__factor_type__` name.
+		# explicitly defined the (python:attribute)`__factor_domain__` name.
 	"""
 	ModuleType = types.ModuleType
 
 	for k, v in factor.__dict__.items():
-		if isinstance(v, ModuleType) and getattr(v, '__factor_type__', None) is not None:
+		if isinstance(v, ModuleType) and getattr(v, '__factor_domain__', None) is not None:
 			yield v
 
 def python_extension(module) -> bool:
