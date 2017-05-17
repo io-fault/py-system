@@ -1,5 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- XML description of a execution template/frame for system invocations. !-->
 <grammar
 	xmlns="http://relaxng.org/ns/structure/1.0"
 	ns="http://fault.io/xml/system/execute"
@@ -7,15 +6,12 @@
 	datatypeLibrary="http://www.w3.org/2001/XMLSchema-datatypes"
 	xmlns:a="http://relaxng.org/ns/compatibility/annotations/1.0">
 
-	<a:documentation>
-		Grammar for representing system invocations.
-	</a:documentation>
+	<!--
+		# Grammar for representing system invocations.
+	!-->
 
-	<define name="execute.xmlid">
-		<a:documentation>xml:id attribute</a:documentation>
+	<define name="execute.xml.id">
 		<attribute name="xml:id">
-			<a:documentation>
-			</a:documentation>
 			<data type="ID"/>
 		</attribute>
 	</define>
@@ -29,8 +25,19 @@
 		</attribute>
 	</define>
 
+	<define name="execute.xml.attributes">
+		<optional>
+			<ref name="execute.xml.id"/>
+		</optional>
+		<optional>
+			<ref name="execute.xml.space"/>
+		</optional>
+	</define>
+
 	<define name="execute.field">
 		<element name="field">
+			<ref name="execute.xml.attributes"/>
+
 			<choice>
 				<attribute name="literal">
 					<data type="string"/>
@@ -74,6 +81,8 @@
 
 	<define name="execute.parameters">
 		<element name="parameters">
+			<ref name="execute.xml.attributes"/>
+
 			<zeroOrMore>
 				<ref name="execute.field"/>
 			</zeroOrMore>
@@ -81,6 +90,9 @@
 	</define>
 
 	<define name="execute.executable">
+		<!--
+			# Executable Specification.
+		!-->
 		<element name="executable">
 			<optional>
 				<attribute name="program.name">
@@ -99,7 +111,13 @@
 	</define>
 
 	<define name="execute.environment">
+		<!--
+			# Environment variable manipulations to perform.
+		!-->
+
 		<element name="environment">
+			<ref name="execute.xml.attributes"/>
+
 			<optional>
 				<attribute name="alteration">
 					<choice>
@@ -140,12 +158,17 @@
 	</define>
 
 	<define name="execute.frame">
-		<a:documentation>Root element.</a:documentation>
+		<!--
+			# Primary entry point containing the
+			# environment variables, the particular executable,
+			# and its parameters.
+		!-->
 
 		<element name="frame">
+			<ref name="execute.xml.attributes"/>
+
 			<optional>
 				<attribute name="type">
-					<!--arbitrary annotation-->
 					<data type="string"/>
 				</attribute>
 			</optional>
