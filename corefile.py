@@ -73,7 +73,7 @@ def constraint(
 
 	# ! WARNING:
 		# &constraint is *not* thread safe.
-		# Conccurrent execution will render inconsistent effects on the limit.
+		# Concurrent execution will render inconsistent effects on the limit.
 
 	# When executed on systems where &available is `False`, &constraint does nothing.
 

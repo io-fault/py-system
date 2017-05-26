@@ -260,7 +260,7 @@ class Sever(BaseException):
 	"""
 	__kill__ = True
 
-class SystemExit(SystemExit):
+class Exit(SystemExit):
 	"""
 	# Extension of SystemExit for use with interjections.
 
@@ -391,7 +391,6 @@ class Invocation(object):
 		# Create an instance representing that of the invocation from the operating
 		# system. Primarily, information is retrieved from the &sys and &os module.
 		"""
-		global os, sys
 
 		r = Class(Class.system_exit_method, context = context)
 		r.parameters['type'] = 'system'
@@ -421,9 +420,9 @@ class Invocation(object):
 		"""
 		global interject
 
-		interject(SystemExit(exit_status).raised)
+		interject(Exit(exit_status).raised)
 
-class Control(BaseException):
+class ControlException(BaseException):
 	"""
 	# Process control exceptions for significant events.
 
@@ -437,19 +436,20 @@ class Control(BaseException):
 	def raised(self):
 		raise self
 
-class Panic(Control):
+class Panic(ControlException):
 	"""
 	# An exception used to note the failure of a critical resource.
 
 	# Instances of this class are usually interjected into the main thread causing
-	# the process to immediately terminate.
+	# the process to immediately terminate similar to (system/signal)`SIGABRT`.
 
-	# This is a control exception inheriting from &BaseException. It should not be trapped.
+	# This is a control exception inheriting from &BaseException. It should not be trapped,
+	# will cause a &control managed process to exit with (system/signal)`SIGUSR1`.
 	"""
 
 	__kill__ = True
 
-class Interruption(Control):
+class Interruption(ControlException):
 	"""
 	# Similar to &KeyboardInterrupt, but causes &control to exit with the signal,
 	# and calls critical status hooks.
@@ -536,7 +536,6 @@ class Interruption(Control):
 		"""
 		# Signal handler for a root process.
 		"""
-		global process_fatal_signals
 		stored_signals = {}
 
 		try:
@@ -554,13 +553,13 @@ class Interruption(Control):
 			for k, v in stored_signals.items():
 				signal(k, v)
 
-class Fork(Control):
+class Fork(ControlException):
 	"""
-	# &Control exception used to signal &Fork.trap to replace the existing managed call.
+	# Exception used to signal &Fork.trap to replace the existing managed call.
 
 	# Usual case is that a &Fork.trap call is made on the main thread where other threads are
 	# created to run the actual program. Given that the program is finished and another should be ran
-	# *as if the current program were never ran*, the &Control exception can be raised in the
+	# *as if the current program were never ran*, the &ControlException can be raised in the
 	# main thread replacing the initial callable given to &Fork.trap.
 
 	# The exception should only be used through the provided classmethods.
@@ -705,8 +704,8 @@ def critical(context, callable, *args, **kw):
 
 		def fun():
 			while True:
-				# critical loop
-				# any exception causes the process to terminate
+				# # critical loop
+				# # any exception causes the process to terminate
 				...
 
 		critical(None, fun)
@@ -736,7 +735,7 @@ def protect(*init, looptime = 8):
 	# /&Panic
 		# Raised in cases where the infinite loop exits.
 
-	# /&SystemExit
+	# /&Exit
 		# Raised by an application thread using &interject.
 	"""
 	global current_process_id, parent_process_id, process_signals
@@ -766,10 +765,6 @@ def control(main, *args, **kw):
 	# The given &main is executed with the given positionals &args and keywords &kw inside
 	# of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
 	"""
-	global kernel
-	global Interruption
-	global Fork
-	global __control_lock__
 
 	# Registers the atfork functions.
 	kernel.initialize(sys.modules[__name__])
@@ -777,13 +772,22 @@ def control(main, *args, **kw):
 	with Interruption.trap(), __control_lock__:
 		try:
 			Fork.trap(main, *args, **kw)
+
 			# Fork.trap() should not return.
-			raise Panic("fault.system.library.Fork.trap did not raise SystemExit or Interruption")
+			kernel.exit_by_signal(signal.SIGUSR2)
+			raise Panic("fault.system.library.Fork.trap did not raise Exit or Interruption")
 		except Interruption as e:
 			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
 			sys.stderr.flush()
-			raise SystemExit(250)
+			raise Exit(250)
+		except SystemExit:
+			# Explicit exit request.
+			raise
+		except:
+			# Exception caused exit.
+			kernel.exit_by_signal(signal.SIGUSR1)
+			raise
 
 def process_delta(
 		pid:int,
