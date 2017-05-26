@@ -360,7 +360,7 @@ class Transition(object):
 		self.container = container
 		mutex.release()
 
-	def relay(self, callable, *args, contain = libc.contain):
+	def relay(self, callable, *args, contain = libc.python.contain):
 		return self.endpoint(contain(callable, *args))
 
 class Invocation(object):
