@@ -8,14 +8,14 @@
 """
 import itertools
 import typing
-from ..xml import library as libxml, libschema
+from ..xml import library as libxml
 from . import schemas
 from .library import Reference
 from . import libfactor
 
-namespaces = libschema.index_namespace_labels(schemas)
+namespaces = libxml.document.index_namespace_labels(schemas)
 
-class Execute(libschema.Interface):
+class Execute(libxml.document.Interface):
 	"""
 	# System invocation descriptor.
 
