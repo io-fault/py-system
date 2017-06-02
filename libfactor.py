@@ -67,9 +67,9 @@ def extension_composite_name(name:str) -> str:
 	# between the package and module's identifier giving the source factor of the
 	# extension module.
 
-	# [ Return ]
+	# [ Returns ]
 
-	# /&*Annotation
+	# /&str
 		# A string referring to a (module) composite factor.
 	"""
 	root = str(libroutes.Import.from_fullname(name).floor())
@@ -93,6 +93,13 @@ def inducted(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
 		# the data into another directory.
 	"""
 	return (factor.file().container / '__pycache__' / slot)
+
+def selected(factor:libroutes.Import, link='pf.lnk'):
+	"""
+	# Return the route to the primary inducted entry.
+	"""
+	ifr = inducted(factor) / link
+	return ifr
 
 def package_inducted(module, slot:str='factor') -> libroutes.File:
 	"""
