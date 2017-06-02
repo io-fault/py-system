@@ -302,15 +302,36 @@ class Exit(SystemExit):
 		# the process failed to explicitly note status.
 	"""
 
+	# Help menu of some sort communicated to user.
+	# Proper exit code for --help invocations.
 	exiting_with_information = 200
 
+	# Daemon control exit codes.
+	exiting_for_completion = os.EX_OK
 	exiting_for_termination = 240
 	exiting_for_restart = 241
 	exiting_for_reduction = 242
 
+	# Used internally.
 	exiting_by_exception = 253
 	exiting_by_signal_status = 254
 	exiting_by_default_status = 255
+
+	exiting_from_success = os.EX_OK
+
+	exiting_from_bad_usage = os.EX_USAGE
+	exiting_from_bad_config = os.EX_CONFIG
+	exiting_from_bad_input = os.EX_DATAERR
+	exiting_from_bad_protocol = os.EX_PROTOCOL
+
+	exiting_from_io_error = os.EX_IOERR
+	exiting_from_os_error = os.EX_OSERR
+	exiting_from_input_inaccessible = os.EX_NOINPUT
+	exiting_from_output_inaccessible = os.EX_CANTCREAT
+
+	exiting_from_unauthorized = os.EX_NOPERM
+	exiting_from_no_user = os.EX_NOUSER
+	exiting_from_no_host = os.EX_NOHOST
 
 	def raised(self):
 		raise self
@@ -382,8 +403,14 @@ class Invocation(object):
 		"""
 		# Perform the exit method designated during the initialization of the invocation.
 		"""
-
 		self.exit_method(result)
+
+	@property
+	def args(self):
+		"""
+		# Arguments provided by the system.
+		"""
+		return self.parameters['system']['arguments']
 
 	@classmethod
 	def system(Class, context=None, environ=(), isinstance=isinstance, str=str):
@@ -391,7 +418,6 @@ class Invocation(object):
 		# Create an instance representing that of the invocation from the operating
 		# system. Primarily, information is retrieved from the &sys and &os module.
 		"""
-
 		r = Class(Class.system_exit_method, context = context)
 		r.parameters['type'] = 'system'
 
@@ -417,9 +443,10 @@ class Invocation(object):
 	def system_exit_method(Class, exit_status):
 		"""
 		# A means of exit used with a &Fork.trap managed process.
-		"""
-		global interject
 
+		# Injecting the exception on the main thread, this can also
+		# be used within regular Python processes.
+		"""
 		interject(Exit(exit_status).raised)
 
 class ControlException(BaseException):
@@ -625,10 +652,6 @@ class Fork(ControlException):
 		# /&Panic
 			# Raised when the returns in the branches did not return.
 		"""
-		global __fork_lock__
-		global interject
-		global identify_thread
-
 		fcontroller = Class(controller, *args, **kw)
 
 		# Don't bother with the interjection if we're dispatching from the main thread.
@@ -680,7 +703,6 @@ class Fork(ControlException):
 					__interject_lock__.acquire(0) # block subsequent acquisitions
 
 			except Class as exe:
-
 				# Raised a Fork exception.
 				# This is normally used by clone resources.
 
@@ -781,8 +803,18 @@ def control(main, *args, **kw):
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
 			sys.stderr.flush()
 			raise Exit(250)
-		except SystemExit:
+		except SystemExit as exit:
 			# Explicit exit request.
+			if exit.__context__:
+				sys.stderr.write("Exit status was associated with exception context.\n")
+				exc = exit.__context__
+				sys.excepthook(exc.__class__, exc, exc.__traceback__)
+
+			if exit.__cause__:
+				sys.stderr.write("Exit status was associated with exception.\n")
+				exc = exit.__cause__
+				sys.excepthook(exc.__class__, exc, exc.__traceback__)
+
 			raise
 		except:
 			# Exception caused exit.
@@ -814,15 +846,13 @@ def process_delta(
 	# the process or SIGCHLD signals.
 
 	# [ Parameters ]
-
 	# /pid
 		# The process identifier to reap.
 		# In cases of (system:signal)`SIGCHLD` events, the process-id associated
 		# with the received signal.
 
-	# [ Effects ]
-
-	# /Product
+	# [ Returns ]
+	# /&tuple
 		# A triple describing the event: `(event, status, core)`.
 
 		# The event is one of:
