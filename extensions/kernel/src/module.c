@@ -63,10 +63,15 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "|OOi", kwlist, &fdmap, &inherits, &pgrp))
 		return(NULL);
 
-	/* Inherit pgroup setting from Invocation instance if not overridden. */
+	/*
+		# Inherit pgroup setting from Invocation instance if not overridden.
+	*/
 	if (pgrp < 0 && inv->invocation_options & IOPTION_SET_PGROUP)
 	{
-		/* Some invocations are essentially identified as independent daemons this way */
+		/*
+			# Some invocations are essentially identified
+			# as independent daemons this way
+		*/
 		pgrp = 0;
 	}
 
@@ -77,9 +82,9 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	}
 
 	/*
-	 * Modify attributes per-invocation.
-	 * Attributes like process group need to be per-invocation.
-	 */
+		# Modify attributes per-invocation.
+		# Attributes like process group need to be per-invocation.
+	*/
 	if (posix_spawnattr_getflags(&(inv->invocation_spawnattr), &flags))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
@@ -103,7 +108,6 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 		return(NULL);
 	}
 
-	/* fdmap parameter */
 	if (fdmap != NULL)
 	{
 		int fd, newfd, r;
@@ -127,7 +131,9 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	}
 
 	#if __DARWIN__
-		/* Might remove this due to portability issues. */
+		/*
+			# Might remove this due to portability issues.
+		*/
 		if (inherits != NULL)
 		{
 			PyObj fdo;
@@ -163,15 +169,16 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	#endif
 
 	r = posix_spawn(&child, (const char *) inv->invocation_path, &fa,
-			&(inv->invocation_spawnattr),
-			inv->invocation_argv,
-			inv->invocation_environ);
+		&(inv->invocation_spawnattr),
+		inv->invocation_argv,
+		inv->invocation_environ);
 
 	if (posix_spawn_file_actions_destroy(&fa) != 0)
 	{
 		/*
-		 * A warning would be appropriate.
-		 */
+			# A warning would be appropriate.
+		*/
+		errno = 0;
 	}
 
 	if (r != 0)
@@ -498,7 +505,7 @@ struct inherit {
 
 	# This allows fork to track (system:manual)`fork`'s that weren't explicitly performed by
 	# an &.library interface.
-*/
+**/
 static void
 prepare(void)
 {
@@ -670,9 +677,9 @@ trace(PyObj self, PyObj args)
 }
 
 
-/*
- * Executed in atexit in order to preserve the signal's exit code.
- */
+/**
+	# Executed in atexit in order to preserve the signal's exit code.
+**/
 void
 _exit_by_signal(void)
 {
