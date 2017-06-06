@@ -848,7 +848,7 @@ def process_delta(
 	# [ Parameters ]
 	# /pid
 		# The process identifier to reap.
-		# In cases of (system:signal)`SIGCHLD` events, the process-id associated
+		# In cases of (system/signal)`SIGCHLD` events, the process-id associated
 		# with the received signal.
 
 	# [ Returns ]
@@ -872,8 +872,10 @@ def process_delta(
 	"""
 
 	try:
-		_, code = waitpid(pid, options)
+		rpid, code = waitpid(pid, options)
 	except OSError:
+		return None
+	if rpid != pid:
 		return None
 
 	if wasexit(code):
