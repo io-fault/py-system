@@ -36,9 +36,11 @@ typedef struct Invocation *Invocation;
 	SA(POSIX_SPAWN_SETEXEC, replace_process_image) \
 	SA(POSIX_SPAWN_START_SUSPENDED, start_suspended)
 
-/* SA(POSIX_SPAWN_CLOEXEC_DEFAULT, close_exec_default) */
-/* CLOEXEC_DEFAULT is an apple extension that is unconditionally used; users */
-/* are encourage to explicitly map (dup2) file descriptors using Invocation's call */
+/*
+	# SA(POSIX_SPAWN_CLOEXEC_DEFAULT, close_exec_default)
+	# CLOEXEC_DEFAULT is an apple extension that is unconditionally used; users
+	# are encourage to explicitly map (dup2) file descriptors using Invocation's call
+*/
 
 #define POSIX_SPAWN_ATTRIBUTES() \
 	SA(POSIX_SPAWN_SETSCHEDULER, set_schedular_priority) \
@@ -311,8 +313,8 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 
 	/*
-	 * Command Arguments
-	 */
+		# Command Arguments
+	*/
 	if (cargs != NULL)
 	{
 		unsigned long k = 0;
@@ -386,8 +388,8 @@ invocation_dealloc(PyObj self)
 	Invocation inv = (Invocation) self;
 
 	/*
-	 * cleanup code. errors here are ignored.
-	 */
+		# cleanup code. errors here are ignored.
+	*/
 	if (inv->invocation_path != NULL)
 		free(inv->invocation_path);
 
@@ -514,6 +516,10 @@ prepare(void)
 }
 
 static struct inherit fork_data = {-1};
+
+/**
+	# Execute the &.library._after_fork_parent object from a pending call.
+**/
 static int
 _after_fork_parent(void *pc_param)
 {
@@ -553,9 +559,9 @@ parent(void)
 	fork_data.process_id = -1;
 }
 
-/*
- * Pending Call
- */
+/**
+	# Execute the &.library._after_fork_child object from a pending call.
+**/
 static int
 _after_fork_child(void *pc_param)
 {
@@ -565,6 +571,9 @@ _after_fork_child(void *pc_param)
 	return(rob == NULL ? -1 : 0);
 }
 
+/**
+	# Synchronize with the parent process.
+**/
 static void
 child(void)
 {
@@ -600,10 +609,11 @@ ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 	return(0);
 }
 
-/*
- * Set the trace object on a set of threads. Only supports callable-object level.
- * This is intended for debuggers.
- */
+/**
+	# Set the trace object on a set of threads.
+	# Only supports callable-object level.
+	# This is intended for debuggers.
+**/
 static PyObj
 trace(PyObj self, PyObj args)
 {
@@ -624,8 +634,8 @@ trace(PyObj self, PyObj args)
 		return(NULL);
 
 	/*
-	 * convert sequence to array of longs
-	 */
+		# Convert sequence to array of longs.
+	*/
 	for (i = 0; i < nthreads; ++i)
 	{
 		PyObj n = PySequence_GetItem(thread_ids, i);
@@ -648,8 +658,8 @@ trace(PyObj self, PyObj args)
 	}
 
 	/*
-	 * install the tracefunc on the matching threadstates.
-	 */
+		# Install the tracefunc on the matching threadstates.
+	*/
 	ts = start;
 	do
 	{
@@ -684,8 +694,8 @@ void
 _exit_by_signal(void)
 {
 	/*
-	 * Ignore this if it somehow forked after the exit_by_signal was called.
-	 */
+		# Ignore this if it somehow forked after the exit_by_signal was called.
+	*/
 	if (exit_for_pid == getpid())
 	{
 		signal(exit_signal, SIG_DFL);
@@ -697,6 +707,9 @@ _exit_by_signal(void)
 	}
 }
 
+/**
+	# Register low-level atexit handler for exiting via a signal.
+**/
 static PyObj
 exit_by_signal(PyObj mod, PyObj ob)
 {
@@ -726,14 +739,21 @@ exit_by_signal(PyObj mod, PyObj ob)
 
 #include "python.h"
 
+/*
+	# Retrieve a reference to the libsys module and register
+	# the atfork handlers.
+
+	# Only runs once and there is currently no way to update the
+	# libsys entry meaning that system.library should not be reloaded.
+*/
 static PyObj
 initialize(PyObj mod, PyObj ctx)
 {
 	if (libsys != NULL)
 	{
 		/*
-		 * Already configured.
-		 */
+			# Already configured.
+		*/
 		Py_RETURN_NONE;
 	}
 
