@@ -1,1 +1,2 @@
-__type__ = 'documentation'
+__factor_domain__ = 'xml'
+__factor_type__ = 'library'
