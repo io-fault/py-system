@@ -1070,10 +1070,12 @@ class PInvocation(tuple):
 		"""
 		# Execute the series of invocations returning a &Pipeline instance containing
 		# the file descriptors used for input, output and the standard error of all the commands.
+
+		# [ Parameters ]
+		# /signal
+			# The signal used to kill the process in case of an exception during spawn.
+			# Defaults to (system/signal)`SIGKILL`.
 		"""
-		global Pipeline
-		global os
-		global builtins
 		range = builtins.range
 
 		# one for each command, split read and write ends into separate lists
@@ -1116,7 +1118,7 @@ class PInvocation(tuple):
 			# that the process was cleaned up as well.
 			for pid in pids:
 				os.kill(pid, signal)
-				os.waitpid(pid)
+				os.waitpid(pid, 0)
 
 			raise
 		finally:
