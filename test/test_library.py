@@ -20,8 +20,6 @@ def test_PInvocation(test):
 		test/out == data
 		test/len(status) == count
 
-	os.wait()
-
 def test_critical(test):
 	"""
 	# &.library.critical

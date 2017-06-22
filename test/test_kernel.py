@@ -28,8 +28,18 @@ def perform_cat(pids, input, output, data, *errors):
 
 	status = []
 
+	# Workaround for macos.
+	# Process (cat) exits don't appear to be occurring properly
+	# on macos. (Thu Jun 22 09:33:35 MST 2017)
+	# Specifically, the cat implementation doesn't appear to be getting
+	# closed file descriptors.
+	# This may indicate an issue with the fault.system or its usage.
 	for pid in pids:
-		status.append(libsys.process_delta(pid))
+		os.kill(pid, 9)
+
+	for pid in pids:
+		r = os.waitpid(pid, 0)
+		status.append(r)
 	output.close()
 
 	return data, status
