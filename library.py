@@ -794,10 +794,6 @@ def control(main, *args, **kw):
 	with Interruption.trap(), __control_lock__:
 		try:
 			Fork.trap(main, *args, **kw)
-
-			# Fork.trap() should not return.
-			kernel.exit_by_signal(signal.SIGUSR2)
-			raise Panic("fault.system.library.Fork.trap did not raise Exit or Interruption")
 		except Interruption as e:
 			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
@@ -820,6 +816,10 @@ def control(main, *args, **kw):
 			# Exception caused exit.
 			kernel.exit_by_signal(signal.SIGUSR1)
 			raise
+
+		# Fork.trap() should not return.
+		kernel.exit_by_signal(signal.SIGUSR2)
+		raise Panic("libsys.Fork.trap did not raise Exit or Interruption")
 
 def process_delta(
 		pid:int,
