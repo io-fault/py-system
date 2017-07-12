@@ -151,10 +151,9 @@ def composite(factor:libroutes.Import):
 
 def probe(module:types.ModuleType):
 	"""
-	# Whether the module is declared to be a system probe.
+	# Whether the module is declared to be a probe.
 	"""
 	return (
-		module.__factor_domain__ == 'system' and \
 		module.__factor_type__ == 'probe'
 	)
 
