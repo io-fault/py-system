@@ -283,12 +283,11 @@ class Exit(SystemExit):
 		# code is used; usually it is used for automatic process cycling.
 
 	# /exiting_for_reduction
-		# Essentially exiting for termination, but gives a clear indicator
-		# about the purpose of the exit. Used by forking processes to
-		# indicate that the exit is purposeful and should essentially be ignored.
+		# Exit code used to signal a parent process that the child exited
+		# in response to a command to reduce the number of worker processes.
 
 	# /exiting_by_exception
-		# Code used to communicate that the process exited due to an exception.
+		# Exit code used to communicate that the process exited due to an exception.
 		# Details *may* be written standard error.
 		# Essentially, this is a runtime coredump.
 
@@ -386,7 +385,7 @@ class Transition(object):
 
 class Invocation(object):
 	"""
-	# A means of representing the invocation of an abstract executable and the specification
+	# A means of representing the invocation of a system process and the specification
 	# of the means of exiting. Normally, used to describe how the process was invoked and the
 	# corresponding parameters, argv and environ, in which the invocation should be reacting to.
 
@@ -801,6 +800,8 @@ def control(main, *args, **kw):
 			raise Exit(250)
 		except SystemExit as exit:
 			# Explicit exit request.
+			# If associated with an exception, display using the installed hook.
+
 			if exit.__context__:
 				sys.stderr.write("Exit status was associated with exception context.\n")
 				exc = exit.__context__
