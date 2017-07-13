@@ -151,9 +151,9 @@ process_signals = {
 	'terminal.query': getattr(signal, 'SIGINFO', None),
 	'terminal.view': getattr(signal, 'SIGWINCH', None),
 
-	'delta': signal.SIGHUP,
-	'context': signal.SIGUSR1,
-	'trip' : signal.SIGUSR2,
+	'delta': signal.SIGHUP, # Configuration change; poll file system or memory to update.
+	'context': signal.SIGUSR1, # Context change occurred.
+	'trip' : signal.SIGUSR2, # Trip a system call blocking a thread.
 
 	'limit-cpu': signal.SIGXCPU,
 	'limit-file.size': signal.SIGXFSZ,
