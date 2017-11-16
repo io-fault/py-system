@@ -1,4 +1,4 @@
-identity = 'http://fault.io/python/system'
+identity = 'http://fault.io/src/python/system'
 name = 'system'
 abstract = 'Process management tools and kernel event interfaces'
 icon = '⚙'
