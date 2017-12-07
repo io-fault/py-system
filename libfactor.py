@@ -182,6 +182,9 @@ def python_extension(module) -> bool:
 	# Determine if the given package module represents a Python extension by
 	# analyzing its dependencies.
 	"""
+	if 'python' in getattr(module, 'requirements', ()):
+		return True
+
 	for x in module.__dict__.values():
 		if isinstance(x, types.ModuleType):
 			if getattr(x, 'context_extension_probe', False):
