@@ -149,14 +149,6 @@ def composite(factor:libroutes.Import):
 
 	return True
 
-def probe(module:types.ModuleType):
-	"""
-	# Whether the module is declared to be a probe.
-	"""
-	return (
-		module.__factor_type__ == 'probe'
-	)
-
 def dependencies(factor:types.ModuleType) -> typing.Iterable[types.ModuleType]:
 	"""
 	# Collect and yield a sequence of dependencies identified by
@@ -185,8 +177,4 @@ def python_extension(module) -> bool:
 	if 'python' in getattr(module, 'requirements', ()):
 		return True
 
-	for x in module.__dict__.values():
-		if isinstance(x, types.ModuleType):
-			if getattr(x, 'context_extension_probe', False):
-				return True
 	return False
