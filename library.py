@@ -1012,6 +1012,47 @@ def concurrently(controller, exe = Fork.dispatch):
 
 	return read_child_result
 
+def dereference(invocation, stderr=2, stdout=1):
+	"""
+	# Execute the given invocation collecting (system/file)`/dev/stdout` into a &bytes instance.
+	# &dereference blocks until EOF is read from the created pipe and should only be used to
+	# execute reliable processes.
+	"""
+
+	pid = None
+	status = None
+	data = b''
+	r, w = os.pipe()
+
+	try:
+		with open(os.devnull, 'rb+') as null:
+			nfd = null.fileno()
+			pid = invocation([(nfd, 0), (w, stdout), (nfd, stderr)])
+
+		os.close(w)
+		while True:
+			# Blocking reads until EOF (empty read).
+			new = os.read(r, 2048)
+			if not new:
+				break
+			data += new
+	finally:
+		os.close(r)
+		if pid:
+			pid, status = os.waitpid(pid, 0)
+
+	exitcode = os.WEXITSTATUS(status)
+	return pid, exitcode, data
+
+def effect(invocation):
+	"""
+	# Execute the given invocation collecting (system/file)`/dev/stderr` into a &bytes instance.
+	# &effect blocks until EOF is read from the created pipe and should only be used to
+	# execute reliable processes.
+	"""
+
+	return dereference(invocation, stderr=1, stdout=2)
+
 # Public export of kernel.Invocation
 KInvocation = kernel.Invocation
 
