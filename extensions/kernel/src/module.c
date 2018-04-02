@@ -7,7 +7,9 @@
 #include <fault/python/environ.h>
 #include <frameobject.h>
 
-/* For fork callbacks */
+/*
+	# For fork callbacks
+*/
 static PyObj libsys = NULL;
 static int exit_signal = -1;
 static pid_t exit_for_pid = -1;
@@ -36,12 +38,11 @@ typedef struct Invocation *Invocation;
 	SA(POSIX_SPAWN_SETEXEC, replace_process_image) \
 	SA(POSIX_SPAWN_START_SUSPENDED, start_suspended)
 
-/*
+/**
 	# SA(POSIX_SPAWN_CLOEXEC_DEFAULT, close_exec_default)
 	# CLOEXEC_DEFAULT is an apple extension that is unconditionally used; users
 	# are encourage to explicitly map (dup2) file descriptors using Invocation's call
 */
-
 #define POSIX_SPAWN_ATTRIBUTES() \
 	SA(POSIX_SPAWN_SETSCHEDULER, set_schedular_priority) \
 	SA(POSIX_SPAWN_SETSCHEDPARAM, set_schedular_parameter)
