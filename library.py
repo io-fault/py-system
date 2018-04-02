@@ -129,7 +129,7 @@ fork_prepare_callset = set()
 fork_parent_callset = set()
 
 # Add callables to be dispatched in the child after a fork call is performed.
-# If &.library did not perform the (system:manual)`fork(2)` operation,
+# If &.library did not perform the (system/manual)`fork(2)` operation,
 # these callables will *not* be ran.
 fork_child_callset = set()
 
@@ -783,7 +783,7 @@ def critical(context, callable, *args, **kw):
 		critical(None, fun)
 	"""
 	try:
-		r = callable(*args, **kw) # should never exit
+		r = callable(*args, **kw)
 		return r
 	except BaseException as exc:
 		ce = Panic("critical call raised exception")
@@ -801,7 +801,8 @@ def protect(*init, looptime = 8):
 	# Perpetually protect the main thread using a sleep loop that can only exit
 	# using an interjection.
 
-	# Used by &control to hold the main thread in &Fork.trap.
+	# Used by &control to hold the main thread in &Fork.trap for applications
+	# that rely on a set of threads to perform the actual work.
 
 	# [ Exceptions ]
 	# /&Panic
@@ -873,6 +874,7 @@ def control(main, *args, **kw):
 		kernel.exit_by_signal(signal.SIGUSR2)
 		raise Panic("libsys.Fork.trap did not raise Exit or Interruption")
 
+Delta = typing.Tuple[str, int, typing.Union[bool, None.__class__]]
 def process_delta(
 		pid:int,
 
@@ -891,11 +893,11 @@ def process_delta(
 
 		waitpid = os.waitpid,
 		options = os.WNOHANG | os.WUNTRACED,
-	) -> typing.Tuple[str, int, typing.Union[bool, None.__class__]]:
+	) -> Delta:
 	"""
 	# Transform pending process events such as exits into a triple describing
 	# the event. Normally used to respond to process exit events in order to reap
-	# the process or SIGCHLD signals.
+	# the process or SIGCHLD signals. This is an abstraction to &os.waitpid.
 
 	# [ Parameters ]
 	# /pid
@@ -951,11 +953,11 @@ def process_delta(
 
 def concurrently(controller, exe = Fork.dispatch):
 	"""
-	# Dispatch the given controller in a child process of a system.library controlled process.
+	# Dispatch the given controller in a child process of a &control controlled process.
 	# The returned object is a reference to the result that will block until the child
 	# process has written the serialized response to a pipe.
 
-	# Used to create *very simple* fork trees that need to send completion reports back to
+	# Used to create *very simple* fork trees or workers that need to send completion reports back to
 	# the parent.
 
 	# [ Parameters ]
@@ -1015,8 +1017,9 @@ KInvocation = kernel.Invocation
 
 class Pipeline(tuple):
 	"""
-	# Object holding the file descriptors associated with a *running* pipeline
-	# of operating system processes.
+	# Structure holding the file descriptors associated with a *running* pipeline
+	# of operating system processes. Returned by called &PInvocation instances to
+	# provide access to the input and output pipes and the standard errors of each process.
 	"""
 	__slots__ = ()
 
@@ -1093,8 +1096,8 @@ class PInvocation(tuple):
 
 		#!/pl/python
 			pr = libsys.PInvocation.from_commands(
-				('/bin/cat', '/bin/cat', 'somefile'),
-				('/usr/bin/tee', 'tee', 'duplicate-1', 'duplicate-2'),
+				['/bin/cat', '/bin/cat', 'somefile'],
+				['/usr/bin/tee', 'tee', 'duplicate-1', 'duplicate-2'],
 			)
 
 		# The command tuples must specify the absolute path to the executable
@@ -1180,8 +1183,7 @@ class PInvocation(tuple):
 				close(w)
 
 			# special for the edges as the process is holding
-			# the reference to the final read end and
-			# the initial write end.
+			# the reference to the final read end and the initial write end.
 			if self:
 				close(pipes[0][0])
 				close(pipes[-1][1])
