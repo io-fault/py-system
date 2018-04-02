@@ -1177,6 +1177,11 @@ class PInvocation(tuple):
 
 			raise
 		finally:
+			# the middle range is wholly owned by the child processes.
+			for r, w in pipes[1:-2]:
+				close(r)
+				close(w)
+
 			# fd's inherited in the child processes will
 			# be unconditionally closed.
 			for r, w in stderr:
@@ -1187,11 +1192,6 @@ class PInvocation(tuple):
 			if self:
 				close(pipes[0][0])
 				close(pipes[-1][1])
-
-				# the middle range is wholly owned by the child processes.
-				for r, w in pipes[1:-2]:
-					close(r)
-					close(w)
 
 class Reference(object):
 	"""
