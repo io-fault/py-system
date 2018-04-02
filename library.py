@@ -385,15 +385,52 @@ class Transition(object):
 
 class Invocation(object):
 	"""
-	# A means of representing the invocation of a system process and the specification
+	# A structure representing the invocation of a system process and the specification
 	# of the means of exiting. Normally, used to describe how the process was invoked and the
 	# corresponding parameters, argv and environ, in which the invocation should be reacting to.
 
 	# For system invocation, the &parameters dictionary will have two entries by default:
 	# `'system'` and `'type'`.
+
+	# [ Properties ]
+	# /context
+		# The Invocation that caused the creation of this &Invocation.
+		# By default and when created from &system, this property is &None.
+	# /parameters
+		# Arbitrary storage for the parameteres of the invocation. Usually, `'type'`, `'system'`,
+		# and `'structured'` keys are present. &[Parameters] describes this in more detail.
+	# /environ
+		# A &collections.Mapping containing the environment variables that are of interest to the process.
+	# /args
+		# The sequence of arguments given to the command by the system.
+		# This does not include the command name that is normally the first argument in &sys.argv.
+
+	# [ Parameters ]
+
+	# Description of the &parameters property normally holding a dictionary with the given keys:
+
+	# /`'structured'`
+		# The designated location for storing parsed arguments.
+		# Provides high-level access to original parameters often for reference by usage error messages.
+	# /`'type'`
+		# The type of invocation. Usually `'system'`.
+	# /`'system'`
+		# The original system arguments and environment variables of interest.
+		# This information is normally gathered from the process when the &Invocation
+		# is created in order to provide a consistent snapshot.
+
+		# A mapping consisting of:
+		# /`'name'`
+			# The first argument identifying the name used to execute the process.
+		# /`'arguments'`
+			# The sequence of arguments following `'name'`.
+		# /`'directory'`
+			# The current working directory of the process when the Invocation was created.
+		# /`'environment'`
+			# A snapshot of the environment variables that were listed for collection.
 	"""
 
-	def __init__(self, exit_method, context = None):
+	def __init__(self, exit_method, context=None):
 		self.exit_method = exit_method
 		self.parameters = {}
 		self.context = context
@@ -411,14 +448,28 @@ class Invocation(object):
 		"""
 		return self.parameters['system']['arguments']
 
+	@property
+	def environ(self) -> dict:
+		"""
+		# The environment variables collected from the system during the creation of the instance.
+		"""
+		return self.parameters['system']['environment']
+
 	@classmethod
 	def system(Class, context=None, environ=(), isinstance=isinstance, str=str):
 		"""
 		# Create an instance representing that of the invocation from the operating
 		# system. Primarily, information is retrieved from the &sys and &os module.
+
+		# [ Parameters ]
+		# /context
+			# A reference context identifying the &Invocation caused this invocation to be created.
+		# /environ
+			# Sequence declaring the environment variables to acquire a snapshot of.
 		"""
 		r = Class(Class.system_exit_method, context = context)
 		r.parameters['type'] = 'system'
+		r.parameters['structured'] = None
 
 		system = r.parameters['system'] = {}
 		system['name'] = sys.argv[0]
@@ -426,12 +477,12 @@ class Invocation(object):
 		system['directory'] = os.getcwd()
 
 		if environ:
-			# copy interesting environment variables
+			# Copy environment variables of interest.
 			local = system['environment'] = {}
 			for x in environ:
-				if isinstance(x, str):
-					local[x] = os.environ[x]
-				else:
+				if not isinstance(x, str):
+					x = str(x)
+				if x in os.environ:
 					local[x] = os.environ[x]
 
 		r.exit_method = Class.system_exit_method
