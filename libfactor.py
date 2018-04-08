@@ -5,9 +5,6 @@
 # selected in order to get the appropriate output to use with the program.
 # &.system.libfactor provides the necessary configuration and functions for identifying
 # the appropriate files to use at runtime.
-
-# &.system.libfactor is canonical; &.development.libfpi uses it to identify where
-# targets should be processed and how to access them for implementation or installation.
 """
 import sys
 import types
