@@ -813,7 +813,7 @@ def protect(*init, looptime = 8):
 	"""
 	global current_process_id, parent_process_id, process_signals
 
-	from ..chronometry import kernel # kernel.sleep_us
+	from ..time import kernel # kernel.sleep_us
 	ltus = looptime * 1000000
 
 	while 1:
