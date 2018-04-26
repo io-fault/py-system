@@ -25,7 +25,7 @@ def test_critical(test):
 	# &.library.critical
 	"""
 	global Trapped
-	test/Trapped - Exception # sanity
+	test.issubclass(Trapped, Exception) # sanity
 
 	# Check that critical returns.
 	# It's only fatal when an exception is raised.
