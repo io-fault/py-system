@@ -7,6 +7,8 @@
 #include <fault/python/environ.h>
 #include <frameobject.h>
 
+extern char **environ;
+
 /*
 	# For fork callbacks
 */
@@ -174,7 +176,7 @@ invocation_call(PyObj self, PyObj args, PyObj kw)
 	r = posix_spawn(&child, (const char *) inv->invocation_path, &fa,
 		&(inv->invocation_spawnattr),
 		inv->invocation_argv,
-		inv->invocation_environ);
+		inv->invocation_environ == NULL ? environ : inv->invocation_environ);
 
 	if (posix_spawn_file_actions_destroy(&fa) != 0)
 	{
@@ -268,8 +270,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	 */
 	if (env == NULL || env == Py_None)
 	{
-		inv->invocation_environ = malloc(sizeof(char *));
-		inv->invocation_environ[0] = NULL;
+		inv->invocation_environ = NULL;
 	}
 	else
 	{
@@ -397,8 +398,11 @@ invocation_dealloc(PyObj self)
 	free_null_terminated_array(free, inv->invocation_argv);
 	inv->invocation_argv = NULL;
 
-	free_null_terminated_array(free, inv->invocation_environ);
-	inv->invocation_environ = NULL;
+	if (inv->invocation_environ != NULL)
+	{
+		free_null_terminated_array(free, inv->invocation_environ);
+		inv->invocation_environ = NULL;
+	}
 
 	if (inv->invocation_spawnattr_init)
 	{
