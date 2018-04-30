@@ -53,7 +53,7 @@ def test_critical(test):
 		try:
 			library.critical(None, raise_trap)
 		except library.Panic as exc:
-			test/exc.__cause__ / Trapped
+			test.isinstance(exc.__cause__, Trapped)
 		except:
 			test.fail("critical did not raise panic")
 		else:
