@@ -1017,6 +1017,8 @@ def dereference(invocation, stderr=2, stdout=1):
 	# Execute the given invocation collecting (system/file)`/dev/stdout` into a &bytes instance.
 	# &dereference blocks until EOF is read from the created pipe and should only be used to
 	# execute reliable processes.
+
+	# ! RELATED: &execute
 	"""
 
 	pid = None
@@ -1049,9 +1051,26 @@ def effect(invocation):
 	# Execute the given invocation collecting (system/file)`/dev/stderr` into a &bytes instance.
 	# &effect blocks until EOF is read from the created pipe and should only be used to
 	# execute reliable processes.
+
+	# ! RELATED: &dereference
 	"""
 
 	return dereference(invocation, stderr=1, stdout=2)
+
+def execute(invocation):
+	"""
+	# Execute an &invocation waiting for the subprocess to exit before allowing
+	# the thread to continue. The invocation will inherit the process' standard
+	# input, output, and error.
+
+	# ! RELATED: &effect
+	"""
+
+	pid = invocation(((0, 0), (1, 1), (2, 2)))
+	pid, status = os.waitpid(pid, 0)
+	exitcode = os.WEXITSTATUS(status)
+
+	return pid, exitcode, None
 
 # Public export of kernel.Invocation
 KInvocation = kernel.Invocation
