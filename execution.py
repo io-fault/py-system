@@ -1,5 +1,5 @@
 """
-# Process global registry for controlling the composition of &Specification's for system process execution.
+# Process global registry for controlling the composition of &Specification' for system process execution.
 
 # This module is used by software that needs to allow the controlling process to determine how a system
 # executable or Python module is invoked.
@@ -18,13 +18,13 @@
 
 # [ Default Methods ]
 
-# /(string)`python-script`/
+# /(id)`python-script`/
 	# Execute a Python script selected using a file system path.
-# /(string)`python-module`/
+# /(id)`python-module`/
 	# Execute a Python module available in the &sys.path of the Python subprocess.
-# /(string)`system-file`/
+# /(id)`system-file`/
 	# Execute an executable file selected using a file system path.
-# /(string)`factor`/
+# /(id)`factor`/
 	# Execute a factor available on the factor path. Once the factor's type is identified,
 	# either (string)`system-file` or (string)`python-module` will be used.
 
@@ -131,7 +131,7 @@ class Index:
 			method:Identifier,
 			executable:typing.AnyStr,
 			arguments:Vector,
-			name:typing.AnyStr=None
+			name:typing.Optional[typing.AnyStr]=None
 		) -> Specification:
 		"""
 		# Construct a pair suitable for creating a &.library.KInvocation instance.
