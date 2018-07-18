@@ -66,7 +66,7 @@ def extension_composite_name(name:str) -> str:
 
 	# [ Returns ]
 
-	# /&str
+	# /&str/
 		# A string referring to a (module) composite factor.
 	"""
 	root = str(libroutes.Import.from_fullname(name).floor())
@@ -84,7 +84,7 @@ def incorporated(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
 	# alongside functioning output.
 
 	# [ Parameters ]
-	# /slot
+	# /slot/
 		# The entry to use in (system/directory)`__f_cache__`; defaults to `'factor'`, but
 		# specified for cases where the providing context incorporates
 		# the data into another directory.
@@ -108,7 +108,7 @@ def incorporated_package(module:types.ModuleType, slot:str='factor') -> libroute
 	# alongside functioning output.
 
 	# [ Parameters ]
-	# /slot
+	# /slot/
 		# The inducted entry to use; defaults to `'factor'`, but
 		# specified for cases where the providing context inducts
 		# the data into another directory.
@@ -158,7 +158,7 @@ def dependencies(factor:types.ModuleType) -> typing.Iterable[types.ModuleType]:
 
 	# [ Return ]
 
-	# /&*Annotation
+	# /&*Annotation/
 		# An iterable producing modules referenced by &factor that have
 		# explicitly defined the (python:attribute)`__factor_domain__` name.
 	"""
