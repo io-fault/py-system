@@ -266,8 +266,8 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 
 	/*
-	 * Environment
-	 */
+		# Environment
+	*/
 	if (env == NULL || env == Py_None)
 	{
 		inv->invocation_environ = NULL;
