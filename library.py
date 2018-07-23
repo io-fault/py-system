@@ -25,9 +25,6 @@
 
 # [ Properties ]
 
-# /KPort/
-	# Integer domain type for "Kernel Ports", Nix file descriptors.
-	# A single port, connection, to the system's kernel.
 # /process_signals/
 	# Mapping of generalized signal names to signal identifiers.
 # /process_signal_names/
@@ -614,10 +611,11 @@ class Interruption(ControlException):
 	@classmethod
 	@contextlib.contextmanager
 	def trap(Class,
-		catches = (signal.SIGINT, signal.SIGTERM),
-		filters = (signal.SIGUSR1, signal.SIGUSR2),
-		signal = signal.signal, ign = signal.SIG_IGN,
-	):
+			catches=(signal.SIGINT, signal.SIGTERM),
+			filters=(signal.SIGUSR1, signal.SIGUSR2),
+			signal=signal.signal,
+			ign=signal.SIG_IGN,
+		):
 		"""
 		# Signal handler for a root process.
 		"""
@@ -882,6 +880,9 @@ def control(main, *args, **kw):
 		kernel.exit_by_signal(signal.SIGUSR2)
 		raise Panic("libsys.Fork.trap did not raise Exit or Interruption")
 
+# Public export of kernel.Invocation
+KInvocation = kernel.Invocation
+
 Delta = typing.Tuple[str, int, typing.Union[bool, None.__class__]]
 def process_delta(
 		pid:int,
@@ -1034,7 +1035,7 @@ def concurrently(controller:typing.Callable, exe = Fork.dispatch):
 
 	return read_child_result
 
-def dereference(invocation, stderr=2, stdout=1):
+def dereference(invocation:KInvocation, stderr=2, stdout=1):
 	"""
 	# Execute the given invocation collecting (system/file)`/dev/stdout` into a &bytes instance.
 	# &dereference blocks until EOF is read from the created pipe and should only be used to
@@ -1077,7 +1078,7 @@ def dereference(invocation, stderr=2, stdout=1):
 	exitcode = os.WEXITSTATUS(status)
 	return pid, exitcode, data
 
-def effect(invocation):
+def effect(invocation:KInvocation):
 	"""
 	# Execute the given invocation collecting (system/file)`/dev/stderr` into a &bytes instance.
 	# &effect blocks until EOF is read from the created pipe and should only be used to
@@ -1086,9 +1087,9 @@ def effect(invocation):
 	# ! RELATED: &dereference
 	"""
 
-	return dereference(invocation, stderr=1, stdout=2)
+	return dereference(invocation, stderr=1, stdout=2) # Remap to collect stderr instead of out.
 
-def execute(invocation):
+def execute(invocation:KInvocation):
 	"""
 	# Execute an &invocation waiting for the subprocess to exit before allowing
 	# the thread to continue. The invocation will inherit the process' standard
@@ -1103,9 +1104,6 @@ def execute(invocation):
 
 	return pid, exitcode, None
 
-# Public export of kernel.Invocation
-KInvocation = kernel.Invocation
-
 class Pipeline(tuple):
 	"""
 	# Structure holding the file descriptors associated with a *running* pipeline
@@ -1115,14 +1113,14 @@ class Pipeline(tuple):
 	__slots__ = ()
 
 	@property
-	def input(self):
+	def input(self) -> int:
 		"""
 		# Pipe file descriptor for the pipeline's input.
 		"""
 		return self[0]
 
 	@property
-	def output(self):
+	def output(self) -> int:
 		"""
 		# Pipe file descriptor for the pipeline's output.
 		"""
@@ -1136,13 +1134,17 @@ class Pipeline(tuple):
 		return self[2]
 
 	@property
-	def standard_errors(self):
+	def standard_errors(self) -> typing.Sequence[int]:
 		"""
 		# Mapping of process identifiers to the standard error file descriptor.
 		"""
 		return self[3]
 
-	def __new__(Class, input, output, pids, errfds, tuple=tuple):
+	def __new__(Class,
+			input:int, output:int,
+			pids, errfds:typing.Sequence[int],
+			tuple=tuple
+		):
 		tpids = tuple(pids)
 		errors = dict(zip(tpids, errfds))
 		return super().__new__(Class, (
