@@ -1040,29 +1040,38 @@ def dereference(invocation, stderr=2, stdout=1):
 	# &dereference blocks until EOF is read from the created pipe and should only be used to
 	# execute reliable processes.
 
+	# If (system/signal)`SIGALRM` is not appropriate for timeouts, invocation should be managed
+	# directly.
+
 	# ! RELATED: &execute
 	"""
 
 	pid = None
 	status = None
+	eof = False
 	data = b''
+	read = os.read
 	r, w = os.pipe()
 
 	try:
-		with open(os.devnull, 'rb+') as null:
+		with open(os.devnull, 'rb+') as null: # stderr
 			nfd = null.fileno()
 			pid = invocation([(nfd, 0), (w, stdout), (nfd, stderr)])
 
 		os.close(w)
 		while True:
 			# Blocking reads until EOF (empty read).
-			new = os.read(r, 2048)
+			new = read(r, 2048)
 			if not new:
+				eof = True
 				break
 			data += new
 	finally:
 		os.close(r)
+
 		if pid:
+			if not eof:
+				os.kill(pid, 9)
 			pid, status = os.waitpid(pid, 0)
 
 	exitcode = os.WEXITSTATUS(status)
