@@ -959,7 +959,21 @@ def process_delta(
 
 	return (event, status, cored)
 
-def concurrently(controller, exe = Fork.dispatch):
+@contextlib.contextmanager
+def timeout(duration=4, update=signal.alarm, signo=signal.SIGALRM):
+	"""
+	# (system/signal)`SIGALRM` based context manager for maximum time interruptions.
+	"""
+
+	try:
+		prior = signal.signal(signo, Interruption.raised)
+		update(duration)
+		yield duration
+	finally:
+		update(0)
+		signal.signal(signo, prior)
+
+def concurrently(controller:typing.Callable, exe = Fork.dispatch):
 	"""
 	# Dispatch the given controller in a child process of a &control controlled process.
 	# The returned object is a reference to the result that will block until the child
