@@ -11,7 +11,8 @@ import types
 import typing
 import importlib
 
-from ..routes import library as libroutes
+from ..system import files
+from ..system import python
 
 def outerlocals(depth = 0):
 	"""
@@ -30,7 +31,7 @@ def outerlocals(depth = 0):
 
 	return f.f_locals
 
-def canonical_name(route:libroutes.Import):
+def canonical_name(route:python.Import):
 	"""
 	# Identify the canonical name of the factor.
 	"""
@@ -69,15 +70,15 @@ def extension_composite_name(name:str) -> str:
 	# /&str/
 		# A string referring to a (module) composite factor.
 	"""
-	root = str(libroutes.Import.from_fullname(name).floor())
+	root = str(python.Import.from_fullname(name).floor())
 	return '.'.join((root, 'extensions', name[len(root)+1:]))
 
-def package_directory(import_route:libroutes.Import) -> libroutes.File:
+def package_directory(import_route:python.Import) -> files.Path:
 	return import_route.file().container
 
-def incorporated(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
+def incorporated(factor:python.Import, slot:str='factor') -> files.Path:
 	"""
-	# Return the &libroutes.File instance to the incorporated target.
+	# Return the &files.Path instance to the incorporated target.
 
 	# The selected construction context can designate that a different
 	# slot be used for incorporation. This is to allow inspect output to reside
@@ -92,16 +93,16 @@ def incorporated(factor:libroutes.Import, slot:str='factor') -> libroutes.File:
 	return (factor.file().container / '__f_cache__' / slot)
 inducted = incorporated
 
-def selected(factor:libroutes.Import, link='pf.lnk'):
+def selected(factor:python.Import, link='pf.lnk'):
 	"""
 	# Return the route to the primary inducted entry.
 	"""
 	ifr = inducted(factor) / link
 	return ifr
 
-def incorporated_package(module:types.ModuleType, slot:str='factor') -> libroutes.File:
+def incorporated_package(module:types.ModuleType, slot:str='factor') -> files.Path:
 	"""
-	# Return the &libroutes.File instance to the inducted factor.
+	# Return the &files.Path instance to the inducted factor.
 
 	# The selected construction context can designate that a different
 	# slot be used for inductance. This is to allow inspect output to reside
@@ -113,18 +114,18 @@ def incorporated_package(module:types.ModuleType, slot:str='factor') -> libroute
 		# specified for cases where the providing context inducts
 		# the data into another directory.
 	"""
-	c = libroutes.File.from_absolute(module.__file__).container
+	c = files.Path.from_absolute(module.__file__).container
 	return c / '__pycache__' / slot
 package_inducted = incorporated_package
 
-def sources(factor:libroutes.Import, dirname='src', module=None):
+def sources(factor:python.Import, dirname='src', module=None):
 	"""
-	# Return the &libroutes.File instance to the set of sources.
+	# Return the &files.Path instance to the set of sources.
 	"""
 	global libroutes
 
 	if module is not None:
-		pkgdir = libroutes.File.from_absolute(module.__file__).container
+		pkgdir = files.Path.from_absolute(module.__file__).container
 		if module.__factor_domain__ == 'python.extension':
 			# Likely simulated composite. This is *not* a 'system.extension'.
 			return pkgdir
@@ -133,7 +134,7 @@ def sources(factor:libroutes.Import, dirname='src', module=None):
 
 	return pkgdir / dirname
 
-def composite(factor:libroutes.Import):
+def composite(factor:python.Import):
 	"""
 	# Whether the given &factor reference is a composite. &factor must be a real route.
 	"""
