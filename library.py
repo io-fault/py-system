@@ -1,32 +1,40 @@
 """
 # Main thread protection, thread primitives, and system process invocation interfaces.
 
-# &.library provides a framework for managing a process and the resources that interact
-# with the operating system. Notably, it provides access to POSIX atfork callbacks used
-# to manage the re-initialization of child processes.
+# &.library provides access to functionality for managing a process invoked by the system, and the
+# invocation of other system processes and forks. File system interfaces are primarily implemented
+# by &..routes.library.File, but are explicitly blocking.
+
+# In order to eliminate a potential point of confusion:
+# &Invocation, notably with no prefix character classifying its purpose, describes the invocation
+# of the *executed* process being ran. This is semantically distinct from &KInvocation and
+# &PInvocation which describe the parameters to the execution *of another*.
 
 #!/pl/python
 	from fault.system import library as libsys
 
 # [ Functions ]
 
-# /create_thread
+# /create_thread/
 	# Create a new thread and run the given callable inside of it.
-# /create_lock
+# /create_lock/
 	# Create a lock for mutual exclusion across threads.
-# /identify_thread
+# /identify_thread/
 	# When executed inside a thread, return the identifier
 	# of the running thread.
 
 # [ Properties ]
 
-# /process_signals
+# /KPort/
+	# Integer domain type for "Kernel Ports", Nix file descriptors.
+	# A single port, connection, to the system's kernel.
+# /process_signals/
 	# Mapping of generalized signal names to signal identifiers.
-# /process_signal_names
+# /process_signal_names/
 	# Mapping of signal identifiers to names.
-# /process_fatal_signals
+# /process_fatal_signals/
 	# Set of signals that would cause an immediate exit if `SIG_DFL` were set.
-# /process_signal_identifier
+# /process_signal_identifier/
 	# Mapping of signal identifiers to names used in POSIX header files.
 """
 import sys
@@ -67,9 +75,9 @@ def interrupt_thread(tid, exception=None,
 
 	# [ Parameters ]
 
-	# /tid
+	# /tid/
 		# The thread's low-level identifier to interrupt.
-	# /exception
+	# /exception/
 		# The exception that is raised in the thread.
 	"""
 	global Sever
@@ -84,7 +92,7 @@ def select_thread_frame(tid:int) -> types.FrameType:
 	# Select the frame of the thread's identifier.
 
 	# [Parameters]
-	# /tid
+	# /tid/
 		# Identifier of the thread returned by &create_thread or &identify_thread.
 		# Returns &None when the thread is not running.
 	"""
@@ -266,15 +274,15 @@ class Exit(SystemExit):
 
 	# [ Properties ]
 
-	# /exiting_with_information
+	# /exiting_with_information/
 		# Exit code indicating the type of information presented on standard error.
 		# Indicates that the standard error contains help output.
 
-	# /exiting_for_termination
+	# /exiting_for_termination/
 		# Exit code indicating that the daemon was signalled to shutdown
 		# by an administrative function.
 
-	# /exiting_for_restart
+	# /exiting_for_restart/
 		# Code used to communicate to the parent that it should be restarted.
 		# Primarily used by forking daemons to signal the effect of its exit
 		# without maintaining specific context.
@@ -282,21 +290,21 @@ class Exit(SystemExit):
 		# Parent processes should, naturally, restart the process when this
 		# code is used; usually it is used for automatic process cycling.
 
-	# /exiting_for_reduction
+	# /exiting_for_reduction/
 		# Exit code used to signal a parent process that the child exited
 		# in response to a command to reduce the number of worker processes.
 
-	# /exiting_by_exception
+	# /exiting_by_exception/
 		# Exit code used to communicate that the process exited due to an exception.
 		# Details *may* be written standard error.
 		# Essentially, this is a runtime coredump.
 
-	# /exiting_by_signal_status
+	# /exiting_by_signal_status/
 		# &Invocation exit status code used to indicate that the
 		# process will exit using a signal during &atexit(2).
 		# The calling process will *not* see this code. Internal indicator.
 
-	# /exiting_by_default_status
+	# /exiting_by_default_status/
 		# &Invocation exit status code used to indicate that the
 		# the process failed to explicitly note status.
 	"""
@@ -393,15 +401,15 @@ class Invocation(object):
 	# `'system'` and `'type'`.
 
 	# [ Properties ]
-	# /context
+	# /context/
 		# The Invocation that caused the creation of this &Invocation.
 		# By default and when created from &system, this property is &None.
-	# /parameters
+	# /parameters/
 		# Arbitrary storage for the parameteres of the invocation. Usually, `'type'`, `'system'`,
 		# and `'structured'` keys are present. &[Parameters] describes this in more detail.
-	# /environ
+	# /environ/
 		# A &collections.Mapping containing the environment variables that are of interest to the process.
-	# /args
+	# /args/
 		# The sequence of arguments given to the command by the system.
 		# This does not include the command name that is normally the first argument in &sys.argv.
 
@@ -409,24 +417,24 @@ class Invocation(object):
 
 	# Description of the &parameters property normally holding a dictionary with the given keys:
 
-	# /`'structured'`
+	# /`'structured'`/
 		# The designated location for storing parsed arguments.
 		# Provides high-level access to original parameters often for reference by usage error messages.
-	# /`'type'`
+	# /`'type'`/
 		# The type of invocation. Usually `'system'`.
-	# /`'system'`
+	# /`'system'`/
 		# The original system arguments and environment variables of interest.
 		# This information is normally gathered from the process when the &Invocation
 		# is created in order to provide a consistent snapshot.
 
 		# A mapping consisting of:
-		# /`'name'`
+		# /`'name'`/
 			# The first argument identifying the name used to execute the process.
-		# /`'arguments'`
+		# /`'arguments'`/
 			# The sequence of arguments following `'name'`.
-		# /`'directory'`
+		# /`'directory'`/
 			# The current working directory of the process when the Invocation was created.
-		# /`'environment'`
+		# /`'environment'`/
 			# A snapshot of the environment variables that were listed for collection.
 	"""
 
@@ -462,9 +470,9 @@ class Invocation(object):
 		# system. Primarily, information is retrieved from the &sys and &os module.
 
 		# [ Parameters ]
-		# /context
+		# /context/
 			# A reference context identifying the &Invocation caused this invocation to be created.
-		# /environ
+		# /environ/
 			# Sequence declaring the environment variables to acquire a snapshot of.
 		"""
 		r = Class(Class.system_exit_method, context = context)
@@ -687,19 +695,19 @@ class Fork(ControlException):
 
 		# [Parameters]
 
-		# /controller
+		# /controller/
 			# The object that will be called in the clone.
-		# /args
+		# /args/
 			# Arguments given to the callable.
-		# /kw
+		# /kw/
 			# Keywords given to the callable.
 
 		# [Returns]
-		# /&int
+		# /&int/
 			# The child process' PID.
 
 		# [Exceptions]
-		# /&Panic
+		# /&Panic/
 			# Raised when the returns in the branches did not return.
 		"""
 		fcontroller = Class(controller, *args, **kw)
@@ -958,15 +966,15 @@ def concurrently(controller, exe = Fork.dispatch):
 	# process has written the serialized response to a pipe.
 
 	# Used to create *very simple* fork trees or workers that need to send completion reports back to
-	# the parent.
+	# the parent. This expects the calling process to have been launched with &control.
 
 	# [ Parameters ]
 
 	# /controller
-		# The object to call to use the child's controller. &collections.Callable
+		# The object to call to use the child's controller.
 	"""
 	if not __control_lock__.locked():
-		raise RuntimeError("main thread is not managed with libsys.control")
+		raise RuntimeError("main thread is not managed with fault.system.process.control")
 
 	rw = os.pipe()
 
@@ -1119,7 +1127,7 @@ class Pipeline(tuple):
 			tpids, errors,
 		))
 
-	def void(self, close=os.close):
+	def void(self, close=os.close) -> None:
 		"""
 		# Close all file descriptors and kill -9 all processes involved in the pipeline.
 
@@ -1145,6 +1153,7 @@ class PInvocation(tuple):
 	"""
 	__slots__ = ()
 
+	# Import its own KInvocation for subclass overrides.
 	from . import kernel
 	Invocation = kernel.Invocation
 	del kernel
