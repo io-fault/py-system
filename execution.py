@@ -30,6 +30,8 @@
 
 # [ Types ]
 
+# Symbolic names for annotations used by &.execution.
+
 # /&Specification/
 	# A pair containing a selector for the executable and the argument vector to be used
 	# upon invocation. &typing.AnyStr is used to denote the possibility of mixed encoded
@@ -46,15 +48,10 @@
 import sys
 import typing
 
-Identifier = typing.NewType("Identifier", typing.Hashable)
-Vector = typing.NewType("Vector", typing.Sequence[typing.AnyStr])
-Vector.__qualname__ = __name__ + "." + Vector.__name__
-
-Specification = typing.NewType("Specification", typing.Tuple[typing.AnyStr, Vector])
-Specification.__qualname__ = __name__ + "." + Specification.__name__
-
+Identifier = typing.Hashable
+Vector = typing.Sequence[typing.AnyStr]
+Specification = typing.Tuple[typing.AnyStr, Vector]
 Method = typing.Callable[[typing.AnyStr, Vector], Specification]
-Method.__qualname__ = __name__ + "." + Method.__name__
 
 def default_factor(index, path, arguments, name):
 	from ..routes import library as libroutes
@@ -129,7 +126,7 @@ class Index:
 
 	def prepare(self,
 			method:Identifier,
-			executable:typing.AnyStr,
+			executable:object,
 			arguments:Vector,
 			name:typing.Optional[typing.AnyStr]=None
 		) -> Specification:
