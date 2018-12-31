@@ -139,7 +139,6 @@ class Import(core.Route):
 		"""
 		# The spec for loading the module.
 		"""
-
 		try:
 			return find_spec(self.fullname)
 		except Exception:

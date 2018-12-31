@@ -802,7 +802,7 @@ def critical(context, callable, *args, **kw):
 		else:
 			raise ce
 
-def protect(*init, looptime = 8):
+def protect(*init, looptime=8):
 	"""
 	# Perpetually protect the main thread using a sleep loop that can only exit
 	# using an interjection.
@@ -811,19 +811,19 @@ def protect(*init, looptime = 8):
 	# that rely on a set of threads to perform the actual work.
 
 	# [ Exceptions ]
-	# /&Panic
+	# /&Panic/
 		# Raised in cases where the infinite loop exits.
 
-	# /&Exit
+	# /&Exit/
 		# Raised by an application thread using &interject.
 	"""
-	global current_process_id, parent_process_id, process_signals
+	global current_process_id, parent_process_id
 
 	from ..time import kernel # kernel.sleep_us
 	ltus = looptime * 1000000
 
 	while 1:
-		kernel.sleep_us(ltus) # main thread system call
+		kernel.sleep_us(ltus) # main thread system call; releases gil.
 
 		# Check for parent process changes.
 		newppid = os.getppid()
@@ -880,7 +880,7 @@ def control(main, *args, **kw):
 		kernel.exit_by_signal(signal.SIGUSR2)
 		raise Panic("libsys.Fork.trap did not raise Exit or Interruption")
 
-# Public export of kernel.Invocation
+# Public export of kernel.Invocation; relocated to &.execution.KInvocation
 KInvocation = kernel.Invocation
 
 Delta = typing.Tuple[str, int, typing.Union[bool, None.__class__]]
@@ -904,34 +904,7 @@ def process_delta(
 		options = os.WNOHANG | os.WUNTRACED,
 	) -> Delta:
 	"""
-	# Transform pending process events such as exits into a triple describing
-	# the event. Normally used to respond to process exit events in order to reap
-	# the process or SIGCHLD signals. This is an abstraction to &os.waitpid.
-
-	# [ Parameters ]
-	# /pid
-		# The process identifier to reap.
-		# In cases of (system/signal)`SIGCHLD` events, the process-id associated
-		# with the received signal.
-
-	# [ Returns ]
-	# /&tuple
-		# A triple describing the event: `(event, status, core)`.
-
-		# The event is one of:
-
-			# - `'exit'`
-			# - `'signal'`
-			# - `'stop'`
-			# - `'continue'`
-
-		# The first two events mean that the process has been reaped and their `core` field will be
-		# &True or &False indicating whether or not the process left a process image
-		# behind. If the `core` field is &None, it's an authoritative statement that
-		# the process did *not* exit regardless of the platform.
-
-		# The status (code) is the exit status if an exit event, the signal number that killed or
-		# stopped the process, or &None in the case of `'continue'` event.
+	# Do not use. Relocated to &.execution.reap
 	"""
 
 	try:
@@ -985,7 +958,7 @@ def concurrently(controller:typing.Callable, exe = Fork.dispatch):
 
 	# [ Parameters ]
 
-	# /controller
+	# /controller/
 		# The object to call to use the child's controller.
 	"""
 	if not __control_lock__.locked():
