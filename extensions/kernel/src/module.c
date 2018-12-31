@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <spawn.h>
 #include <pthread.h>
 #include <signal.h>
@@ -438,7 +439,7 @@ PyDoc_STRVAR(invocation_doc,
 PyTypeObject
 InvocationType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	MODULE_QPATH("Invocation"), /* tp_name */
+	FACTOR_PATH("Invocation"),  /* tp_name */
 	sizeof(struct Invocation),  /* tp_basicsize */
 	0,                          /* tp_itemsize */
 	invocation_dealloc,         /* tp_dealloc */
@@ -487,8 +488,8 @@ set_process_title(PyObj mod, PyObj title)
 		;
 	#else
 		/*
-		 * no support on darwin
-		 */
+			# no support on darwin
+		*/
 		bytes = PyUnicode_AsUTF8String(title);
 
 		if (bytes == NULL)
@@ -512,7 +513,7 @@ struct inherit {
 
 	# This allows fork to track (system:manual)`fork`'s that weren't explicitly performed by
 	# an &.library interface.
-**/
+*/
 static void
 prepare(void)
 {
@@ -524,7 +525,7 @@ static struct inherit fork_data = {-1};
 
 /**
 	# Execute the &.library._after_fork_parent object from a pending call.
-**/
+*/
 static int
 _after_fork_parent(void *pc_param)
 {
@@ -566,7 +567,7 @@ parent(void)
 
 /**
 	# Execute the &.library._after_fork_child object from a pending call.
-**/
+*/
 static int
 _after_fork_child(void *pc_param)
 {
@@ -578,7 +579,7 @@ _after_fork_child(void *pc_param)
 
 /**
 	# Synchronize with the parent process.
-**/
+*/
 static void
 child(void)
 {
@@ -609,8 +610,8 @@ static int
 ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 {
 	/*
-	 * TODO: debugger control tracefunc
-	 */
+		# TODO: debugger control tracefunc
+	*/
 	return(0);
 }
 
@@ -618,7 +619,7 @@ ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 	# Set the trace object on a set of threads.
 	# Only supports callable-object level.
 	# This is intended for debuggers.
-**/
+*/
 static PyObj
 trace(PyObj self, PyObj args)
 {
@@ -694,7 +695,7 @@ trace(PyObj self, PyObj args)
 
 /**
 	# Executed in atexit in order to preserve the signal's exit code.
-**/
+*/
 void
 _exit_by_signal(void)
 {
@@ -714,7 +715,7 @@ _exit_by_signal(void)
 
 /**
 	# Register low-level atexit handler for exiting via a signal.
-**/
+*/
 static PyObj
 exit_by_signal(PyObj mod, PyObj ob)
 {
