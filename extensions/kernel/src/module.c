@@ -821,6 +821,11 @@ INIT(PyDoc_STR("Interfaces for the operating system.\n"))
 		PYTHON_TYPES()
 	#undef ID
 
+	if (PyModule_AddStringConstant(mod, "fci_architecture", F_TARGET_ARCHITECTURE_STR))
+		goto error;
+	if (PyModule_AddStringConstant(mod, "fci_system", F_SYSTEM_STR))
+		goto error;
+
 	return(mod);
 
 	error:
