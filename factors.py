@@ -84,7 +84,7 @@ class IntegralFinder(object):
 		v = dict(variants)
 		v['name'] = '{0}'
 
-		segments = (libproject.compose(groups, v))
+		segments = (libproject.compose_integral_path(v, groups=groups))
 		final = segments[-1] + '.i'
 		del segments[-1]
 
