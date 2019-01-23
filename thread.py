@@ -20,8 +20,6 @@ create = _thread.start_new_thread
 amutex = _thread.allocate_lock
 identify = _thread.get_ident
 
-root_thread_id = identify()
-
 class Sever(BaseException):
 	"""
 	# Exception used to signal thread kills.

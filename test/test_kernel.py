@@ -3,7 +3,6 @@ import os
 
 from ...system import files
 
-from .. import library as libsys
 from .. import kernel as library
 
 def perform_cat(pids, input, output, data, *errors):
