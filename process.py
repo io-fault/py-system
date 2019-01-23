@@ -72,8 +72,6 @@ fork_child_callset = set()
 # was managed by &.library.
 fork_child_cleanup = set()
 
-del thread
-
 getattr=getattr
 # Normalized identities for signals.
 signals = {
@@ -134,7 +132,7 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 		__interject_lock__.acquire()
 
 	kernel.interject(main_thread_exec) # executed in main thread
-	signal.pthread_kill(_main_thread_id, signo)
+	signal.pthread_kill(thread.root_thread_id, signo)
 
 def clear_atexit_callbacks(pid = None):
 	"""
