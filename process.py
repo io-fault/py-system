@@ -52,6 +52,9 @@ current_process_id = os.getpid()
 # Currently identified parent process.
 parent_process_id = os.getppid()
 
+# Presume import occurs on main. Applications must update if incorrect.
+main_thread_id = thread.identify()
+
 # Intercontext Fork Lock
 __fork_lock__ = thread.amutex()
 
@@ -132,7 +135,7 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 		__interject_lock__.acquire()
 
 	kernel.interject(main_thread_exec) # executed in main thread
-	signal.pthread_kill(thread.root_thread_id, signo)
+	signal.pthread_kill(main_thread_id, signo)
 
 def clear_atexit_callbacks(pid = None):
 	"""
@@ -589,7 +592,7 @@ class Fork(ControlException):
 		# Don't bother with the interjection if we're dispatching from the main thread.
 		# Usually, this doesn't happen, but it can be desirable to have fork's control
 		# provisions in even simple programs.
-		if Class.__controlled_thread_id__ == identify_thread():
+		if Class.__controlled_thread_id__ == thread.identify():
 			pid = os.fork()
 			if pid == 0:
 				raise fcontroller
@@ -623,7 +626,7 @@ class Fork(ControlException):
 		"""
 
 		while True:
-			Class.__controlled_thread_id__ = identify_thread()
+			Class.__controlled_thread_id__ = thread.identify()
 			try:
 				if not __interject_lock__.locked():
 					raise Panic("interject lock not held")
