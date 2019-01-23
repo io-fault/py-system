@@ -13,7 +13,7 @@ extern char **environ;
 /*
 	# For fork callbacks
 */
-static PyObj libsys = NULL;
+static PyObj process_module = NULL;
 static int exit_signal = -1;
 static pid_t exit_for_pid = -1;
 
@@ -531,7 +531,7 @@ _after_fork_parent(void *pc_param)
 {
 	PyObj rob, ctx;
 
-	rob = PyObject_CallMethod(libsys, "_after_fork_parent", "i", (int) pc_param);
+	rob = PyObject_CallMethod(process_module, "_after_fork_parent", "i", (int) pc_param);
 	Py_XDECREF(rob);
 
 	return(rob == NULL ? -1 : 0);
@@ -572,7 +572,7 @@ static int
 _after_fork_child(void *pc_param)
 {
 	PyObj rob;
-	rob = PyObject_CallMethod(libsys, "_after_fork_child", "");
+	rob = PyObject_CallMethod(process_module, "_after_fork_child", "");
 	Py_XDECREF(rob);
 	return(rob == NULL ? -1 : 0);
 }
@@ -746,16 +746,16 @@ exit_by_signal(PyObj mod, PyObj ob)
 #include "python.h"
 
 /*
-	# Retrieve a reference to the libsys module and register
+	# Retrieve a reference to the process_module module and register
 	# the atfork handlers.
 
 	# Only runs once and there is currently no way to update the
-	# libsys entry meaning that system.library should not be reloaded.
+	# process_module entry meaning that system.process should not be reloaded.
 */
 static PyObj
 initialize(PyObj mod, PyObj ctx)
 {
-	if (libsys != NULL)
+	if (process_module != NULL)
 	{
 		/*
 			# Already configured.
@@ -763,8 +763,8 @@ initialize(PyObj mod, PyObj ctx)
 		Py_RETURN_NONE;
 	}
 
-	libsys = ctx;
-	Py_INCREF(libsys);
+	process_module = ctx;
+	Py_INCREF(process_module);
 
 	if (pthread_atfork(prepare, parent, child))
 	{
@@ -792,7 +792,7 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		initialize, initialize, METH_O, \
 			"Initialize the after fork callbacks. " \
-			"Called once by &.library. Do not use.") \
+			"Called once by &.process. Do not use.") \
 	PYMETHOD( \
 		interrupt, interrupt, METH_VARARGS, \
 			"Interrupt a Python thread with the given exception.") \
