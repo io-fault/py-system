@@ -1,6 +1,8 @@
 import os
+import signal
 
 from .. import process as library
+from .. import thread
 
 class Trapped(Exception):
 	"""
@@ -36,8 +38,11 @@ def test_critical(test):
 	# Interject is not being tested here, so override
 	# it to derive the effect that we're looking for.
 	original = library.interject
+	ctllock = library.__control_lock__
 	try:
 		library.interject = raised
+		l = library.__control_lock__ = thread.amutex()
+		l.acquire()
 		try:
 			library.critical(None, raise_trap)
 		except library.Panic as exc:
@@ -48,6 +53,7 @@ def test_critical(test):
 			test.fail("critical did not raise panic")
 	finally:
 		library.interject = original
+		library.__control_lock__ = ctllock
 
 	test/raised_called == True
 
@@ -61,9 +67,14 @@ def test_interject(test):
 		executed = True
 
 	test/executed == False # sanity
-	library.interject(call)
-	for x in range(32):
-		pass
+
+	s = signal.signal(signal.SIGUSR2, signal.SIG_IGN)
+	try:
+		library.interject(call, replacement=False)
+		for x in range(32):
+			pass
+	finally:
+		signal.signal(signal.SIGUSR2, s)
 
 	test/executed == True
 
