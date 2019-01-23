@@ -152,6 +152,9 @@ class Delta(object):
 	status:(int) = None
 	core:(bool) = None
 
+	def __iter__(self):
+		return (self.event, self.status, self.core).__iter__()
+
 	@property
 	def running(self):
 		return self.event in ('none', 'continue')
