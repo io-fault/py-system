@@ -394,7 +394,7 @@ class PInvocation(tuple):
 		# Create a &PInvocation instance from a sequences of commands.
 
 		#!/pl/python
-			pr = libsys.PInvocation.from_commands(
+			pr = libexec.PInvocation.from_commands(
 				['/bin/cat', '/bin/cat', 'somefile'],
 				['/usr/bin/tee', 'tee', 'duplicate-1', 'duplicate-2'],
 			)
@@ -416,7 +416,7 @@ class PInvocation(tuple):
 		# pairs.
 
 		#!/pl/python
-			pr = libsys.PInvocation.from_pairs([("/bin/cat", ("cat", "file", "-")), ...])
+			pr = libexec.PInvocation.from_pairs([("/bin/cat", ("cat", "file", "-")), ...])
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
 
