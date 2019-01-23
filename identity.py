@@ -28,10 +28,10 @@ def _uname(flag, path="/usr/bin/uname", encoding='utf-8'):
 	"""
 	# Execute the (system/executable)`uname` returning its output for the given &flag.
 	"""
-	from . import library as exe
+	from . import execution as libexec
 
-	inv = exe.KInvocation(path, [path, flag])
-	pid, exitcode, out = exe.dereference(inv)
+	inv = libexec.KInvocation(path, [path, flag])
+	pid, exitcode, out = libexec.dereference(inv)
 
 	return out.strip().decode(encoding)
 
