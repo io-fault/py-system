@@ -251,7 +251,7 @@ def reap(
 	if (rpid, code) == (0, 0):
 		return Delta('none', None, None)
 
-	return decode_process_status(event, status, cored)
+	return decode_process_status(code)
 
 del dataclass
 
