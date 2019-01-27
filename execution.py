@@ -152,9 +152,6 @@ class Delta(object):
 	status:(int) = None
 	core:(bool) = None
 
-	def __iter__(self):
-		return (self.event, self.status, self.core).__iter__()
-
 	@property
 	def running(self):
 		return self.event in ('none', 'continue')
@@ -172,8 +169,8 @@ class Delta(object):
 	def stopped(self):
 		return self.event == 'stop'
 
-def reap(
-		pid:int,
+def decode_process_status(
+		status:int,
 		wasexit = os.WIFEXITED,
 		getstatus = os.WEXITSTATUS,
 
@@ -186,7 +183,43 @@ def reap(
 		wascontinued = os.WIFCONTINUED,
 
 		wascore = os.WCOREDUMP,
+	) -> Delta:
+	"""
+	# the process or SIGCHLD signals. This is an abstraction to &os.waitpid
+	# and can only be used with child processes.
 
+	# [ Parameters ]
+	# /status/
+		# The status code produced by &os.waitpid. (stat_loc)
+
+	# [ Exceptions ]
+	# /&ValueError/
+		# Raised when the given status code could not be recognized.
+	"""
+
+	if wasexit(status):
+		event = 'exit'
+		code = getstatus(status)
+		cored = wascore(status) or False
+	elif wassignal(status):
+		event = 'exit'
+		code = - getsig(status)
+		cored = wascore(status) or False
+	elif wasstopped(status):
+		event = 'stop'
+		code = getstop(status) or 0
+		cored = None
+	elif wascontinued(status):
+		event = 'continue'
+		code = None
+		cored = None
+	else:
+		raise ValueError("unrecognized process status") # Could not create &Delta
+
+	return Delta(event, code, cored)
+
+def reap(
+		pid:int,
 		waitpid = os.waitpid,
 		options = os.WNOHANG | os.WUNTRACED,
 	) -> typing.Optional[Delta]:
@@ -205,19 +238,9 @@ def reap(
 
 	# [ Returns ]
 	# /&Delta/
-		# A triple describing the event: `(event, status, core)`.
-
-		# The event is one of:
-
-			# - `'exit'`
-			# - `'stop'`
-			# - `'continue'`
-			# - `'none'`
-
-		# Status is an integer when event is `'exit'`. If status is negative,
-		# it means the process exited by a signal.
-
 		# Core is &True or &False for exits, and &None in all other cases.
+	# /&None/
+		# No status was available due to error.
 	"""
 
 	try:
@@ -228,24 +251,7 @@ def reap(
 	if (rpid, code) == (0, 0):
 		return Delta('none', None, None)
 
-	if wasexit(code):
-		event = 'exit'
-		status = getstatus(code)
-		cored = wascore(code) or False
-	elif wassignal(code):
-		event = 'exit'
-		status = - getsig(code)
-		cored = wascore(code) or False
-	elif wasstopped(code):
-		event = 'stop'
-		status = getstop(code) or 0
-		cored = None
-	elif wascontinued(code):
-		event = 'continue'
-		status = None
-		cored = None
-
-	return Delta(event, status, cored)
+	return decode_process_status(event, status, cored)
 
 del dataclass
 

@@ -460,7 +460,7 @@ class Interruption(ControlException):
 		global fatal_signals
 
 		if signo in fatal_signals:
-			interject(Class('signal', signo).raised) # fault.system.library.Interruption
+			interject(Class('signal', signo).raised) # fault.system.process.Interruption
 
 	@staticmethod
 	def void(signo, frame):
@@ -606,7 +606,7 @@ class Fork(ControlException):
 			transitioned_pivot = functools.partial(fcontroller.pivot, T)
 
 			__fork_lock__.acquire() # Released by atfork handler.
-			interject(transitioned_pivot, replacement=False) # fault.system.library.Fork.pivot
+			interject(transitioned_pivot, replacement=False) # fault.system.process.Fork.pivot
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
 			return T.commit()
@@ -657,7 +657,7 @@ def critical(context, callable, *args, **kw):
 	# For example:
 
 	#!/pl/python
-		from fault.system.library import critical
+		from fault.system.process import critical
 
 		def fun():
 			while True:
@@ -677,7 +677,7 @@ def critical(context, callable, *args, **kw):
 		if __control_lock__.locked():
 			# Only use interject when the control() lock has been used.
 			raise_panic = ce.raised
-			interject(raise_panic) # fault.system.library.critical
+			interject(raise_panic) # fault.system.process.critical
 		else:
 			raise ce
 
@@ -792,6 +792,8 @@ def concurrently(controller:typing.Callable, exe=Fork.dispatch):
 
 	rw = os.pipe()
 
+	# XXX: Imports performed here as this is the only dependant in the module.
+	# This should likely be relocated to another module.
 	import io
 	import pickle
 	import atexit
