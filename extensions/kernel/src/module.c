@@ -241,7 +241,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	if (inv->invocation_path == NULL)
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
-		Py_DECREF(inv);
+		Py_DECREF(rob);
 		return(NULL);
 	}
 
@@ -286,7 +286,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		if (envp == NULL)
 		{
 			PyErr_SetFromErrno(PyExc_OSError);
-			Py_DECREF(inv);
+			Py_DECREF(rob);
 			return(NULL);
 		}
 		else
@@ -329,7 +329,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		if (argv == NULL)
 		{
 			PyErr_SetFromErrno(PyExc_OSError);
-			Py_DECREF(inv);
+			Py_DECREF(rob);
 			return(NULL);
 		}
 		else
