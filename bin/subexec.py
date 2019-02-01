@@ -7,6 +7,7 @@ from .. import process
 def main(inv:process.Invocation) -> process.Exit:
 	module_path = inv.args[0]
 	del inv.args[0:1]
+	inv.parameters['system'].setdefault('environment', {})
 	sub = importlib.import_module(module_path)
 	process.Fork.substitute(sub.main, inv)
 	raise process.Panic("substitution failed to raised control exception")
