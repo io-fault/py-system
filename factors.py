@@ -1,18 +1,9 @@
 """
-# Module finder for projects containing integrals.
-
-# [ Properties ]
-# /host/
-	# Finder instance intended for resolving extensions and bytecode files for
-	# loading by the host Python.
+# Module finder and loader for Factored Projects.
 """
-
-import os
-import sys
 import importlib.machinery
-import contextlib
 
-from fault.routes import library as libroutes
+from ..routes import library as libroutes
 from . import files
 from . import identity
 
@@ -26,7 +17,8 @@ class IntegralFinder(object):
 
 	class Loader(importlib.machinery.SourceFileLoader):
 		"""
-		# Loader for compiled Python integrals.
+		# Loader for compiled Python integrals. Compiled modules are not checked
+		# against the source unlike Python's builtin loader.
 		"""
 		_compile = staticmethod(importlib._bootstrap_external._compile_bytecode)
 
@@ -41,6 +33,8 @@ class IntegralFinder(object):
 			module.__cache__ = self._bytecode
 
 		def get_code(self, fullname):
+			# Factors being explicitly compiled, code objects
+			# are stored directly without pycache headers.
 			try:
 				with open(self._bytecode, 'rb') as f:
 					# It's the build system's job to make sure everything is updated,
@@ -101,7 +95,10 @@ class IntegralFinder(object):
 		"""
 
 		# Only package module roots are identified.
-		dirs = route.subdirectories()
+		if (route/'Projects').exists():
+			dirs = [route/x for x in (route/'Projects').get_text_content().split('\n')]
+		else:
+			dirs = route.subdirectories()
 		roots = [(x.identifier, route) for x in dirs]
 		self.index.update(roots)
 		self.routes.add(route)
@@ -156,12 +153,22 @@ class IntegralFinder(object):
 		pkg = False
 
 		if route.is_directory():
-			# Alawys presume __init__.
+			# Presume __init__ first.
 			pysrc = route / '__init__.py'
 			final = '__init__'
+			idir = route / self.integral_container_name
+
+			if not pysrc.exists():
+				for encpkg in ('context', 'category'):
+					# Context Enclosure
+					if (route/encpkg).exists():
+						pysrc = route/encpkg/'root.py'
+						final = 'root'
+						idir = pysrc * self.integral_container_name
+						break
+
 			origin = str(pysrc)
 			pkg = True
-			idir = route / self.integral_container_name
 		else:
 			idir = route.container / self.integral_container_name
 			pysrc = route.suffix('.py')
@@ -169,7 +176,7 @@ class IntegralFinder(object):
 				# Definitely Python bytecode.
 				origin = str(pysrc)
 			else:
-				# No Python, presume extension
+				# No Python, attempt extension at this point.
 				origin = None
 				pysrc = None
 				leading, filename, fformat = self._ext
@@ -195,3 +202,46 @@ class IntegralFinder(object):
 			spec = self.ModuleSpec(name, l, origin=path, is_package=False)
 
 		return spec
+
+	@classmethod
+	def create(Class, intention, rxctx=None):
+		"""
+		# Construct a standard loader selecting integrals with the given &intention.
+		"""
+
+		if rxctx is None:
+			rxctx = identity.root_execution_context()
+		sys, arc = rxctx
+
+		bc = {
+			'system': sys,
+			'architecture': identity._python_architecture,
+			'intention': intention,
+		}
+
+		ext = {
+			'system': sys,
+			'architecture': arc,
+			'intention': intention,
+		}
+
+		g = [['system','architecture'],['name','intention']]
+
+		return Class(g, bc, ext)
+
+def activate(intention='debug'):
+	"""
+	# Install loaders for the (envvar)`FACTORPATH` products.
+	"""
+	import os
+
+	sfif = IntegralFinder.create(intention)
+	paths = os.environ.get('FACTORPATH', '').split(':')
+	for x in paths:
+		if not x:
+			continue
+		x = files.Path.from_absolute(x)
+		sfif.connect(x)
+
+	import sys
+	sys.meta_path.insert(0, sfif)
