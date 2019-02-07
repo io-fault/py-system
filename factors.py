@@ -31,6 +31,9 @@ class IntegralFinder(object):
 			super().exec_module(module)
 			module.__file__ = self._source
 			module.__cache__ = self._bytecode
+			spec = module.__spec__
+			if spec.submodule_search_locations:
+				module.__path__ = spec.submodule_search_locations
 
 		def get_code(self, fullname):
 			# Factors being explicitly compiled, code objects
@@ -154,6 +157,7 @@ class IntegralFinder(object):
 
 		if route.is_directory():
 			# Presume __init__ first.
+			pkg = True
 			pysrc = route / '__init__.py'
 			final = '__init__'
 			idir = route / self.integral_container_name
@@ -168,7 +172,6 @@ class IntegralFinder(object):
 						break
 
 			origin = str(pysrc)
-			pkg = True
 		else:
 			idir = route.container / self.integral_container_name
 			pysrc = route.suffix('.py')
@@ -186,6 +189,8 @@ class IntegralFinder(object):
 			l = self.Loader(str(cached), name, str(pysrc))
 			spec = self.ModuleSpec(name, l, origin=origin, is_package=pkg)
 			spec.cached = str(cached)
+			if pkg:
+				spec.submodule_search_locations = [str(pysrc.container)]
 		else:
 			# It's not Python source, check for a C-API extension.
 			cur = idir
