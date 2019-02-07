@@ -27,8 +27,7 @@ handlers = {
 
 def parse(arguments):
 	"""
-	# Parse the given arguments into a dictionary suitable for serialization into
-	# a &..cc.Context parameters directory and use by &..cc.Parameters.
+	# Extract command line parameter options.
 	"""
 	config = {
 		'modules': [],
@@ -101,16 +100,15 @@ def main(inv:process.Invocation) -> process.Exit:
 	if module_path.startswith('.'):
 		if module_path == '.script':
 			script(inv.args)
-			# Arguably a questionable default, but consistent with Python scripts.
-			raise SystemExit(0)
 		elif module_path == '.string':
 			string(inv.args)
-			raise SystemExit(0)
 		elif module_path == '.module':
 			module(inv.args)
-			raise SystemExit(0)
 		else:
 			raise ModuleNotFoundError(module_path) # .* modules for builtin handlers.
+
+		# Arguably a questionable default, but likely consistent with bin/python.
+		raise SystemExit(0)
 	else:
 		sub = importlib.import_module(module_path)
 		process.Fork.substitute(sub.main, inv)
