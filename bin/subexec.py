@@ -83,6 +83,13 @@ def string(args):
 		co = compile(expr, '<string:%d>'%(i,), 'single')
 		eval(co, ctxmod.__dict__, ctxmod.__dict__)
 
+def module(args):
+	# Should be consistent with -m
+	import sys
+	import runpy
+	sys.argv = args
+	runpy.run_module(args[0], run_name='__main__', alter_sys=True)
+
 def main(inv:process.Invocation) -> process.Exit:
 	count, config = parse(inv.args)
 	apply(config)
@@ -98,6 +105,9 @@ def main(inv:process.Invocation) -> process.Exit:
 			raise SystemExit(0)
 		elif module_path == '.string':
 			string(inv.args)
+			raise SystemExit(0)
+		elif module_path == '.module':
+			module(inv.args)
 			raise SystemExit(0)
 		else:
 			raise ModuleNotFoundError(module_path) # .* modules for builtin handlers.
