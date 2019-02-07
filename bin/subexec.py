@@ -60,6 +60,29 @@ def apply(config):
 		if hasattr(x, 'activate'):
 			x.activate()
 
+def script(args):
+	import types
+	import sys
+	ctxmod = types.ModuleType('__main__')
+	ctxmod.__builtins__ = __builtins__
+	path = args[0]
+	sys.argv = args
+
+	with open(path, 'r') as f:
+		src = f.read()
+		co = compile(src, path, 'exec')
+
+	return exec(co, ctxmod.__dict__, ctxmod.__dict__)
+
+def string(args):
+	import types
+	ctxmod = types.ModuleType('__main__')
+	ctxmod.__builtins__ = __builtins__
+
+	for i, expr in zip(range(len(args)), args):
+		co = compile(expr, '<string:%d>'%(i,), 'single')
+		eval(co, ctxmod.__dict__, ctxmod.__dict__)
+
 def main(inv:process.Invocation) -> process.Exit:
 	count, config = parse(inv.args)
 	apply(config)
@@ -68,10 +91,21 @@ def main(inv:process.Invocation) -> process.Exit:
 	del inv.args[0:count+1]
 	inv.parameters['system'].setdefault('environment', {})
 
-	sub = importlib.import_module(module_path)
-	process.Fork.substitute(sub.main, inv)
+	if module_path.startswith('.'):
+		if module_path == '.script':
+			script(inv.args)
+			# Arguably a questionable default, but consistent with Python scripts.
+			raise SystemExit(0)
+		elif module_path == '.string':
+			string(inv.args)
+			raise SystemExit(0)
+		else:
+			raise ModuleNotFoundError(module_path) # .* modules for builtin handlers.
+	else:
+		sub = importlib.import_module(module_path)
+		process.Fork.substitute(sub.main, inv)
 
-	raise process.Panic("substitution failed to raised control exception")
+		raise process.Panic("substitution failed to raised control exception")
 
 if __name__ == '__main__':
 	process.control(main, process.Invocation.system())
