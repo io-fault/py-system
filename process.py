@@ -502,7 +502,6 @@ class Interruption(ControlException):
 
 		try:
 			for sig in fatal_signals:
-				# In Context situations, signals are read from kernel.Interface()
 				stored_signals[sig] = signal(sig, ign)
 
 			# these signals need a handler and are used to trip the main thread for interjections.
