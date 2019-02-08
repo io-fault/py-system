@@ -166,19 +166,17 @@ class Import(core.Route):
 
 	def real(self):
 		"""
-		# The "real" portion of the Route.
+		# The "real" portion of the Import.
 		# Greatest Absolute Route that *actually exists* on the file system.
 
 		# &None if no parts are real, and &self if the entire route exists.
 		"""
 
+		# XXX: Performs import, ideally it could check for existence.
 		x = self
-		while x.points:
-			try:
-				if x.spec() is not None:
-					return x
-			except (ImportError, AttributeError):
-				pass
+		while x.absolute:
+			if x.module() is not None:
+				return x
 			x = x.container
 
 	def get_last_modified(self) -> libtime.Timestamp:
@@ -271,14 +269,15 @@ class Import(core.Route):
 		packages = []
 		modules = []
 
-		if self.is_package:
+		spec = self.spec()
+		if spec.submodule_search_locations is not None:
 			prefix = self.fullname
 
-			# only packages have subnodes
 			module = self.module()
 			if module is not None:
-				path = getattr(module, '__path__', None)
-				for (importer, name, ispkg) in iter_modules(path) if path is not None else ():
+				path = getattr(module, '__path__', None) or spec.submodule_search_locations
+
+				for (importer, name, ispkg) in iter_modules(path):
 					path = '.'.join((prefix, name))
 					ir = self.__class__.from_fullname(path)
 

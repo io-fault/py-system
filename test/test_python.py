@@ -42,6 +42,7 @@ def test_Import(test):
 	test/r.module() == None
 	test/r.root == r
 
+def test_Import_real(test):
 	# real resolution
 	r = lib.Import.from_fullname(__package__ + '.' + '+++++nosuch_module')
 	test/r.module() == None
