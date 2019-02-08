@@ -42,11 +42,12 @@ def _cache(uname_system='-s', uname_machine='-m'):
 	import os
 	sys = os.environ.get(fci_system_envid, None)
 	arc = os.environ.get(fci_architecture_envid, None)
+	from . import kernel # _uname depends on it as well
 
 	if sys is None:
-		sys = _uname(uname_system).lower()
+		sys = getattr(kernel, 'fci_system', None) or _uname(uname_system).lower()
 	if arc is None:
-		arc = _uname(uname_machine).lower()
+		arc = getattr(kernel, 'fci_architecture', None) or _uname(uname_machine).lower()
 
 	_system = sys
 	_machine = arc
