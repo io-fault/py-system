@@ -82,12 +82,39 @@ def string(args):
 		co = compile(expr, '<string:%d>'%(i,), 'single')
 		eval(co, ctxmod.__dict__, ctxmod.__dict__)
 
+	return ctxmod
+
 def module(args):
 	# Should be consistent with -m
 	import sys
 	import runpy
 	sys.argv = args
 	runpy.run_module(args[0], run_name='__main__', alter_sys=True)
+
+def console(args):
+	import sys
+	import signal
+	import code
+
+	# Arguments played inline
+	ctxmod = string(args)
+
+	try:
+		import site
+		import readline
+		import rlcompleter
+		readline.set_completer(rlcompleter.Completer(ctxmod.__dict__).complete)
+		site.enablerlcompleter()
+		sys.__interactivehook__()
+	except:
+		sys.__excepthook__(*sys.exc_info())
+
+	# Use KeyboardInterrupt for a less surprising experience.
+	signal.signal(signal.SIGINT, signal.default_int_handler)
+
+	banner = '[%s via %s]' %(sys.executable, sys.argv[0])
+	ic = code.InteractiveConsole(ctxmod.__dict__)
+	ic.interact(banner, exitmsg="EOF")
 
 def main(inv:process.Invocation) -> process.Exit:
 	count, config = parse(inv.args)
@@ -104,6 +131,8 @@ def main(inv:process.Invocation) -> process.Exit:
 			string(inv.args)
 		elif module_path == '.module':
 			module(inv.args)
+		elif module_path == '.console':
+			console(inv.args)
 		else:
 			raise ModuleNotFoundError(module_path) # .* modules for builtin handlers.
 
