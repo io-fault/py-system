@@ -1,5 +1,9 @@
 """
 # Module finder and loader for Factored Projects.
+
+# [ Engineering ]
+# Currently, the finder can load extensions, but it will not properly
+# modify paths in leading packages so that they can be found.
 """
 import importlib.machinery
 
@@ -12,6 +16,7 @@ class IntegralFinder(object):
 	# Select an integral based on the configured variants querying the connected factor paths.
 	"""
 
+	suffixes = ['.py']
 	ModuleSpec = importlib.machinery.ModuleSpec
 	ExtensionFileLoader = importlib.machinery.ExtensionFileLoader
 
@@ -150,19 +155,44 @@ class IntegralFinder(object):
 
 		ipath = name.split('.')
 		route = root.extend(ipath)
+		parent = route.container
 
 		final = ipath[-1]
-		leading, filename, fformat = self._pbc
 		pkg = False
 
+		# Check for extensions first.
+		if not route.exists():
+			# Find `extensions` factor.
+
+			cur = parent
+			while not (cur/'extensions').exists():
+				cur = cur.container
+				if str(cur) in (str(root), '/'):
+					# No extensions.
+					break
+			else:
+				xpath = (cur >> route)[1]
+				exts = cur/'extensions'
+				segment = (cur >> (parent/self.integral_container_name))[1]
+				rroute = exts.extend(segment)
+
+				if exts.extend(xpath).exists():
+					# .extension entry is present
+					leading, filename, fformat = self._ext
+					path = str(rroute.extend(leading)/fformat(final))
+					l = self.ExtensionFileLoader(name, path)
+					spec = self.ModuleSpec(name, l, origin=path, is_package=False)
+					return spec
+
+		# Not an extension; path is selecting a directory.
 		if route.is_directory():
-			# Presume __init__ first.
 			pkg = True
 			pysrc = route / '__init__.py'
 			final = '__init__'
 			idir = route / self.integral_container_name
 
 			if not pysrc.exists():
+				# Handle enclosures.
 				for encpkg in ('context', 'category'):
 					# Context Enclosure
 					if (route/encpkg).exists():
@@ -170,41 +200,30 @@ class IntegralFinder(object):
 						final = 'root'
 						idir = pysrc * self.integral_container_name
 						break
+				else:
+					return None
 
 			origin = str(pysrc)
 		else:
-			idir = route.container / self.integral_container_name
-			pysrc = route.suffix('.py')
-			if pysrc.is_regular_file():
-				# Definitely Python bytecode.
-				origin = str(pysrc)
+			# Regular Python module
+			idir = parent / self.integral_container_name
+			for x in self.suffixes:
+				pysrc = route.suffix(x)
+				if pysrc.is_regular_file():
+					break
 			else:
-				# No Python, attempt extension at this point.
-				origin = None
-				pysrc = None
-				leading, filename, fformat = self._ext
+				# No recognized sources.
+				return None
 
-		if pysrc is not None:
-			cached = idir.extend(leading) / fformat(final)
-			l = self.Loader(str(cached), name, str(pysrc))
-			spec = self.ModuleSpec(name, l, origin=origin, is_package=pkg)
-			spec.cached = str(cached)
-			if pkg:
-				spec.submodule_search_locations = [str(pysrc.container)]
-		else:
-			# It's not Python source, check for a C-API extension.
-			cur = idir
-			while not (cur/'extensions').exists():
-				cur = cur.container
-				if str(cur) == '/':
-					return None
-			segment = (cur >> idir)[1]
-			rroute = (cur/'extensions').extend(segment)
+			origin = str(pysrc)
 
-			path = str(rroute.extend(leading)/fformat(final))
-
-			l = self.ExtensionFileLoader(name, path)
-			spec = self.ModuleSpec(name, l, origin=path, is_package=False)
+		leading, filename, fformat = self._pbc
+		cached = idir.extend(leading) / fformat(final)
+		l = self.Loader(str(cached), name, str(pysrc))
+		spec = self.ModuleSpec(name, l, origin=origin, is_package=pkg)
+		spec.cached = str(cached)
+		if pkg:
+			spec.submodule_search_locations = [str(pysrc.container)]
 
 		return spec
 
