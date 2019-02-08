@@ -54,18 +54,6 @@ Method = typing.Callable[[typing.AnyStr, Vector], Specification]
 
 from .kernel import Invocation as KInvocation # Public export.
 
-def default_factor(index, path, arguments, name):
-	from ..routes import library as libroutes
-	ir = libroutes.Import.from_fullname(path)
-	if ir.is_package():
-		# presume composite
-		from . import libfactor
-		file = libfactor.selected(ir)
-		return index.prepare("system-file", str(file), arguments, name)
-	else:
-		# presume python module
-		return index.prepare("python-module", path, arguments, name)
-
 def default_python_script(index, script, arguments, name=None):
 	sysexe = sys.executable
 	argv = [name or sysexe, script]
@@ -87,7 +75,6 @@ _defaults = (
 	('python-script', default_python_script),
 	('python-module', default_python_module),
 	('executable', default_executable),
-	('factor', default_factor),
 )
 
 # Essentially a domain type providing the semantics and type signatures for holding &Method's.
