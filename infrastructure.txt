@@ -1,0 +1,12 @@
+! CONTEXT:
+	/protocol/
+		&<http://if.fault.io/project/infrastructure>
+
+/python-extension/
+	- &<http://fault.io/proxy/python#extension>
+	- &<http://fault.io/proxy/python#c-interfaces>
+
+/bsd/
+	Abstract symbol used to refer to BSD conventions and interfaces.
+	This is intended to be the override point used to compensate
+	for missing BSD interfaces and libraries.
