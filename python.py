@@ -2,6 +2,7 @@
 # Python Execution Context support functions and classes.
 """
 import sys
+import os
 import collections
 import pkgutil
 import importlib
