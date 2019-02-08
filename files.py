@@ -387,7 +387,7 @@ class Path(core.Route):
 		dirs, files = self.subnodes()
 
 		for x in files:
-			mt = x.last_modified()
+			mt = x.get_last_modified()
 			if mt.follows(since):
 				yield (mt, x)
 
