@@ -782,7 +782,7 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \
-			"(system:manual)`setproctitle`. " \
+			"(system/manual)`setproctitle`. " \
 			"Does nothing if unsupported or unsafe.") \
 	PYMETHOD( \
 		exit_by_signal, exit_by_signal, METH_O, \

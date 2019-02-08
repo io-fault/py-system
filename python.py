@@ -21,9 +21,8 @@ class Import(core.Route):
 	@classmethod
 	def from_context(Class):
 		"""
-		# Return a new Route to the package containing the module that is executing
-		# &from_context. If the module is a package, a Route to that package is
-		# returned.
+		# Return a new &Import to the package containing the module that is executing
+		# &from_context.
 		"""
 		f = sys._getframe()
 		while f is not None and f.f_globals['__name__'] == __name__:
@@ -33,11 +32,11 @@ class Import(core.Route):
 		return None
 
 	@classmethod
-	def from_fullname(Class, s):
+	def from_fullname(Class, module_path_string):
 		"""
 		# Given a valid `__name__`, return an &Import instance to that path.
 		"""
-		return Class.from_points(None, *s.split('.'))
+		return Class.from_points(None, *module_path_string.split('.'))
 
 	@classmethod
 	def from_module(Class, module):
