@@ -183,7 +183,6 @@ class Import(core.Route):
 		# Return the modification time of the module's file as a chronometry Timestamp.
 		"""
 		return self.file().get_last_modified()
-	last_modified = get_last_modified
 
 	def stack(self):
 		"""
@@ -216,7 +215,7 @@ class Import(core.Route):
 
 	def floor(self, valids={'project', 'context'}, name='__factor_type__'):
 		"""
-		# Find the context or project factor for the given module &self.
+		# Find the context or project factor for the given module.
 		"""
 
 		for (mod, value) in self.scan(name):

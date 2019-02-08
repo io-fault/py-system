@@ -430,7 +430,6 @@ class Path(core.Route):
 		"""
 
 		return unix(stat(self.fullpath).st_mtime)
-	last_modified = get_last_modified
 
 	def set_last_modified(self, time:libtime.Timestamp, utime=os.utime):
 		"""
