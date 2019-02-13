@@ -33,12 +33,14 @@ class IntegralFinder(object):
 			super().__init__(fullname, path)
 
 		def exec_module(self, module):
-			super().exec_module(module)
 			module.__file__ = self._source
 			module.__cache__ = self._bytecode
+
 			spec = module.__spec__
 			if spec.submodule_search_locations:
 				module.__path__ = spec.submodule_search_locations
+
+			super().exec_module(module)
 
 		def get_code(self, fullname):
 			# Factors being explicitly compiled, code objects
