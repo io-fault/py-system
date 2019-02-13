@@ -7,14 +7,14 @@
 /name/
 	`system`
 /abstract/
-	System context interfaces and controls
+	Python Runtime and Operating System Interfaces
 /icon/
-	- (emoji)`⚙`
+	- (emoji)`🎛`
 
 /versioning/
 	continuous
 /status/
-	flux
+	volatile
 
 /controller/
 	fault.io
