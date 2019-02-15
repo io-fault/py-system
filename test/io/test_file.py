@@ -8,7 +8,7 @@ from . import common
 
 def test_invalid_address(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		with test/TypeError as exc:
 			J.rallocate('octets://file/read', 123)
 		with test/TypeError as exc:
@@ -37,7 +37,7 @@ def test_junction_rallocate(test):
 
 	# be sure to hit the root path here
 	# as file addressing always uses O_CREAT
-	J = kernel.Junction()
+	J = kernel.Array()
 	for x in requests:
 		t = J.rallocate(x, '/')
 		test/t.port.error_name == 'EISDIR'
@@ -164,7 +164,7 @@ def file_test(test, jam, path, apath):
 	test/(bytearray(0).join(out)) == expected
 
 def test_file(test):
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	with jam.thread(), tempfile.TemporaryDirectory() as d:
 		path = os.path.join(d, "wfile")
 		file_test(test, jam, path, path)

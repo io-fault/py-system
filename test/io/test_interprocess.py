@@ -58,13 +58,13 @@ def fork_and_circulate(test, jam, transits):
 
 def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 	'Check for IPC via bidirectional spawns'
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	transits = jam.junction.rallocate(req)
 	fork_and_circulate(test, jam, transits)
 
 def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 	'Check for IPC via unidirectional spawns'
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	r, w = jam.junction.rallocate(req)
 	rr, ww = jam.junction.rallocate(req)
 	transits = (r, ww, rr, w)
@@ -72,7 +72,7 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 
 def test_ports_files(test):
 	import tempfile
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		pairs = J.rallocate('ports://spawn/bidirectional')
 		parent, child = pairs[:2], pairs[2:]
@@ -124,7 +124,7 @@ def test_ports_sockets(test):
 	"""
 	# Send a listening socket file descriptor to a child process.
 	"""
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 
 	transits = jam.junction.rallocate('ports://spawn/bidirectional')
 
@@ -189,7 +189,7 @@ def test_ports_spawned_octets(test):
 	test.skip(True)
 	# On mac, the child process thrashes in the jam cycle with bogus EVFILT_WRITE events.
 	# It's as if the EV_CLEAR flag was ignored for a socket sent over the socketpair().
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 
 	transits = jam.junction.rallocate('ports://spawn/bidirectional')
 

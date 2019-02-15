@@ -72,13 +72,13 @@ def loop(deliver, junction, cycle = cycle, snapshot = snapshot):
 	except kernel.TransitionViolation:
 		pass
 
-class JunctionActionManager(object):
+class ArrayActionManager(object):
 	"""
-	# Manages the Junction cycle in a separate thread to avoid inline management
+	# Manages the Array cycle in a separate thread to avoid inline management
 	# of event collection.
 	"""
 	def __init__(self):
-		self.junction = kernel.Junction()
+		self.junction = kernel.Array()
 		self.cycled = threading.Event() # set everytime a cycle is completed
 		self.cycled.set()
 		self.effects = {}
@@ -86,7 +86,7 @@ class JunctionActionManager(object):
 
 	def view(self):
 		"""
-		# Utility function for displaying the contents of a Junction.
+		# Utility function for displaying the contents of a Array.
 		"""
 		r = self.junction.resource
 		for x in r:
@@ -564,7 +564,7 @@ object_transfer_cases = [
 ]
 
 def stream_listening_connection(test, version, address, port = None):
-	jam = JunctionActionManager()
+	jam = ArrayActionManager()
 	s = jam.junction.rallocate(('sockets', version), address)
 	# check for initial failures
 	s.port.raised()

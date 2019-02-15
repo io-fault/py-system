@@ -41,7 +41,7 @@ def test_idle_junction_terminates(test):
 	def incloops(x):
 		nonlocal loops
 		loops += 1
-		#test/isinstance(x, kernel.Junction) == True
+		#test/isinstance(x, kernel.Array) == True
 		test/list(x.transfer()) == []
 		x.force()
 
@@ -80,7 +80,7 @@ def test_active_junction_continues(test):
 	def incloops(x):
 		nonlocal loops
 		loops += 1
-		#test/isinstance(x, kernel.Junction) == True
+		#test/isinstance(x, kernel.Array) == True
 		x.force()
 
 	def testevents(events):

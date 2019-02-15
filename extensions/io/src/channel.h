@@ -1,6 +1,6 @@
 /**
-	# Includes Junction definition and accessors as Channels
-	# and Junctions are co-dependent.
+	# Includes Array definition and accessors as Channels
+	# and Arrays are co-dependent.
 */
 
 /**
@@ -16,8 +16,8 @@ struct ChannelInterface {
 typedef struct ChannelInterface *ChannelInterface;
 
 /**
-	# ChannelInterface is used internally by Junctions to perform transfers.
-	# tif.* are the interfaces used by Junction [I/O] cycles.
+	# ChannelInterface is used internally by Arrays to perform transfers.
+	# tif.* are the interfaces used by Array [I/O] cycles.
 	# Whereas typ.* are the interfaces used by Python.
 */
 typedef struct ChannelPyTypeObject {
@@ -33,7 +33,7 @@ typedef struct ChannelPyTypeObject {
 */
 ChannelPyTypeObject
 	ChannelType,
-	JunctionType,
+	ArrayType,
 	OctetsType,
 	SocketsType,
 	PortsType;
@@ -44,13 +44,13 @@ ChannelPyTypeObject
 #define Channel_HEAD \
 	PyObject_HEAD \
 	Port port;          /* Port for Kernel communication */ \
-	Junction junction;  /* transit controller */ \
+	Array junction;  /* transit controller */ \
 	PyObj link;         /* User storage usually used by callbacks. */ \
 	Channel prev, next; /* transit ring; all transit in traffic */ \
 	Channel lltransfer; /* linked list pointer to next evented Channel */ \
 	\
 	transfer_window_t window; /* The area of the resource that was transferred. */ \
-	union transit_choice choice; /* Junction or Memory Channel */ \
+	union transit_choice choice; /* Array or Memory Channel */ \
 	\
 	/* state flags */ \
 	uint8_t delta;  /* delta to apply to the state; new internal equals (GIL) */ \
@@ -94,7 +94,7 @@ typedef uint32_t transfer_window_t[2];
 const static uint32_t transfer_window_limit = (0-1);
 
 /**
-	# Regular Channel or Junction (collection of active transits)
+	# Regular Channel or Array (collection of active transits)
 */
 union transit_choice {
 	struct {
@@ -209,9 +209,9 @@ union transit_choice {
 #define Channel_GetKType(t)          (Channel_GetPort(t)->type)
 #define Channel_SetKType(t, ktype)   (Channel_GetKType(t) = ktype)
 
-#define Channel_GetJunction(t)            (t->junction)
-#define Channel_GetJunctionPort(t)        (Channel_GetPort(Channel_GetJunction(t)))
-#define Channel_SetJunction(t, J)         (Channel_GetJunction(t) = J)
+#define Channel_GetArray(t)            (t->junction)
+#define Channel_GetArrayPort(t)        (Channel_GetPort(Channel_GetArray(t)))
+#define Channel_SetArray(t, J)         (Channel_GetArray(t) = J)
 #define Channel_Attached(t)               (t->prev != NULL)
 
 #define Channel_HasEvent(t, TEV)          (Channel_GetEvents(t) & (1 << TEV))
@@ -228,7 +228,7 @@ union transit_choice {
 #define Channel_SetDelta(t, VAL)          (Channel_GetDelta(t)=VAL)
 
 #define Channel_ClearDelta(t)             (Channel_GetDelta(t)=0)
-#define Channel_InCycle(t)                (Channel_GetJunction(t)->lltransfer != NULL)
+#define Channel_InCycle(t)                (Channel_GetArray(t)->lltransfer != NULL)
 
 /*
 	# Representation Polarity
@@ -238,34 +238,34 @@ union transit_choice {
 #define Channel_Sends(t)         (!Channel_Receives(t))
 
 /*
-	# Junction accessors.
+	# Array accessors.
 */
-#define Junction_HasTransfers(J)         (Channel_GetNextTransfer(J) != (Channel) J)
-#define Junction_ShouldWait(J)           (Junction_HasTransfers(J) ? 0 : 1)
+#define Array_HasTransfers(J)         (Channel_GetNextTransfer(J) != (Channel) J)
+#define Array_ShouldWait(J)           (Array_HasTransfers(J) ? 0 : 1)
 
-#define Junction_GetKEvents(J)           (J->choice.junction.kevents)
-#define Junction_SetKEvents(J, K)        (Junction_GetKEvents(J) = K)
-#define Junction_GetKEventSlot(J, slot)  (&(Junction_GetKEvents(J)[slot]))
+#define Array_GetKEvents(J)           (J->choice.junction.kevents)
+#define Array_SetKEvents(J, K)        (Array_GetKEvents(J) = K)
+#define Array_GetKEventSlot(J, slot)  (&(Array_GetKEvents(J)[slot]))
 
 /*
-	# Junction uses its window for keeping track of the size of kevent array and the
+	# Array uses its window for keeping track of the size of kevent array and the
 	# relative position within that array for collection and modification.
 */
-#define Junction_ResetWindow(t) do { Channel_GetWindowStart(t) = 0; } while(0)
-#define Junction_NCollected Channel_GetWindowStart
-#define Junction_SetNCollected Channel_SetWindowStart
-#define Junction_NChanges(t) Channel_GetWindowStart(t)
-#define Junction_MaxCollected(t) Channel_WindowIsEmpty(t)
+#define Array_ResetWindow(t) do { Channel_GetWindowStart(t) = 0; } while(0)
+#define Array_NCollected Channel_GetWindowStart
+#define Array_SetNCollected Channel_SetWindowStart
+#define Array_NChanges(t) Channel_GetWindowStart(t)
+#define Array_MaxCollected(t) Channel_WindowIsEmpty(t)
 
 #ifdef EVMECH_EPOLL
-#define Junction_ConsumeKEventSlot(t)
+#define Array_ConsumeKEventSlot(t)
 #else
-#define Junction_ConsumeKEventSlot(t) Channel_NarrowWindow(t, 1)
+#define Array_ConsumeKEventSlot(t) Channel_NarrowWindow(t, 1)
 #endif
 
-#define Junction_GetTransferCount(J) (J->choice.junction.ntransfers)
-#define Junction_IncrementTransferCount(t) (++ Junction_GetTransferCount(t))
-#define Junction_ResetTransferCount(t) (Junction_GetTransferCount(t) = 0)
+#define Array_GetTransferCount(J) (J->choice.junction.ntransfers)
+#define Array_IncrementTransferCount(t) (++ Array_GetTransferCount(t))
+#define Array_ResetTransferCount(t) (Array_GetTransferCount(t) = 0)
 
 /**
 	# Base Channel structure.
@@ -275,9 +275,9 @@ struct Channel {
 };
 
 /**
-	# The Junction structure is equivalent to &Channel.
+	# The Array structure is equivalent to &Channel.
 	# It is provided for distinction.
 */
-struct Junction {
+struct Array {
 	Channel_HEAD
 };

@@ -124,7 +124,7 @@ def test_DatagramArray(test):
 		test/five.endpoint(x) == e
 
 def test_rallocate(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		test/r.transfer() == None
@@ -142,7 +142,7 @@ def test_rallocate(test):
 		J.void()
 
 def test_Datagrams_transfer_one(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)
@@ -164,7 +164,7 @@ def test_Datagrams_transfer_one(test):
 		J.void()
 
 def test_Datagrams_transfer_one_of_two(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)
@@ -190,7 +190,7 @@ def test_Datagrams_transfer_one_of_two(test):
 		J.void()
 
 def test_Datagrams_transfer_two_of_one(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)
@@ -234,7 +234,7 @@ def test_Datagrams_transfer_two_of_one(test):
 		J.void()
 
 def test_Datagrams_invalid(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)

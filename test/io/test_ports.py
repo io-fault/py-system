@@ -7,7 +7,7 @@ import os
 from .. import kernel
 
 def test_io(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	files = []
 	try:
 		files = [

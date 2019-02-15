@@ -5,7 +5,7 @@ from .. import kernel
 
 def test_invalid_address(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		with test/TypeError as exc:
 			J.rallocate('octets://acquire/socket', "foobar")
 	finally:
@@ -13,7 +13,7 @@ def test_invalid_address(test):
 
 # two pipe() created by os.pipe(), but passed into octets/descriptor/input|output
 def test_pipe(test, req = ('octets', 'acquire')):
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 
 	with jam.thread():
 		# constructors
@@ -56,7 +56,7 @@ def test_pipe(test, req = ('octets', 'acquire')):
 
 # two pipe()'s
 def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 
 	with jam.thread():
 		for exchange in common.transfer_cases:
@@ -92,7 +92,7 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 
 # one socketpair()'s
 def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 
 	with jam.thread():
 		for exchange in common.transfer_cases:

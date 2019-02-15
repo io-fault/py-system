@@ -2,7 +2,7 @@
  * Handy for macros working with lowercase names.
  */
 #define channeltype   ((PyObject *) &ChannelType)
-#define junctiontype  ((PyObject *) &JunctionType)
+#define junctiontype  ((PyObject *) &ArrayType)
 #define octetstype    ((PyObject *) &OctetsType)
 #define socketstype   ((PyObject *) &SocketsType)
 #define portstype     ((PyObject *) &PortsType)
@@ -12,7 +12,7 @@
 
 #define TRANSIT_TYPES() \
 	ID(Channel, void) \
-	ID(Junction, transits) \
+	ID(Array, transits) \
 	ID(Octets, octets) \
 	ID(Sockets, sockets) \
 	ID(Ports, ports) \
@@ -26,7 +26,7 @@
 #define ID(x, y) typedef struct x * x;
 	typedef struct Channel *Channel;
 	typedef struct Datagrams *Datagrams;
-	typedef struct Junction *Junction;
+	typedef struct Array *Array;
 	PY_TYPES()
 #undef ID
 

@@ -6,7 +6,7 @@ from .. import kernel
 from . import common
 
 def test_invalid_address(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		with test/SystemError as exc: # XXX: should probably should this one
 			J.rallocate('octets://local', 123)
@@ -42,7 +42,7 @@ def test_junction_rallocate(test):
 		'sockets://local',
 	]
 
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		for x in pairs:
 			t = J.rallocate(x, '/')
@@ -60,7 +60,7 @@ def test_junction_rallocate(test):
 
 def test_failure_on_bind(test, tri = 'sockets://local'):
 	with tempfile.TemporaryDirectory() as d:
-		J = kernel.Junction()
+		J = kernel.Array()
 		sf = J.rallocate(tri, (d, 'port'))
 		J.acquire(sf)
 		fail = J.rallocate(tri, (d, 'port'))

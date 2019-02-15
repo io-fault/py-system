@@ -14,12 +14,12 @@ from .. import kernel
 from .. import core
 
 def test_junction_rtypes(test):
-	test/list(kernel.Junction.rtypes()) != []
+	test/list(kernel.Array.rtypes()) != []
 
 def test_transit_already_acquired(test):
 	try:
-		J1 = kernel.Junction()
-		J2 = kernel.Junction()
+		J1 = kernel.Array()
+		J2 = kernel.Array()
 		r = J1.rallocate('octets://file/read', '/dev/null')
 		J1.acquire(r)
 		with test/kernel.TransitionViolation as exc:
@@ -30,7 +30,7 @@ def test_transit_already_acquired(test):
 
 def test_junction_termination(test):
 	'termination sequence with no transits'
-	J = kernel.Junction()
+	J = kernel.Array()
 	test/J.terminated == False
 
 	J.terminate()
@@ -47,7 +47,7 @@ def test_junction_termination(test):
 
 def test_junction_exceptions(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		with test/TypeError:
 			J.resize_exoresource("foobar") # need an unsigned integer
 		with test/TypeError:
@@ -68,7 +68,7 @@ def test_junction_exceptions(test):
 
 def test_junction_terminated(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		J.terminate()
 		f = J.rallocate('octets://file/read', '/dev/null')
 		with J:
@@ -84,7 +84,7 @@ def test_junction_terminated(test):
 		J.void()
 
 def test_junction_force(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	# once per second
 	# this gives J a kevent
 	J.force()
@@ -100,7 +100,7 @@ def test_junction_force(test):
 
 def test_junction_in_cycle(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		J.force()
 		test/J.port.exception() == None
 		with J:
@@ -114,7 +114,7 @@ def test_junction_in_cycle(test):
 def test_junction_out_of_cycle(test):
 	'context manager to terminate on exit'
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		test/J.sizeof_transfer() == 0
 		test/len(J.transfer()) == 0
 		test/J.port.exception() == None
@@ -134,7 +134,7 @@ def test_junction_out_of_cycle(test):
 			pass
 
 def test_junction_resize_exoresource(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		J.force()
 		with test/RuntimeError as exc, J:
@@ -147,7 +147,7 @@ def test_junction_resize_exoresource(test):
 def test_junction_rallocate_octets(test):
 	transits = set()
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		connection = J.rallocate(('octets', 'spawn', 'bidirectional'))
 		three_four = J.rallocate(('octets', 'spawn', 'unidirectional'))
 		transits.update(connection)
@@ -166,7 +166,7 @@ def test_junction_new_failure(test):
 	test.skip(not 'EOVERRIDE' in dir(kernel))
 	try:
 		kernel.EOVERRIDE['port_kqueue'] = lambda x: (errno.EINTR,)
-		J = kernel.Junction()
+		J = kernel.Array()
 		test/J.port.error_code == errno.EINTR
 		test/J.port.id == -1
 	finally:
@@ -174,7 +174,7 @@ def test_junction_new_failure(test):
 
 def test_junction_resize_exoresource(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		J.resize_exoresource(1)
 		J.resize_exoresource(10)
 		J.resize_exoresource(0)
@@ -190,16 +190,16 @@ def test_module_protocol(test):
 	"Octets" in test/dir(kernel)
 	"Sockets" in test/dir(kernel)
 	"Ports" in test/dir(kernel)
-	"Junction" in test/dir(kernel)
+	"Array" in test/dir(kernel)
 
 	test.issubclass(kernel.Octets, kernel.Channel)
 	test.issubclass(kernel.Sockets, kernel.Channel)
 	test.issubclass(kernel.Ports, kernel.Channel)
-	test.issubclass(kernel.Junction, kernel.Channel)
+	test.issubclass(kernel.Array, kernel.Channel)
 
 def test_no_subtyping(test):
 	types = (
-		kernel.Junction,
+		kernel.Array,
 		kernel.Octets,
 		kernel.Sockets,
 		kernel.Ports,
@@ -282,7 +282,7 @@ def test_octets_rallocate(test):
 	mb[10:15] = b'fffff'
 
 def test_junction_rallocate_errors(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		with test/LookupError as exc:
 			J.rallocate("")
@@ -292,7 +292,7 @@ def test_junction_rallocate_errors(test):
 		J.void()
 
 def test_junction_collection_countdown(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		J.resize_exoresource(2)
 		data = b'SOME DATA'
@@ -324,7 +324,7 @@ def test_junction_collection_countdown(test):
 			pass
 
 def test_sockets_accept_filter(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		s = J.rallocate("sockets://ip4", ('127.0.0.1', 0))
 		J.acquire(s)
@@ -340,7 +340,7 @@ def test_sockets_accept_filter(test):
 
 def test_octets_acquire_badfd_detect(test):
 	r, w = os.pipe()
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		xr = J.rallocate('octets://acquire/input', w)
 		xr.port.error_code in test/(errno.EBADF, 0)
@@ -363,8 +363,8 @@ def test_octets_acquire_badfd_detect(test):
 		J.void()
 
 def test_octets_bind(test):
-	s = kernel.Junction.rallocate("sockets://ip4", ('127.0.0.1', 0))
-	r, w = kernel.Junction.rallocate(('octets', 'ip4', 'tcp', 'bind'), (s.endpoint(), ('127.0.0.1', 0)))
+	s = kernel.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
+	r, w = kernel.Array.rallocate(('octets', 'ip4', 'tcp', 'bind'), (s.endpoint(), ('127.0.0.1', 0)))
 	try:
 		test/r.port.error_code == 0
 		test/w.endpoint() == s.endpoint()

@@ -82,7 +82,7 @@ freight_charcode(freight_t f)
 		case f_void:
 			return 'v';
 		case f_transits:
-			return 't'; /* Junction */
+			return 't'; /* Array */
 		case f_octets:
 			return 'o';
 		case f_datagrams:
@@ -396,8 +396,8 @@ static PyMethodDef port_methods[] = {
 		(PyCFunction) port_shatter, METH_NOARGS,
 		PyDoc_STR(
 			"Destroy the resource reference without triggering representation shutdowns such as (/unix/man/2)`shutdown` on sockets. "
-			"Ports with Junction attached Channels should never be shattered as it causes the event subscription to be lost. "
-			"Subsequently, the Channel will remain in the Junction ring until terminated by user code.\n\n"
+			"Ports with Array attached Channels should never be shattered as it causes the event subscription to be lost. "
+			"Subsequently, the Channel will remain in the Array ring until terminated by user code.\n\n"
 	)},
 
 	{"leak",
@@ -639,9 +639,9 @@ port_dealloc(PyObj self)
 	Port p = (Port) self;
 
 	/**
-		# Junction instances hold a reference to a point until it is
+		# Array instances hold a reference to a point until it is
 		# explicitly closed. At that point, it is detached from the ring,
-		# and Junction's reference is released.
+		# and Array's reference is released.
 	*/
 	if (p->latches && p->point != kp_invalid && p->cause != kc_leak)
 	{
@@ -1038,7 +1038,7 @@ struct Datagrams {
 };
 
 #define INIT_TRANSIT(t, J) do { \
-	Channel_SetJunction(t, J); \
+	Channel_SetArray(t, J); \
 	Channel_SetNextTransfer(t, NULL); \
 	Channel_SetResource(t, NULL); \
 	Channel_SetLink(t, NULL); \
@@ -1058,18 +1058,18 @@ struct Datagrams {
 	Channel_NulControl(t, ctl_polarity); \
 } while(0)
 
-#define Junction_Cycling(J)               (J->lltransfer != NULL)
-#define Junction_GetChannelCount(J)       ((J->choice.junction.ntransits))
-#define Junction_ResetChannelCount(J)     ((J->choice.junction.ntransits) = 0)
-#define Junction_IncrementChannelCount(J) (++ Junction_GetChannelCount(J))
-#define Junction_DecrementChannelCount(t) (-- Junction_GetChannelCount(t))
+#define Array_Cycling(J)               (J->lltransfer != NULL)
+#define Array_GetChannelCount(J)       ((J->choice.junction.ntransits))
+#define Array_ResetChannelCount(J)     ((J->choice.junction.ntransits) = 0)
+#define Array_IncrementChannelCount(J) (++ Array_GetChannelCount(J))
+#define Array_DecrementChannelCount(t) (-- Array_GetChannelCount(t))
 
-static int junction_fall(Junction, int);
+static int junction_fall(Array, int);
 
 /* Append to the end of the doubly linked list; requires GIL. */
 #define Channel_EnqueueDelta(t) do { \
-	Junction J = (Channel_GetJunction(t)); \
-	if (Channel_GetDelta(t) != 0 && ((Junction)(t)) != J) { \
+	Array J = (Channel_GetArray(t)); \
+	if (Channel_GetDelta(t) != 0 && ((Array)(t)) != J) { \
 		TRANSIT_RELOCATE_SEGMENT_BEFORE(J, (t), (t)); \
 		junction_fall(J, 0); \
 	} \
@@ -1085,7 +1085,7 @@ static int junction_fall(Junction, int);
 #define Channel_IsTransfer(t)            (Channel_GetNextTransfer(t) != NULL)
 #define Channel_SetNextTransfer(t, sett) (Channel_GetNextTransfer(t) = sett)
 
-#define Junction_AddTransfer(J, t) \
+#define Array_AddTransfer(J, t) \
 	do { \
 		if (Channel_GetNextTransfer(t) == NULL) { \
 			Channel_SetNextTransfer(t, Channel_GetNextTransfer(J)); \
@@ -1094,7 +1094,7 @@ static int junction_fall(Junction, int);
 	} while(0)
 
 /**
-	# Junction only holds one reference to transits no matter
+	# Array only holds one reference to transits no matter
 	# how often they're referenced.
 */
 #define TRANSIT_JOIN(PREV, NEXT) \
@@ -1104,7 +1104,7 @@ static int junction_fall(Junction, int);
 	} while (0)
 
 /**
-	# Extends ring from behind. (Relative to TARGET, usually a Junction instance)
+	# Extends ring from behind. (Relative to TARGET, usually a Array instance)
 */
 #define TRANSIT_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
 	Channel T_prev = TARGET->prev; \
@@ -1150,7 +1150,7 @@ static int junction_fall(Junction, int);
 #define TRANSIT_ATTACH_AFTER(TARGET, TRANSIT) \
 	TRANSIT_ATTACH_SEGMENT_AFTER(TARGET, TRANSIT, TRANSIT)
 #define TRANSIT_ATTACH(TRANSIT) \
-	TRANSIT_ATTACH_BEFORE(Channel_GetJunction(TRANSIT), TRANSIT)
+	TRANSIT_ATTACH_BEFORE(Channel_GetArray(TRANSIT), TRANSIT)
 
 #define Channel_GetResourceArray(TYP, T) ((TYP *)(Channel_GetResourceBuffer(T) + (Channel_GetWindowStop(T) * sizeof(TYP))))
 #define Channel_GetRemainder(TYP, T) ((Channel_GetResourceSize(T) / sizeof(TYP)) - Channel_GetWindowStop(T))
@@ -1203,11 +1203,11 @@ kfilter_cancel(Channel t, kevent_t *kev)
 
 	if (kev->events & EPOLLOUT)
 	{
-		wp.point = Channel_GetJunction(t)->choice.junction.wfd;
+		wp.point = Channel_GetArray(t)->choice.junction.wfd;
 		p = &wp;
 	}
 	else
-		p = Channel_GetJunctionPort(t);
+		p = Channel_GetArrayPort(t);
 
 	port_epoll_ctl(p, EPOLL_CTL_DEL, Channel_GetPort(t), kev);
 }
@@ -1225,11 +1225,11 @@ kfilter_attach(Channel t, kevent_t *kev)
 
 	if (kev->events & EPOLLOUT)
 	{
-		wp.point = Channel_GetJunction(t)->choice.junction.wfd;
+		wp.point = Channel_GetArray(t)->choice.junction.wfd;
 		p = &wp;
 	}
 	else
-		p = Channel_GetJunctionPort(t);
+		p = Channel_GetArrayPort(t);
 
 	port_epoll_ctl(p, EPOLL_CTL_ADD, Channel_GetPort(t), kev);
 }
@@ -1344,14 +1344,14 @@ ptransit(Channel t)
 }
 
 static void
-pkevents(const char *where, Junction J)
+pkevents(const char *where, Array J)
 {
 	int i;
 	errpf("[%s]\n", where);
 	for (i = 0; i < Channel_GetWindowStart(J); ++i)
 	{
-		pkevent(&(Junction_GetKEvents(J)[i]));
-		ptransit((Channel) (Junction_GetKEvents(J)[i]).udata);
+		pkevent(&(Array_GetKEvents(J)[i]));
+		ptransit((Channel) (Array_GetKEvents(J)[i]).udata);
 	}
 	errpf("\n");
 }
@@ -1394,7 +1394,7 @@ ChannelTIF = {
 };
 
 /**
-	# Iterator created by &.kernel.Junction.transfer().
+	# Iterator created by &.kernel.Array.transfer().
 
 	# Given that this is restricted to iteration,
 	# the type is *not* exposed on the module.
@@ -1403,9 +1403,9 @@ struct jxi {
 	PyObject_HEAD
 
 	/**
-		# Subject &Junction producing events.
+		# Subject &Array producing events.
 	*/
-	Junction J;
+	Array J;
 
 	/**
 		# Position in transfer linked list.
@@ -1502,7 +1502,7 @@ PyTypeObject jxi_type = {
 };
 
 static PyObj
-new_jxi(Junction J, int polarity)
+new_jxi(Array J, int polarity)
 {
 	struct jxi *i;
 
@@ -1543,7 +1543,7 @@ transit_can_acquire(Channel t)
 
 	# The given &resource object is set on the &Channel and the memory buffer is filled
 	# out based on the direction of the transit. If the Channel has been acquired
-	# by a &Junction, the Channel will be marked and enqueued for a subsequent transfer
+	# by a &Array, the Channel will be marked and enqueued for a subsequent transfer
 	# attempt. Otherwise, the Channel is qualified for transfer allowing the subsequent
 	# &junction_acquire to ready a transfer.
 */
@@ -1556,7 +1556,7 @@ transit_acquire(PyObj self, PyObj resource)
 	{
 		/*
 			# Ignore resource acquisitions if terminating.
-			# In cases where Junction is running in a parallel loop,
+			# In cases where Array is running in a parallel loop,
 			# it is possible for a terminate event to follow exhaustion.
 
 			# Essentially, raising an exception here would a race condition
@@ -1594,7 +1594,7 @@ transit_acquire(PyObj self, PyObj resource)
 
 	Channel_ClearWindow(t);
 
-	if (Channel_GetJunction(t) != NULL)
+	if (Channel_GetArray(t) != NULL)
 	{
 		Channel_DQualify(t, teq_transfer);
 		Channel_EnqueueDelta(t); /* REQUIRES GIL */
@@ -1622,7 +1622,7 @@ transit_force(PyObj self)
 
 	if (Channel_Attached(t) && Channel_IQualified(t, teq_transfer))
 	{
-		/* No Junction? Do not enqueue, but allow the effect */
+		/* No Array? Do not enqueue, but allow the effect */
 		/* to occur when it is later acquired.               */
 		Channel_EnqueueDelta(t); /* REQUIRES GIL */
 	}
@@ -1688,7 +1688,7 @@ transit_terminate(PyObj self)
 	{
 		/*
 			# Has GIL, not in Traffic.
-			# Junction instances cannot acquire Channels without the GIL.
+			# Array instances cannot acquire Channels without the GIL.
 
 			# Running terminate directly is safe.
 		*/
@@ -1703,7 +1703,7 @@ transit_terminate(PyObj self)
 	else if (!Channel_Terminating(t))
 	{
 		/*
-			# Acquired by a Junction instance, that Junction
+			# Acquired by a Array instance, that Array
 			# instance is responsible for performing termination.
 
 			# Has GIL, so place teq_terminate event qualification on the delta.
@@ -1712,7 +1712,7 @@ transit_terminate(PyObj self)
 
 		if ((PyObj) Py_TYPE(t) == junctiontype)
 		{
-			junction_fall((Junction) t, 0);
+			junction_fall((Array) t, 0);
 		}
 		else
 		{
@@ -1931,8 +1931,8 @@ transit_members[] = {
 	{"junction",
 		T_OBJECT, offsetof(struct Channel, junction), READONLY,
 		PyDoc_STR(
-			"The &Junction instance that the Channel has been acquired by.\n"
-			"`None` if the Channel has not been acquired by a Junction instance."
+			"The &Array instance that the Channel has been acquired by.\n"
+			"`None` if the Channel has not been acquired by a Array instance."
 		)
 	},
 
@@ -1976,12 +1976,12 @@ transit_dealloc(PyObj self)
 	#endif
 
 	/*
-		# Junction instances hold a reference to a Channel until it is
+		# Array instances hold a reference to a Channel until it is
 		# removed from the ring.
 		# Channels hold their reference to the junction until..now:
 	*/
-	Py_XDECREF(Channel_GetJunction(t));
-	Channel_SetJunction(t, NULL);
+	Py_XDECREF(Channel_GetArray(t));
+	Channel_SetArray(t, NULL);
 
 	Py_DECREF(Channel_GetPort(t)); /* Alloc and init ports *before* using Channels. */
 	Channel_SetPort(t, NULL);
@@ -3478,7 +3478,7 @@ junction_resize_exoresource(PyObj self, PyObj args)
 {
 	kevent_t *new_area;
 	unsigned int new_size;
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 
 	/*
 		# This adjusts the size of the kevents array, which is technically a
@@ -3493,16 +3493,16 @@ junction_resize_exoresource(PyObj self, PyObj args)
 	if (!PyArg_ParseTuple(args, "I", &new_size))
 		return(NULL);
 
-	if (Junction_Cycling(J))
+	if (Array_Cycling(J))
 	{
 		PyErr_SetString(PyExc_RuntimeError, "cannot resize junction inside cycle");
 		return(NULL);
 	}
 
-	new_area = (kevent_t *) PyMem_Realloc((void *) Junction_GetKEvents(J), (size_t) new_size * sizeof(kevent_t));
+	new_area = (kevent_t *) PyMem_Realloc((void *) Array_GetKEvents(J), (size_t) new_size * sizeof(kevent_t));
 	if (new_area != NULL)
 	{
-		Junction_SetKEvents(J, new_area);
+		Array_SetKEvents(J, new_area);
 		Channel_SetWindowStop(J, new_size);
 	}
 
@@ -3525,7 +3525,7 @@ junction_rallocate(PyObj self, PyObj args)
 
 	if (len < 1)
 	{
-		PyErr_SetString(PyExc_TypeError, "Junction.rallocate requires at least one argument");
+		PyErr_SetString(PyExc_TypeError, "Array.rallocate requires at least one argument");
 		return(NULL);
 	}
 
@@ -3561,7 +3561,7 @@ junction_rtypes(PyObj self)
 static PyObj
 junction_acquire(PyObj self, PyObj ob)
 {
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 	Channel t = (Channel) ob;
 
 	if (!PyObject_IsInstance(ob, (PyObj) &ChannelType))
@@ -3572,7 +3572,7 @@ junction_acquire(PyObj self, PyObj ob)
 
 	if (Channel_Terminating(J))
 	{
-		/* Junction is Terminated */
+		/* Array is Terminated */
 		PyErr_SetChannelTerminatedError(J);
 		return(NULL);
 	}
@@ -3584,7 +3584,7 @@ junction_acquire(PyObj self, PyObj ob)
 			/* Given Channel is Terminated */
 			/*
 				# Terminating check performed after the NULL check because
-				# if the given transit is already acquired by the Junction,
+				# if the given transit is already acquired by the Array,
 				# it shouldn't complain due to it already being acquired.
 
 				# Additionally, it's desired that ResourceError is consistently
@@ -3597,19 +3597,19 @@ junction_acquire(PyObj self, PyObj ob)
 		/* Control bit signals needs to connect. (kfilter) */
 		Channel_DControl(t, ctl_connect);
 
-		Py_INCREF(J); /* Newly acquired transit's reference to Junction.     */
-		Py_INCREF(t); /* Junction's reference to the newly acquired Channel. */
+		Py_INCREF(J); /* Newly acquired transit's reference to Array.     */
+		Py_INCREF(t); /* Array's reference to the newly acquired Channel. */
 
-		Channel_SetJunction(t, J);
+		Channel_SetArray(t, J);
 		TRANSIT_ATTACH(t);
 
-		Junction_IncrementChannelCount(J);
+		Array_IncrementChannelCount(J);
 	}
 	else
 	{
-		if (Channel_GetJunction(t) != J)
+		if (Channel_GetArray(t) != J)
 		{
-			/* Another Junction instance acquired the Channel */
+			/* Another Array instance acquired the Channel */
 			PyErr_SetChannelResourceError(t);
 			return(NULL);
 		}
@@ -3622,7 +3622,7 @@ junction_acquire(PyObj self, PyObj ob)
 }
 
 static void
-junction_init(Junction J)
+junction_init(Array J)
 {
 	const struct timespec ts = {0,0};
 	Port p = Channel_GetPort(J);
@@ -3667,32 +3667,32 @@ junction_init(Junction J)
 }
 
 static void
-junction_start_cycle(Junction J)
+junction_start_cycle(Array J)
 {
 	Channel_SetNextTransfer(J, (Channel) J); /* Start with an Empty Transfer List */
 }
 
 static void
-junction_finish_cycle(Junction J)
+junction_finish_cycle(Array J)
 {
-	/* Complete Junction termination? */
+	/* Complete Array termination? */
 
 	Channel_SetNextTransfer(J, NULL); /* NULL transfer list means the cycle is over. */
-	Junction_ResetTransferCount(J);
+	Array_ResetTransferCount(J);
 }
 
 #ifdef EVMECH_EPOLL
 	#define junction_kevent_change(J)
 #else
 static void
-junction_kevent_change(Junction J)
+junction_kevent_change(Array J)
 {
 	const static struct timespec nowait = {0,0}; /* Never wait for change submission. */
 	Port port = Channel_GetPort(J);
-	int r = 0, nkevents = Junction_NChanges(J);
-	kevent_t *kevs = Junction_GetKEvents(J);
+	int r = 0, nkevents = Array_NChanges(J);
+	kevent_t *kevs = Array_GetKEvents(J);
 
-	Junction_ResetWindow(J);
+	Array_ResetWindow(J);
 
 	/*
 		# Receipts are demanded, so the enties are only used for error reporting.
@@ -3711,10 +3711,10 @@ junction_kevent_change(Junction J)
 #endif
 
 static void
-junction_kevent_collect(Junction J, int waiting)
+junction_kevent_collect(Array J, int waiting)
 {
 	Port port = Channel_GetPort(J);
-	kevent_t *kevs = Junction_GetKEvents(J);
+	kevent_t *kevs = Array_GetKEvents(J);
 	int nkevents = 0;
 
 	#ifdef EVMECH_EPOLL
@@ -3754,7 +3754,7 @@ junction_kevent_collect(Junction J, int waiting)
 		port_kevent(port, 1, &nkevents, NULL, 0, kevs, Channel_GetWindowStop(J), wait);
 	#endif
 
-	Junction_SetNCollected(J, nkevents);
+	Array_SetNCollected(J, nkevents);
 
 	#if F_TRACE(collect)
 		errpf("pid: %d\n", getpid());
@@ -3773,7 +3773,7 @@ junction_kevent_collect(Junction J, int waiting)
 	# Channel's corresponding kevent filter to be loaded.
 */
 static void
-junction_reload(Junction J)
+junction_reload(Array J)
 {
 	Channel t = J->next;
 
@@ -3790,15 +3790,15 @@ junction_reload(Junction J)
 	# Enqueue the delta into the lltransfer list.
 */
 static void
-junction_transfer_delta(Junction J)
+junction_transfer_delta(Array J)
 {
 	Channel t;
 
 	/* MUST HAVE GIL */
 
 	/*
-		# Scans the ring behind the Junction.
-		# Process Events are queued up by moving the Channel behind the Junction after
+		# Scans the ring behind the Array.
+		# Process Events are queued up by moving the Channel behind the Array after
 		# applying flags to transit->delta.
 	*/
 	for (t = J->prev; Channel_GetDelta(t) != 0; t = t->prev)
@@ -3813,28 +3813,28 @@ junction_transfer_delta(Junction J)
 		/*
 			# Add to event list.
 		*/
-		Junction_AddTransfer(J, t);
+		Array_AddTransfer(J, t);
 	}
 }
 
 static kevent_t *
-junction_current_kevent_slot(Junction J)
+junction_current_kevent_slot(Array J)
 {
 	/* Flush changes if the window is empty. */
-	if (Junction_MaxCollected(J))
+	if (Array_MaxCollected(J))
 	{
 		/* Full, flush the existing changes. */
 		junction_kevent_change(J);
 	}
 
-	return(Junction_GetKEventSlot(J, Channel_GetWindowStart(J)));
+	return(Array_GetKEventSlot(J, Channel_GetWindowStart(J)));
 }
 
 /**
 	# Process delta and setup for event processing
 */
 static void
-junction_apply_delta(Junction J)
+junction_apply_delta(Array J)
 {
 	Channel prev, t;
 
@@ -3843,7 +3843,7 @@ junction_apply_delta(Junction J)
 	prev = (Channel) J;
 
 	/* Reset kev state for slot acquisition. */
-	Junction_ResetWindow(J);
+	Array_ResetWindow(J);
 
 	/*
 		# Iterate through the transfer list in order to make any necessary
@@ -3875,7 +3875,7 @@ junction_apply_delta(Junction J)
 					# and the requeue flag is *not* set.
 				*/
 				kfilter_attach(t, junction_current_kevent_slot(J));
-				Junction_ConsumeKEventSlot(J);
+				Array_ConsumeKEventSlot(J);
 			}
 
 			Channel_NulControl(t, ctl_connect);
@@ -3936,12 +3936,12 @@ junction_apply_delta(Junction J)
 	# Place actionable events onto their respective transfer list.
 */
 static void
-junction_kevent_transform(Junction J)
+junction_kevent_transform(Array J)
 {
 	Channel t;
 	Port p;
-	kevent_t *kev, *kevs = Junction_GetKEvents(J);
-	uint32_t i, nkevents = Junction_NCollected(J);
+	kevent_t *kev, *kevs = Array_GetKEvents(J);
+	uint32_t i, nkevents = Array_NCollected(J);
 
 	/*
 		# Iterate over the collected events and
@@ -3977,7 +3977,7 @@ junction_kevent_transform(Junction J)
 			Channel_XQualify(t, teq_transfer);
 
 			if (Channel_IQualified(t, teq_transfer))
-				Junction_AddTransfer(J, t);
+				Array_AddTransfer(J, t);
 		}
 
 		if (kev->events & EPOLLRDHUP
@@ -3985,7 +3985,7 @@ junction_kevent_transform(Junction J)
 			|| kev->events & EPOLLHUP)
 		{
 			Channel_XQualify(t, teq_terminate);
-			Junction_AddTransfer(J, t);
+			Array_AddTransfer(J, t);
 		}
 	}
 }
@@ -3997,12 +3997,12 @@ junction_kevent_transform(Junction J)
 	# Place actionable events onto their respective transfer list.
 */
 static void
-junction_kevent_transform(Junction J)
+junction_kevent_transform(Array J)
 {
 	Channel t;
 	Port p;
-	kevent_t *kev, *kevs = Junction_GetKEvents(J);
-	uint32_t i, nkevents = Junction_NCollected(J);
+	kevent_t *kev, *kevs = Array_GetKEvents(J);
+	uint32_t i, nkevents = Array_NCollected(J);
 
 	/*
 		# Iterate over the collected events and
@@ -4036,7 +4036,7 @@ junction_kevent_transform(Junction J)
 			/*
 				# ShouldTerminate
 			*/
-			Junction_AddTransfer(J, t);
+			Array_AddTransfer(J, t);
 		}
 		else
 		{
@@ -4052,14 +4052,14 @@ junction_kevent_transform(Junction J)
 				# Kernel can transfer, if the transit can too, then queue it up.
 			*/
 			if (Channel_IQualified(t, teq_transfer))
-				Junction_AddTransfer(J, t);
+				Array_AddTransfer(J, t);
 		}
 	}
 }
 #endif
 
 static int
-junction_fall(Junction J, int force)
+junction_fall(Array J, int force)
 {
 	struct timespec ts = {0,0};
 	kevent_t kev;
@@ -4096,7 +4096,7 @@ static PyObj
 junction_force(PyObj self)
 {
 	PyObj rob;
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 
 	if (Channel_Terminating(J))
 		Py_RETURN_NONE;
@@ -4113,7 +4113,7 @@ _junction_terminate(Channel J)
 	Channel_IQualify(J, teq_terminate);
 
 	/*
-		# Terminate all the Channels in the Junction's ring.
+		# Terminate all the Channels in the Array's ring.
 	*/
 	for (t = J->next; t != J; t = t->next)
 	{
@@ -4140,14 +4140,14 @@ _junction_terminate(Channel J)
 	# Collect and process traffic events.
 */
 static void
-_junction_flow(Junction J)
+_junction_flow(Array J)
 {
 	Channel t;
 
 	junction_start_cycle(J);
 
 	/*
-		# Check for Junction termination.
+		# Check for Array termination.
 	*/
 	if (Channel_Terminating(J))
 	{
@@ -4173,7 +4173,7 @@ _junction_flow(Junction J)
 	*/
 	junction_transfer_delta(J);
 
-	if (Junction_ShouldWait(J))
+	if (Array_ShouldWait(J))
 	{
 		/*
 			# Signals that an EVFILT_USER is necessary to cause it
@@ -4206,7 +4206,7 @@ _junction_flow(Junction J)
 		/*
 			# Wait *iff* there are no transfers available for processing.
 		*/
-		junction_kevent_collect(J, Junction_ShouldWait(J));
+		junction_kevent_collect(J, Array_ShouldWait(J));
 		J->choice.junction.will_wait = 0; /* clear flag to avoid superfluous falls */
 
 		junction_kevent_transform(J);
@@ -4224,7 +4224,7 @@ _junction_flow(Junction J)
 				--countdown;
 			}
 		#else
-			while (Junction_MaxCollected(J) && countdown)
+			while (Array_MaxCollected(J) && countdown)
 			{
 				junction_kevent_collect(J, /* no wait */ 0);
 				junction_kevent_transform(J);
@@ -4236,7 +4236,7 @@ _junction_flow(Junction J)
 	/*
 		# Prepare for junction_next_kevent_slot()
 	*/
-	Junction_ResetWindow(J);
+	Array_ResetWindow(J);
 
 	/*
 		# Iterate over all the transits in the transfer list and process their events.
@@ -4250,7 +4250,7 @@ _junction_flow(Junction J)
 			ptransit(t);
 		#endif
 
-		Junction_IncrementTransferCount(J);
+		Array_IncrementTransferCount(J);
 
 		if (Channel_ShouldTerminate(t))
 		{
@@ -4260,7 +4260,7 @@ _junction_flow(Junction J)
 			if (!Channel_GetControl(t, ctl_requeue))
 			{
 				kfilter_cancel(t, junction_current_kevent_slot(J));
-				Junction_ConsumeKEventSlot(J);
+				Array_ConsumeKEventSlot(J);
 			}
 
 			Channel_NoteEvent(t, tev_terminate);
@@ -4352,7 +4352,7 @@ _junction_flow(Junction J)
 					if (!Channel_GetControl(t, ctl_requeue))
 					{
 						kfilter_cancel(t, junction_current_kevent_slot(J));
-						Junction_ConsumeKEventSlot(J);
+						Array_ConsumeKEventSlot(J);
 					}
 					trace(" ERROR\n");
 				break;
@@ -4386,18 +4386,18 @@ _junction_flow(Junction J)
 }
 
 struct ChannelInterface
-JunctionTIF = {
+ArrayTIF = {
 	{NULL, NULL},
 	f_transits, 1,
 };
 
 /**
-	# Return an iterable to the collected events. &.kernel.Junction.transfer
+	# Return an iterable to the collected events. &.kernel.Array.transfer
 */
 static PyObj
 junction_transfer(PyObj self)
 {
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 	PyObj rob;
 
 	if (!Channel_InCycle(J))
@@ -4411,16 +4411,16 @@ junction_transfer(PyObj self)
 static PyObj
 junction_sizeof_transfer(PyObj self)
 {
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 
 	if (!Channel_InCycle(J))
 		return(PyLong_FromLong(0));
 
-	return(PyLong_FromUnsignedLong(Junction_GetTransferCount(J)));
+	return(PyLong_FromUnsignedLong(Array_GetTransferCount(J)));
 }
 
 static void
-_junction_flush(Junction J)
+_junction_flush(Array J)
 {
 	Channel t, next;
 
@@ -4455,7 +4455,7 @@ _junction_flush(Junction J)
 			port_unlatch(Channel_GetPort(t), Channel_Polarity(t));
 
 			TRANSIT_DETACH(t);
-			Junction_DecrementChannelCount(J);
+			Array_DecrementChannelCount(J);
 
 			/*
 				# Emitted termination? Release traffic's reference to the transit.
@@ -4501,12 +4501,12 @@ _junction_flush(Junction J)
 static PyObj
 junction_void(PyObj self)
 {
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 	Channel t;
 
 	/* GIL Required */
 
-	if (Junction_Cycling(J))
+	if (Array_Cycling(J))
 		junction_finish_cycle(J);
 
 	for (t = J->next; t != (Channel) J; t = t->next)
@@ -4525,15 +4525,15 @@ junction_void(PyObj self)
 		Py_DECREF(t);
 
 		/*
-			# The Junction and Port references will be cleared by dealloc.
+			# The Array and Port references will be cleared by dealloc.
 		*/
 	}
 	t->next = NULL;
 
 	J->next = (Channel) J;
 	J->prev = (Channel) J;
-	Junction_ResetTransferCount(J);
-	Junction_ResetChannelCount(J);
+	Array_ResetTransferCount(J);
+	Array_ResetChannelCount(J);
 	port_unlatch(Channel_GetPort(J), 0);
 
 	#ifdef EVMECH_EPOLL
@@ -4550,7 +4550,7 @@ junction_void(PyObj self)
 static PyObj
 junction_enter(PyObj self)
 {
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 
 	if (Channel_Terminating(J) && !Channel_PortLatched(J))
 	{
@@ -4577,7 +4577,7 @@ junction_enter(PyObj self)
 static PyObj
 junction_exit(PyObj self, PyObj args)
 {
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 
 	if (Channel_InCycle(J))
 		_junction_flush(J);
@@ -4591,7 +4591,7 @@ junction_methods[] = {
 		(PyCFunction) junction_resize_exoresource, METH_VARARGS,
 		PyDoc_STR(
 			"In cases where resize fails, the old size will be returned "
-			"and no error will be mentioned. For Junctions, resize *must* "
+			"and no error will be mentioned. For Arrays, resize *must* "
 			"be called outside of a cycle--outside of the context manager block."
 			"\n"
 			"[Parameters]\n"
@@ -4617,18 +4617,18 @@ junction_methods[] = {
 	{"rtypes",
 		(PyCFunction) junction_rtypes, METH_NOARGS|METH_CLASS,
 		PyDoc_STR(
-			"Returns an iterator to resource allocation request types recognized by the Junction."
+			"Returns an iterator to resource allocation request types recognized by the Array."
 		)
 	},
 
 	{"acquire",
 		(PyCFunction) junction_acquire, METH_O,
 		PyDoc_STR(
-			"Acquires the Channel so that it may participate in &Junction cycles.\n"
+			"Acquires the Channel so that it may participate in &Array cycles.\n"
 
 			"[Parameters]\n"
 			"/transit/\n"
-			"\tThe &Channel that will be managed by this Junction.\n"
+			"\tThe &Channel that will be managed by this Array.\n"
 		)
 	},
 
@@ -4648,7 +4648,7 @@ junction_methods[] = {
 			"Causes the next traffic cycle not *wait* for events. If a cycle has been started\n"
 			"and is currently waiting for events, force will cause it to stop waiting for events.\n"
 			"\n"
-			"Returns the Junction instance being forced for method chaining.\n"
+			"Returns the Array instance being forced for method chaining.\n"
 		)
 	},
 
@@ -4672,20 +4672,20 @@ junction_methods[] = {
 
 	{"__enter__",
 		(PyCFunction) junction_enter, METH_NOARGS,
-		PyDoc_STR("Enter a Junction cycle allowing transition state to be examined.")
+		PyDoc_STR("Enter a Array cycle allowing transition state to be examined.")
 	},
 
 	{"__exit__",
 		(PyCFunction) junction_exit, METH_VARARGS,
-		PyDoc_STR("Exit the Junction cycle destroying the transition state.")
+		PyDoc_STR("Exit the Array cycle destroying the transition state.")
 	},
 
 	{NULL,},
 };
 
 static PyMemberDef junction_members[] = {
-	{"volume", T_PYSSIZET, offsetof(struct Junction, choice.junction.ntransits), READONLY,
-		PyDoc_STR("The number of transits being managed by the Junction instance.")},
+	{"volume", T_PYSSIZET, offsetof(struct Array, choice.junction.ntransits), READONLY,
+		PyDoc_STR("The number of transits being managed by the Array instance.")},
 	{NULL,},
 };
 
@@ -4694,14 +4694,14 @@ junction_get_resource(PyObj self, void *_)
 {
 	PyObj l;
 	Py_ssize_t i = 0;
-	Junction J = (Junction) self;
+	Array J = (Array) self;
 	Channel t = J->next;
 
 	/*
 		# Requires GIL.
 	*/
 
-	l = PyList_New(Junction_GetChannelCount(J));
+	l = PyList_New(Array_GetChannelCount(J));
 	while (t != (Channel) J)
 	{
 		PyObj ob = (PyObj) t;
@@ -4718,7 +4718,7 @@ junction_get_resource(PyObj self, void *_)
 
 static PyGetSetDef junction_getset[] = {
 	{"resource", junction_get_resource, NULL,
-		PyDoc_STR("A &list of all Channels attached to this Junction instance, save the Junction instance.")
+		PyDoc_STR("A &list of all Channels attached to this Array instance, save the Array instance.")
 	},
 	{NULL,},
 };
@@ -4726,8 +4726,8 @@ static PyGetSetDef junction_getset[] = {
 static void
 junction_dealloc(PyObj self)
 {
-	Junction J = (Junction) self;
-	PyMem_Free(Junction_GetKEvents(J));
+	Array J = (Array) self;
+	PyMem_Free(Array_GetKEvents(J));
 	transit_dealloc(self);
 }
 
@@ -4735,30 +4735,30 @@ static PyObj
 junction_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
 	static char *kwlist[] = {NULL,};
-	Junction J;
+	Array J;
 	Port p;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "", kwlist))
 		return(NULL);
 
-	J = (Junction) alloci((PyObj) subtype, (PyObj) subtype, &p);
+	J = (Array) alloci((PyObj) subtype, (PyObj) subtype, &p);
 	if (J == NULL)
 		return(NULL);
 	p->type = kt_kqueue;
 	p->freight = Type_GetInterface(subtype)->ti_freight;
 
-	Channel_SetJunction(J, J);
+	Channel_SetArray(J, J);
 	Channel_XQualify(J, teq_transfer);
 	Channel_SetControl(J, ctl_polarity);
 
-	Junction_ResetChannelCount(J);
-	Junction_ResetTransferCount(J);
+	Array_ResetChannelCount(J);
+	Array_ResetTransferCount(J);
 
 	/*
-		# For Junctions, the Window's Stop is the size of malloc / sizeof(struct kevent)
+		# For Arrays, the Window's Stop is the size of malloc / sizeof(struct kevent)
 	*/
 	Channel_SetWindow(J, 0, CONFIG_DEFAULT_JUNCTION_SIZE);
-	Junction_SetKEvents(J, PyMem_Malloc(sizeof(kevent_t) * Channel_GetWindowStop(J)));
+	Array_SetKEvents(J, PyMem_Malloc(sizeof(kevent_t) * Channel_GetWindowStop(J)));
 
 	J->next = (Channel) J;
 	J->prev = (Channel) J;
@@ -4768,14 +4768,14 @@ junction_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	return((PyObj) J);
 }
 
-PyDoc_STRVAR(Junction_doc,
-"The Junction implementation, &.abstract.Junction, for performing I/O with the kernel.");
+PyDoc_STRVAR(Array_doc,
+"The Array implementation, &.abstract.Array, for performing I/O with the kernel.");
 
 ChannelPyTypeObject
-JunctionType = {{
+ArrayType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Junction"),  /* tp_name */
-	sizeof(struct Junction),  /* tp_basicsize */
+	PYTHON_MODULE_PATH("Array"),  /* tp_name */
+	sizeof(struct Array),  /* tp_basicsize */
 	0,                        /* tp_itemsize */
 	junction_dealloc,         /* tp_dealloc */
 	NULL,                     /* tp_print */
@@ -4793,7 +4793,7 @@ JunctionType = {{
 	NULL,                     /* tp_setattro */
 	NULL,                     /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT,       /* tp_flags */
-	Junction_doc,             /* tp_doc */
+	Array_doc,             /* tp_doc */
 	NULL,                     /* tp_traverse */
 	NULL,                     /* tp_clear */
 	NULL,                     /* tp_richcompare */
@@ -4812,7 +4812,7 @@ JunctionType = {{
 	NULL,                     /* tp_alloc */
 	junction_new,             /* tp_new */
 },
-	&JunctionTIF,
+	&ArrayTIF,
 };
 
 /**
@@ -4954,7 +4954,7 @@ _init_intarray(void)
 
 /*
 	# These defines are for the nasty X-macro generated transit allocation functions used
-	# by Junction.rallocate(). There are a number of combinations, so grouping the
+	# by Array.rallocate(). There are a number of combinations, so grouping the
 	# the similar operations helps to save some redundant code.
 
 	# Cover each combination referenced by the capsule xmacro.
@@ -5275,7 +5275,7 @@ INIT(PyDoc_STR("Kernel based Traffic implementation.\n"))
 	#undef ID
 
 	/*
-		# Provides mapping for Junction.rallocate()
+		# Provides mapping for Array.rallocate()
 		# Must be initialized after types are Ready'd.
 	*/
 	_jra_map = _init_junction_rallocation();

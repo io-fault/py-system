@@ -71,7 +71,7 @@ def test_delta(test):
 	test/d.endpoint == None
 
 def test_anonymous_endpoints_socketpair(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		transits = J.rallocate('octets://spawn/bidirectional')
 		try:
@@ -88,7 +88,7 @@ def test_anonymous_endpoints_socketpair(test):
 		common.cycle(J)
 
 def test_anonymous_endpoints_pipe(test):
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		transits = J.rallocate('octets://spawn/unidirectional')
 		try:
@@ -102,7 +102,7 @@ def test_anonymous_endpoints_pipe(test):
 		common.cycle(J)
 
 def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')):
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	with jam.thread():
 		# constructors
 		r, w = map(common.Events, jam.junction.rallocate(req))
@@ -128,12 +128,12 @@ def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')
 	test/jam.junction.terminated == True
 
 def test_transit_force(test):
-	# Junction.force() causes the user filter to be triggered
+	# Array.force() causes the user filter to be triggered
 	# in order to interrupt any waiting kevent() call.
 
 	# Channel.force() causes an empty transfer to occur on the
 	# transit given that the transit's resource is not exhausted.
-	j = kernel.Junction()
+	j = kernel.Array()
 	try:
 		transits = j.rallocate(('octets', 'spawn', 'bidirectional'))
 		for x in transits:
@@ -157,7 +157,7 @@ def test_full_buffer_forced_write(test):
 	"""
 	# Test the force method on lose-octets with a full write buffer.
 	"""
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	with jam.thread():
 		r, w = map(common.Events,jam.junction.rallocate(('octets', 'spawn', 'unidirectional')))
 		r.transits[0].resize_exoresource(64)
@@ -187,7 +187,7 @@ def test_multijunction(test, number_to_check = 128):
 	junctions = []
 	try:
 		for x in range(number_to_check):
-			junctions.append(kernel.Junction())
+			junctions.append(kernel.Array())
 	finally:
 		for x in junctions:
 			test/x.terminated == False
@@ -199,7 +199,7 @@ def test_multijunction(test, number_to_check = 128):
 
 def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 	'common.Objects sanity'
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 
 	with jam.thread():
 		for exchange in common.object_transfer_cases:
@@ -227,12 +227,12 @@ def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 			test/client.transits[1].exhausted == False
 
 def test_void(test):
-	j = kernel.Junction()
+	j = kernel.Array()
 	test/j.terminated == False
 	j.void()
 
 	# now inside a cycle
-	j = kernel.Junction()
+	j = kernel.Array()
 	j.force()
 	with j:
 		j.void()
@@ -263,7 +263,7 @@ def test_void(test):
 			pass
 
 def test_acquire_after_terminate(test):
-	j = kernel.Junction()
+	j = kernel.Array()
 	test/j.sizeof_transfer() == 0
 	r, w = j.rallocate('octets://spawn/unidirectional')
 	test/r.transfer() == None
@@ -281,7 +281,7 @@ def test_acquire_after_terminate(test):
 
 def test_junction_flush_release(test):
 	"Validates the Channel's resource is released on flush"
-	J = kernel.Junction()
+	J = kernel.Array()
 	r, w = J.rallocate('octets://spawn/unidirectional')
 	J.acquire(r)
 	J.acquire(w)
@@ -316,7 +316,7 @@ def test_junction_flush_release(test):
 	test/w.resource == None
 
 def test_octets_resource_error(test):
-	j = kernel.Junction()
+	j = kernel.Array()
 	r, w = j.rallocate('octets://spawn/unidirectional')
 
 	# needs mutable buffer
@@ -343,7 +343,7 @@ def test_octets_resource_error(test):
 		pass
 
 def test_terminating_exhaust(test):
-	j = kernel.Junction()
+	j = kernel.Array()
 	r, w = j.rallocate('octets://spawn/unidirectional')
 	r.terminate()
 	w.terminate()

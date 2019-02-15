@@ -8,7 +8,7 @@ localhost = ('127.0.0.1', 0)
 
 def test_invalid_address(test):
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		with test/SystemError as exc:
 			J.rallocate('octets://ip4', 123)
 		with test/TypeError as exc:
@@ -27,7 +27,7 @@ def test_invalid_address(test):
 def test_pton_error(test):
 	test.skip('EOVERRIDE' not in dir(kernel))
 	try:
-		J = kernel.Junction()
+		J = kernel.Array()
 		with test/OSError as exc:
 			try:
 				kernel.EOVERRIDE['ip4_from_object'] = lambda x: (1,)
@@ -61,7 +61,7 @@ def test_junction_rallocate(test):
 		'sockets://ip4',
 	]
 
-	J = kernel.Junction()
+	J = kernel.Array()
 	try:
 		for x in pairs:
 			t = J.rallocate(x, (localhost[0], 1))
@@ -76,7 +76,7 @@ def test_junction_rallocate(test):
 			pass
 
 def test_octets_datagram(test):
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	with jam.thread():
 		rw = jam.junction.rallocate(('octets', 'ip4', 'udp'), (localhost[0], 1))
 		client = common.Endpoint(rw)
@@ -85,7 +85,7 @@ def test_octets_datagram(test):
 
 def test_unreachable(test):
 	return
-	jam = common.JunctionActionManager()
+	jam = common.ArrayActionManager()
 	with jam.thread():
 		try:
 			rw = jam.junction.rallocate('octets://ip4', ('126.4.4.247', 1))
@@ -99,7 +99,7 @@ def test_io(test):
 	common.stream_listening_connection(test, 'ip4', localhost)
 
 def test_failure_on_bind(test, tri = 'sockets://ip4'):
-	J = kernel.Junction()
+	J = kernel.Array()
 	sf = J.rallocate(tri, (localhost[0], 0))
 	J.acquire(sf)
 
