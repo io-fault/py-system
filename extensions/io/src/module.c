@@ -5104,24 +5104,24 @@ ARRAY_RESOURCE_ALLOCATION_SELECTION()
 static PyObj
 _init_array_rallocation(void)
 {
+	/*
+		# There is a number of allocation combinations possible,
+		# so macros are used to generate many allocation actions.
+	*/
 	PyObj rob = NULL
+		#define X(...) , \
+			OBNAME(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME(__VA_ARGS__))), NULL, NULL)
 
-	/* There is a number of allocation combinations possible,     */
-	/* so macros are used to generate many initialiation actions. */
+			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
+			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
+			ARRAY_RESOURCE_ALLOCATION_SELECTION()
+		#undef X
 
-	#define X(...) , \
-		OBNAME(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME(__VA_ARGS__))), NULL, NULL)
-
-		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_SELECTION()
-	#undef X
-
-	#define X(...) , \
-		OBNAME_BIND(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME_BIND(__VA_ARGS__))), NULL, NULL)
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-	#undef X
+		#define X(...) , \
+			OBNAME_BIND(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME_BIND(__VA_ARGS__))), NULL, NULL)
+			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+		#undef X
 	;
 
 	#define X(...) if (OBNAME(__VA_ARGS__) == NULL) goto error;
@@ -5136,57 +5136,54 @@ _init_array_rallocation(void)
 
 	rob = Py_BuildValue(
 		"{"
+			#define X(...) "(ss)O"
+				ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
+			#undef X
 
-	#define X(...) "(ss)O"
-		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-	#undef X
+			#define X(...) "(sss)O"
+				ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+				ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
+				ARRAY_RESOURCE_ALLOCATION_SELECTION()
+			#undef X
 
-	#define X(...) "(sss)O"
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_SELECTION()
-	#undef X
+			#define X(...) "(ssss)O"
+				ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+			#undef X
 
-	#define X(...) "(ssss)O"
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-	#undef X
-
-	#define X(...) "sO"
-		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-		ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
-	#undef X
-
+			#define X(...) "sO"
+				ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
+				ARRAY_RESOURCE_ALLOCATION_SELECTION()
+				ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+				ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
+			#undef X
 		"}"
 
-	#define X(...) , FIRST_TWO(__VA_ARGS__), OBNAME(__VA_ARGS__)
-		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-	#undef X
+		#define X(...) , FIRST_TWO(__VA_ARGS__), OBNAME(__VA_ARGS__)
+			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
+		#undef X
 
-	#define X(...) , FIRST_THREE(__VA_ARGS__), OBNAME(__VA_ARGS__)
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_SELECTION()
-	#undef X
+		#define X(...) , FIRST_THREE(__VA_ARGS__), OBNAME(__VA_ARGS__)
+			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
+			ARRAY_RESOURCE_ALLOCATION_SELECTION()
+		#undef X
 
-	#define X(...) , FIRST_THREE(__VA_ARGS__), "bind", OBNAME_BIND(__VA_ARGS__)
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-	#undef X
+		#define X(...) , FIRST_THREE(__VA_ARGS__), "bind", OBNAME_BIND(__VA_ARGS__)
+			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+		#undef X
 
-	#define X(...) , FIRST_TWO_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
-		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-	#undef X
+		#define X(...) , FIRST_TWO_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
+			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
+		#undef X
 
-	#define X(...) , FIRST_THREE_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
-		ARRAY_RESOURCE_ALLOCATION_SELECTION()
-	#undef X
+		#define X(...) , FIRST_THREE_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
+			ARRAY_RESOURCE_ALLOCATION_SELECTION()
+		#undef X
 
-	#define X(...) , FIRST_THREE_IRI_PORT(__VA_ARGS__), OBNAME(__VA_ARGS__)
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-		ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
-	#undef X
-
+		#define X(...) , FIRST_THREE_IRI_PORT(__VA_ARGS__), OBNAME(__VA_ARGS__)
+			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
+			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
+		#undef X
 	);
 
 	error:
@@ -5211,7 +5208,7 @@ _init_array_rallocation(void)
 
 #include <fault/python/module.h>
 
-INIT(PyDoc_STR("Kernel based Traffic implementation.\n"))
+INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 {
 	PyObj mod = NULL;
 
