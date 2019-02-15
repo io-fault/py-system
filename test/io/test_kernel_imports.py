@@ -14,7 +14,7 @@ def test_no_array(test):
 		sys.modules['array'] = t
 
 		try:
-			from .. import io
+			from ... import io
 			test.fail("import did not raise expected error")
 		except (ImportError, AttributeError):
 			pass
@@ -24,7 +24,7 @@ def test_no_array(test):
 		t.array = err
 
 		try:
-			from .. import io
+			from ... import io
 			test.fail("import did not raise expected error")
 		except Exception as exc:
 			test/str(exc) == "nothin"
@@ -32,8 +32,8 @@ def test_no_array(test):
 		sys.modules['array'] = array
 
 	with test.trap():
-		from .. import io
+		from ... import io
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

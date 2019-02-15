@@ -4,7 +4,7 @@
 # Test the Transfer of Ports, file descriptors.
 """
 import os
-from .. import io
+from ... import io
 
 def test_io(test):
 	J = io.Array()
@@ -70,5 +70,5 @@ def test_io(test):
 			os.close(x)
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

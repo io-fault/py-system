@@ -1,9 +1,9 @@
 import time
 import os
 import os.path
-from .. import core
-from .. import io
-from .. import library as lib
+from ... import core
+from ... import io
+from ... import library as lib
 from . import common
 
 def test_adapter_properties(test):
@@ -365,5 +365,5 @@ def array_termination(test, J):
 	return channels
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

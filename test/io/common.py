@@ -6,8 +6,8 @@
 import pickle
 import threading
 import contextlib
-from .. import io
-from .. import library as lib
+from ... import io
+from ... import library as lib
 
 class Terminated(Exception):
 	pass

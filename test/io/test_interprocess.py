@@ -1,6 +1,6 @@
 import os
-from .. import io
-from .. import library as lib
+from ... import io
+from ... import library as lib
 from . import common
 
 def fork_and_circulate(test, am, channels):
@@ -288,5 +288,5 @@ def test_ports_spawned_octets(test):
 				test/os.WEXITSTATUS(code) == 0
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

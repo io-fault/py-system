@@ -1,7 +1,7 @@
 import os
-from .. import library as lib
+from ... import library as lib
 from . import common
-from .. import io
+from ... import io
 
 def test_invalid_address(test):
 	try:
@@ -125,5 +125,5 @@ def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 			test/client.channels[1].exhausted != True
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

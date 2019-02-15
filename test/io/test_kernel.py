@@ -10,8 +10,8 @@ import socket
 import struct
 import errno
 import sys
-from .. import io
-from .. import core
+from ... import io
+from ... import core
 
 def test_array_rtypes(test):
 	test/list(io.Array.rtypes()) != []
@@ -374,5 +374,5 @@ def test_octets_bind(test):
 		w.terminate()
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

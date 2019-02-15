@@ -1,5 +1,5 @@
 from . import common
-from .. import io
+from ... import io
 
 def error_cases(test, dg, idx):
 	with test/IndexError:
@@ -258,5 +258,5 @@ def test_Datagrams_invalid(test):
 		J.void()
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

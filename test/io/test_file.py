@@ -2,8 +2,8 @@ import os
 import os.path
 import tempfile
 import sys
-from .. import io
-from .. import library as lib
+from ... import io
+from ... import library as lib
 from . import common
 
 def test_invalid_address(test):
@@ -170,5 +170,5 @@ def test_file(test):
 		file_test(test, am, path, path)
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

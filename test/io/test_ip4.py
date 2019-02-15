@@ -1,7 +1,7 @@
 import os
 import errno
-from .. import io
-from .. import library as lib
+from ... import io
+from ... import library as lib
 from . import common
 
 localhost = ('127.0.0.1', 0)
@@ -144,5 +144,5 @@ def test_ipaddress_objects(test):
 	addr = (ipaddress.ip_address("127.0.0.1"), 0)
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

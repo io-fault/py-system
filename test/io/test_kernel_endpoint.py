@@ -1,4 +1,4 @@
-from .. import io
+from ... import io
 
 def test_endpoint_new(test):
 	with test/TypeError as exc:
@@ -87,5 +87,5 @@ def test_endpoint_only_equals(test):
 		e >= e
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

@@ -1,8 +1,8 @@
 import errno
 import os.path
 import tempfile
-from .. import library as lib
-from .. import io
+from ... import library as lib
+from ... import io
 from . import common
 
 def test_invalid_address(test):
@@ -93,5 +93,5 @@ def test_io(test):
 		common.stream_listening_connection(test, 'local', os.path.join(d, 'y'))
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

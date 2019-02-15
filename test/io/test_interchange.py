@@ -1,6 +1,6 @@
-from .. import core
-from .. import io
-from .. import library as lib
+from ... import core
+from ... import io
+from ... import library as lib
 
 def new():
 	l = []
@@ -205,5 +205,5 @@ def test_interchange_xact_fail(test):
 		ix.terminate()
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])
