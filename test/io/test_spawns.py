@@ -21,10 +21,10 @@ def test_pipe(test, req = ('octets', 'acquire')):
 			p1 = os.pipe()
 			p2 = os.pipe()
 
-			cr = jam.junction.rallocate(req + ('input',), p1[0])
-			sr = jam.junction.rallocate(req + ('input',), p2[0])
-			sw = jam.junction.rallocate(req + ('output',), p1[1])
-			cw = jam.junction.rallocate(req + ('output',), p2[1])
+			cr = jam.array.rallocate(req + ('input',), p1[0])
+			sr = jam.array.rallocate(req + ('input',), p2[0])
+			sw = jam.array.rallocate(req + ('output',), p1[1])
+			cw = jam.array.rallocate(req + ('output',), p2[1])
 
 			server = common.Endpoint((sr, sw))
 			test/server.write_transit.polarity == lib.polarity.output
@@ -52,7 +52,7 @@ def test_pipe(test, req = ('octets', 'acquire')):
 			test/server.transits[1].exhausted != True
 			test/client.transits[0].exhausted != True
 			test/client.transits[1].exhausted != True
-	test/jam.junction.terminated == True
+	test/jam.array.terminated == True
 
 # two pipe()'s
 def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
@@ -60,8 +60,8 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 
 	with jam.thread():
 		for exchange in common.transfer_cases:
-			cr, sw = jam.junction.rallocate(req)
-			sr, cw = jam.junction.rallocate(req)
+			cr, sw = jam.array.rallocate(req)
+			sr, cw = jam.array.rallocate(req)
 			server = common.Endpoint((sr, sw))
 			test/server.write_transit.polarity == lib.polarity.output
 			test/server.read_transit.polarity == lib.polarity.input
@@ -88,7 +88,7 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 			test/server.transits[1].exhausted != True
 			test/client.transits[0].exhausted != True
 			test/client.transits[1].exhausted != True
-	test/jam.junction.terminated == True
+	test/jam.array.terminated == True
 
 # one socketpair()'s
 def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
@@ -96,7 +96,7 @@ def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 
 	with jam.thread():
 		for exchange in common.transfer_cases:
-			cxn = jam.junction.rallocate(req)
+			cxn = jam.array.rallocate(req)
 			server = common.Endpoint(cxn[:2])
 			test/server.write_transit.polarity == lib.polarity.output
 			test/server.read_transit.polarity == lib.polarity.input

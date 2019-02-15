@@ -1,7 +1,7 @@
 """
 # There is a large intersection of the kinds of tests that we do againsts
-# connections managed by a given junction. This module contains those and
-# any common test related tools for junction shutdown.
+# connections managed by a given array. This module contains those and
+# any common test related tools for array shutdown.
 """
 import pickle
 import threading
@@ -54,21 +54,21 @@ class Delta(tuple):
 			a = transit.acquire
 		return typ((transit, transit.resource, s, x, a))
 
-def snapshot(junction, list = list, map = map, construct = Delta.construct):
+def snapshot(array, list = list, map = map, construct = Delta.construct):
 	# list() is invoked here as materialization of the
 	# snapshot is needed in cases where the cycle exits. (like lib.cycle)
-	return list(map(construct, junction.transfer()))
+	return list(map(construct, array.transfer()))
 
-def cycle(junction):
-	with junction:
-		return snapshot(junction)
+def cycle(array):
+	with array:
+		return snapshot(array)
 
-def loop(deliver, junction, cycle = cycle, snapshot = snapshot):
-	while not junction.terminated:
-		with junction:
-			deliver(snapshot(junction))
+def loop(deliver, array, cycle = cycle, snapshot = snapshot):
+	while not array.terminated:
+		with array:
+			deliver(snapshot(array))
 	try:
-		deliver(cycle(junction))
+		deliver(cycle(array))
 	except kernel.TransitionViolation:
 		pass
 
@@ -78,7 +78,7 @@ class ArrayActionManager(object):
 	# of event collection.
 	"""
 	def __init__(self):
-		self.junction = kernel.Array()
+		self.array = kernel.Array()
 		self.cycled = threading.Event() # set everytime a cycle is completed
 		self.cycled.set()
 		self.effects = {}
@@ -88,7 +88,7 @@ class ArrayActionManager(object):
 		"""
 		# Utility function for displaying the contents of a Array.
 		"""
-		r = self.junction.resource
+		r = self.array.resource
 		for x in r:
 			print(
 				'polarity:', x.polarity,
@@ -100,7 +100,7 @@ class ArrayActionManager(object):
 			print('eoj')
 
 	def force(self):
-		self.junction.force()
+		self.array.force()
 
 	def cycle(self, activity):
 		for x in activity:
@@ -111,7 +111,7 @@ class ArrayActionManager(object):
 		self.cycled.set()
 
 	def loop(self):
-		loop(self.cycle, self.junction)
+		loop(self.cycle, self.array)
 
 	@contextlib.contextmanager
 	def thread(self):
@@ -120,8 +120,8 @@ class ArrayActionManager(object):
 			t.start()
 			yield
 		finally:
-			self.junction.terminate()
-			self.junction.force()
+			self.array.terminate()
+			self.array.force()
 			t.join()
 			del self.deadend[:]
 
@@ -130,7 +130,7 @@ class ArrayActionManager(object):
 		try:
 			self.effects.update(ct.effects)
 			for x in ct.transits:
-				self.junction.acquire(x)
+				self.array.acquire(x)
 			yield
 		finally:
 			ct.terminate()
@@ -147,7 +147,7 @@ class ArrayActionManager(object):
 
 	def delta(self):
 		'wait for a cycle to occur; use to regulate'
-		self.junction.force()
+		self.array.force()
 
 		while True:
 			self.cycled.wait()
@@ -399,7 +399,7 @@ def child_echo(jam, objects):
 				if ob is None:
 					break
 				objects.send(ob)
-				jam.junction.force()
+				jam.array.force()
 
 def exchange_nothing(test, jam, client, server):
 	pass
@@ -565,7 +565,7 @@ object_transfer_cases = [
 
 def stream_listening_connection(test, version, address, port = None):
 	jam = ArrayActionManager()
-	s = jam.junction.rallocate(('sockets', version), address)
+	s = jam.array.rallocate(('sockets', version), address)
 	# check for initial failures
 	s.port.raised()
 	with test/TypeError:
@@ -594,7 +594,7 @@ def stream_listening_connection(test, version, address, port = None):
 	with jam.thread(), jam.manage(listen):
 
 		for exchange in transfer_cases:
-			client_transits = jam.junction.rallocate(('octets', version), full_address)
+			client_transits = jam.array.rallocate(('octets', version), full_address)
 			client_transits[0].port.raised()
 			client_transits[0].resize_exoresource(1024 * 32)
 			client_transits[1].resize_exoresource(1024 * 32)
@@ -615,7 +615,7 @@ def stream_listening_connection(test, version, address, port = None):
 				fd = listen.sockets[0]
 				listen.clear()
 
-				server_transits = jam.junction.rallocate(('octets', 'acquire', 'socket'), fd)
+				server_transits = jam.array.rallocate(('octets', 'acquire', 'socket'), fd)
 				server = Endpoint(server_transits)
 				with jam.manage(server):
 					sr_endpoint = server.read_transit.endpoint()
@@ -653,4 +653,4 @@ def stream_listening_connection(test, version, address, port = None):
 			del client
 
 	test/listen.transits[0].terminated == True
-	test/jam.junction.terminated == True
+	test/jam.array.terminated == True

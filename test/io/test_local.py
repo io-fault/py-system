@@ -32,7 +32,7 @@ def test_endpoints(test):
 	test/ep.interface != dir
 	test/ep.port != 'sock'
 
-def test_junction_rallocate(test):
+def test_array_rallocate(test):
 	pairs = [
 		('octets', 'local'),
 		'octets://local',

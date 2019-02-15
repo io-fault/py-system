@@ -44,7 +44,7 @@ ChannelPyTypeObject
 #define Channel_HEAD \
 	PyObject_HEAD \
 	Port port;          /* Port for Kernel communication */ \
-	Array junction;  /* transit controller */ \
+	Array array;  /* transit controller */ \
 	PyObj link;         /* User storage usually used by callbacks. */ \
 	Channel prev, next; /* transit ring; all transit in traffic */ \
 	Channel lltransfer; /* linked list pointer to next evented Channel */ \
@@ -113,7 +113,7 @@ union transit_choice {
 			int wfd;
 			uint8_t haswrites;
 		#endif
-	} junction;
+	} array;
 };
 
 #define TS_INTERNAL 0
@@ -209,7 +209,7 @@ union transit_choice {
 #define Channel_GetKType(t)          (Channel_GetPort(t)->type)
 #define Channel_SetKType(t, ktype)   (Channel_GetKType(t) = ktype)
 
-#define Channel_GetArray(t)            (t->junction)
+#define Channel_GetArray(t)            (t->array)
 #define Channel_GetArrayPort(t)        (Channel_GetPort(Channel_GetArray(t)))
 #define Channel_SetArray(t, J)         (Channel_GetArray(t) = J)
 #define Channel_Attached(t)               (t->prev != NULL)
@@ -243,7 +243,7 @@ union transit_choice {
 #define Array_HasTransfers(J)         (Channel_GetNextTransfer(J) != (Channel) J)
 #define Array_ShouldWait(J)           (Array_HasTransfers(J) ? 0 : 1)
 
-#define Array_GetKEvents(J)           (J->choice.junction.kevents)
+#define Array_GetKEvents(J)           (J->choice.array.kevents)
 #define Array_SetKEvents(J, K)        (Array_GetKEvents(J) = K)
 #define Array_GetKEventSlot(J, slot)  (&(Array_GetKEvents(J)[slot]))
 
@@ -263,7 +263,7 @@ union transit_choice {
 #define Array_ConsumeKEventSlot(t) Channel_NarrowWindow(t, 1)
 #endif
 
-#define Array_GetTransferCount(J) (J->choice.junction.ntransfers)
+#define Array_GetTransferCount(J) (J->choice.array.ntransfers)
 #define Array_IncrementTransferCount(t) (++ Array_GetTransferCount(t))
 #define Array_ResetTransferCount(t) (Array_GetTransferCount(t) = 0)
 

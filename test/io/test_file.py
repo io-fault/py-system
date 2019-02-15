@@ -25,7 +25,7 @@ def test_endpoints(test):
 	test/str(ep) == '/foo'
 	test/ep.interface == '/foo'
 
-def test_junction_rallocate(test):
+def test_array_rallocate(test):
 	requests = [
 		('octets', 'file', 'read'),
 		('octets', 'file', 'overwrite'),
@@ -58,7 +58,7 @@ def file_test(test, jam, path, apath):
 	wrote_data = []
 	thedata = b'\xF1'*128
 
-	wr = jam.junction.rallocate(('octets', 'file', 'append'), apath)
+	wr = jam.array.rallocate(('octets', 'file', 'append'), apath)
 	wr.port.raised()
 
 	writer = common.Events(wr)
@@ -87,7 +87,7 @@ def file_test(test, jam, path, apath):
 	data_size = len(thedata) * i
 
 	# now read it back in.
-	rd = jam.junction.rallocate(('octets', 'file', 'read'), apath)
+	rd = jam.array.rallocate(('octets', 'file', 'read'), apath)
 	rd.port.raised() # check exception
 
 	out = []
@@ -116,7 +116,7 @@ def file_test(test, jam, path, apath):
 
 	somedata = b'0' * 256
 
-	wr = jam.junction.rallocate(('octets', 'file', 'overwrite'), apath)
+	wr = jam.array.rallocate(('octets', 'file', 'overwrite'), apath)
 	wr.port.raised()
 	writer = common.Events(wr)
 	writer.setup_write(somedata)
@@ -141,7 +141,7 @@ def file_test(test, jam, path, apath):
 	# now read it back in.
 	data_size = len(expected)
 	xfer_len = 0
-	rd = jam.junction.rallocate(('octets', 'file', 'read'), apath)
+	rd = jam.array.rallocate(('octets', 'file', 'read'), apath)
 	out = []
 	reader = common.Events(rd)
 	reader.setup_read(17)

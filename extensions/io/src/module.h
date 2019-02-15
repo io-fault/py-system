@@ -2,7 +2,7 @@
  * Handy for macros working with lowercase names.
  */
 #define channeltype   ((PyObject *) &ChannelType)
-#define junctiontype  ((PyObject *) &ArrayType)
+#define arraytype  ((PyObject *) &ArrayType)
 #define octetstype    ((PyObject *) &OctetsType)
 #define socketstype   ((PyObject *) &SocketsType)
 #define portstype     ((PyObject *) &PortsType)

@@ -28,7 +28,7 @@ def errno_retry_callback(ctx):
 # These tests primarily exist
 # for coverage purposes. They use __ERRNO_RECEPTACLE__ to exercise
 # error cases.
-def test_cannot_allocate_junction(test):
+def test_cannot_allocate_array(test):
 	test.skip(sys.platform == 'linux')
 	try:
 		kernel.__ERRNO_RECEPTACLE__['port_kqueue'] = errno_retry_callback
@@ -37,7 +37,7 @@ def test_cannot_allocate_junction(test):
 	finally:
 		kernel.__ERRNO_RECEPTACLE__.clear()
 
-def test_junction_force_eintr(test):
+def test_array_force_eintr(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -54,7 +54,7 @@ def test_junction_force_eintr(test):
 		with J:
 			pass
 
-def test_junction_retry_fail(test):
+def test_array_retry_fail(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -959,7 +959,7 @@ def test_ports_io_again(test):
 	finally:
 		J.void()
 
-def test_junction_alloc_port_memory_errors(test):
+def test_array_alloc_port_memory_errors(test):
 	try:
 		J = kernel.Array()
 
@@ -998,7 +998,7 @@ def test_junction_alloc_port_memory_errors(test):
 		kernel.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
-def test_junction_alloc_i_o_memory_errors(test):
+def test_array_alloc_i_o_memory_errors(test):
 	try:
 		J = kernel.Array()
 
@@ -1024,7 +1024,7 @@ def test_junction_alloc_i_o_memory_errors(test):
 		kernel.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
-def test_junction_allocio_memory_errors(test):
+def test_array_allocio_memory_errors(test):
 	try:
 		J = kernel.Array()
 
@@ -1055,7 +1055,7 @@ def test_junction_allocio_memory_errors(test):
 		kernel.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
-def test_junction_allocioio_memory_errors(test):
+def test_array_allocioio_memory_errors(test):
 	try:
 		J = kernel.Array()
 		# identifiers used inside allocioio.

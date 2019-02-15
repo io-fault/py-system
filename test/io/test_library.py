@@ -105,7 +105,7 @@ def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')
 	jam = common.ArrayActionManager()
 	with jam.thread():
 		# constructors
-		r, w = map(common.Events, jam.junction.rallocate(req))
+		r, w = map(common.Events, jam.array.rallocate(req))
 		ba = bytearray(512)
 		ba[:len('foobar!')] = b'\x00' * len('foobar!')
 		view = memoryview(ba)[256:]
@@ -125,7 +125,7 @@ def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')
 		# make sure the transit is writing into the proper offset
 		test/ba[0:len('foobar!')] != b'foobar!'
 		test/ba[256:256+len('foobar!')] == b'foobar!'
-	test/jam.junction.terminated == True
+	test/jam.array.terminated == True
 
 def test_transit_force(test):
 	# Array.force() causes the user filter to be triggered
@@ -159,7 +159,7 @@ def test_full_buffer_forced_write(test):
 	"""
 	jam = common.ArrayActionManager()
 	with jam.thread():
-		r, w = map(common.Events,jam.junction.rallocate(('octets', 'spawn', 'unidirectional')))
+		r, w = map(common.Events,jam.array.rallocate(('octets', 'spawn', 'unidirectional')))
 		r.transits[0].resize_exoresource(64)
 		w.transits[0].resize_exoresource(64)
 
@@ -182,14 +182,14 @@ def test_full_buffer_forced_write(test):
 			test/w.transits[0].terminated == False
 			test/w.transits[0].exhausted == False
 
-def test_multijunction(test, number_to_check = 128):
-	'Validate that multiple junctions can exist.'
-	junctions = []
+def test_multiarray(test, number_to_check = 128):
+	'Validate that multiple arrays can exist.'
+	arrays = []
 	try:
 		for x in range(number_to_check):
-			junctions.append(kernel.Array())
+			arrays.append(kernel.Array())
 	finally:
-		for x in junctions:
+		for x in arrays:
 			test/x.terminated == False
 			x.terminate()
 			test/x.terminated == True
@@ -203,7 +203,7 @@ def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 
 	with jam.thread():
 		for exchange in common.object_transfer_cases:
-			cxn = jam.junction.rallocate(req)
+			cxn = jam.array.rallocate(req)
 			server = common.Objects(cxn[:2])
 			client = common.Objects(cxn[2:])
 
@@ -279,7 +279,7 @@ def test_acquire_after_terminate(test):
 	test/r.acquire(r.rallocate(0)) == None
 	test/w.acquire(w.rallocate(0)) == None
 
-def test_junction_flush_release(test):
+def test_array_flush_release(test):
 	"Validates the Channel's resource is released on flush"
 	J = kernel.Array()
 	r, w = J.rallocate('octets://spawn/unidirectional')
@@ -353,9 +353,9 @@ def test_terminating_exhaust(test):
 	with j:
 		pass
 
-def junction_termination(test, J):
+def array_termination(test, J):
 	J.terminate()
-	# junction termination cascades to transits
+	# array termination cascades to transits
 	with J:
 		transits = set(J.transfer())
 		ports = [x.port for x in transits]

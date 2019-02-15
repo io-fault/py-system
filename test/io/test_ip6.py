@@ -47,7 +47,7 @@ def test_endpoints(test):
 	test/ep.port == 0xFFFF
 	test/ep.interface == '::'
 
-def test_junction_rallocate(test):
+def test_array_rallocate(test):
 	pairs = [
 		('octets', 'ip6'),
 		('octets', 'ip6', 'udp'),
@@ -78,7 +78,7 @@ def test_junction_rallocate(test):
 def test_octets_datagram(test):
 	jam = common.ArrayActionManager()
 	with jam.thread():
-		rw = jam.junction.rallocate(('octets', 'ip6', 'udp'), ('::1', 1))
+		rw = jam.array.rallocate(('octets', 'ip6', 'udp'), ('::1', 1))
 		client = common.Endpoint(rw)
 		with jam.manage(client):
 			pass
@@ -88,7 +88,7 @@ def test_unreachable(test):
 	jam = common.ArrayActionManager()
 	with jam.thread():
 		try:
-			rw = jam.junction.rallocate('octets://ip6', ('fe80:152::1', 1))
+			rw = jam.array.rallocate('octets://ip6', ('fe80:152::1', 1))
 			test/rw[0].port.error_code != 0
 			test/rw[1].port.error_code != 0
 		finally:

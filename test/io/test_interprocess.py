@@ -9,7 +9,7 @@ def fork_and_circulate(test, jam, transits):
 	if pid == 0:
 		try:
 			objects = common.Objects(transits[2:])
-			jam.junction.void()
+			jam.array.void()
 			with jam.thread(), jam.manage(objects):
 				transits[0].port.shatter()
 				common.child_echo(jam, objects)
@@ -47,7 +47,7 @@ def fork_and_circulate(test, jam, transits):
 				parent.clear()
 			else:
 				parent.send(None)
-				jam.junction.force()
+				jam.array.force()
 				_pid, code = os.waitpid(pid, 0)
 				test/os.WEXITSTATUS(code) == 0
 		test/parent.transits[0].terminated == True
@@ -59,14 +59,14 @@ def fork_and_circulate(test, jam, transits):
 def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 	'Check for IPC via bidirectional spawns'
 	jam = common.ArrayActionManager()
-	transits = jam.junction.rallocate(req)
+	transits = jam.array.rallocate(req)
 	fork_and_circulate(test, jam, transits)
 
 def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 	'Check for IPC via unidirectional spawns'
 	jam = common.ArrayActionManager()
-	r, w = jam.junction.rallocate(req)
-	rr, ww = jam.junction.rallocate(req)
+	r, w = jam.array.rallocate(req)
+	rr, ww = jam.array.rallocate(req)
 	transits = (r, ww, rr, w)
 	fork_and_circulate(test, jam, transits)
 
@@ -126,12 +126,12 @@ def test_ports_sockets(test):
 	"""
 	jam = common.ArrayActionManager()
 
-	transits = jam.junction.rallocate('ports://spawn/bidirectional')
+	transits = jam.array.rallocate('ports://spawn/bidirectional')
 
 	pid = os.fork()
 	if pid == 0:
 		try:
-			jam.junction.void()
+			jam.array.void()
 			child = common.Endpoint(transits[2:])
 			transits[0].port.shatter()
 			del transits
@@ -148,12 +148,12 @@ def test_ports_sockets(test):
 				fd = child.read_payload_int[0]
 				test/fd != -1
 
-				sockets = jam.junction.rallocate('sockets://acquire/socket', fd)
+				sockets = jam.array.rallocate('sockets://acquire/socket', fd)
 				sockets.port.raised()
 				listen = common.Events(sockets)
 				listen.setup_read(1)
 				with jam.manage(listen):
-					transits = jam.junction.rallocate('octets://ip4', sockets.endpoint())
+					transits = jam.array.rallocate('octets://ip4', sockets.endpoint())
 					client = common.Endpoint(transits)
 					with jam.manage(client):
 						for x in jam.delta():
@@ -171,7 +171,7 @@ def test_ports_sockets(test):
 		del transits
 
 		with jam.thread(), jam.manage(parent):
-			sockets = jam.junction.rallocate('sockets://ip4', ('127.0.0.1', 0))
+			sockets = jam.array.rallocate('sockets://ip4', ('127.0.0.1', 0))
 
 			r = parent.write_transit.rallocate(1)
 			r[0] = sockets.port.id
@@ -191,7 +191,7 @@ def test_ports_spawned_octets(test):
 	# It's as if the EV_CLEAR flag was ignored for a socket sent over the socketpair().
 	jam = common.ArrayActionManager()
 
-	transits = jam.junction.rallocate('ports://spawn/bidirectional')
+	transits = jam.array.rallocate('ports://spawn/bidirectional')
 
 	# fork
 	# spawn descriptors
@@ -206,7 +206,7 @@ def test_ports_spawned_octets(test):
 	pid = os.fork()
 	if pid == 0:
 		try:
-			jam.junction.void()
+			jam.array.void()
 			child = common.Endpoint(transits[2:])
 			transits[0].port.shatter()
 			del transits
@@ -221,7 +221,7 @@ def test_ports_spawned_octets(test):
 
 				sock = child.read_payload_int[0]
 				ours = os.dup(sock)
-				transits = jam.junction.rallocate('octets://acquire/socket', ours)
+				transits = jam.array.rallocate('octets://acquire/socket', ours)
 				# echo everything they send us.
 				transits[0].port.raised()
 				objects = common.Objects(transits)
@@ -246,7 +246,7 @@ def test_ports_spawned_octets(test):
 		]
 
 		with jam.thread(), jam.manage(parent):
-			comtransits = jam.junction.rallocate('octets://spawn/bidirectional')
+			comtransits = jam.array.rallocate('octets://spawn/bidirectional')
 
 			ours = comtransits[:2]
 			theirs = comtransits[2:]
@@ -283,7 +283,7 @@ def test_ports_spawned_octets(test):
 			else:
 				# exit child at end of "echos"
 				objects.send(None)
-				jam.junction.force()
+				jam.array.force()
 				_pid, code = os.waitpid(pid, 0)
 				test/os.WEXITSTATUS(code) == 0
 

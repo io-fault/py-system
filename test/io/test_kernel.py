@@ -13,7 +13,7 @@ import sys
 from .. import kernel
 from .. import core
 
-def test_junction_rtypes(test):
+def test_array_rtypes(test):
 	test/list(kernel.Array.rtypes()) != []
 
 def test_transit_already_acquired(test):
@@ -28,7 +28,7 @@ def test_transit_already_acquired(test):
 		J1.void()
 		J2.void()
 
-def test_junction_termination(test):
+def test_array_termination(test):
 	'termination sequence with no transits'
 	J = kernel.Array()
 	test/J.terminated == False
@@ -45,7 +45,7 @@ def test_junction_termination(test):
 	J.terminate()
 	test/J.terminated == True
 
-def test_junction_exceptions(test):
+def test_array_exceptions(test):
 	try:
 		J = kernel.Array()
 		with test/TypeError:
@@ -66,7 +66,7 @@ def test_junction_exceptions(test):
 	finally:
 		J.void()
 
-def test_junction_terminated(test):
+def test_array_terminated(test):
 	try:
 		J = kernel.Array()
 		J.terminate()
@@ -83,7 +83,7 @@ def test_junction_terminated(test):
 	finally:
 		J.void()
 
-def test_junction_force(test):
+def test_array_force(test):
 	J = kernel.Array()
 	# once per second
 	# this gives J a kevent
@@ -98,7 +98,7 @@ def test_junction_force(test):
 	with J:
 		pass
 
-def test_junction_in_cycle(test):
+def test_array_in_cycle(test):
 	try:
 		J = kernel.Array()
 		J.force()
@@ -111,7 +111,7 @@ def test_junction_in_cycle(test):
 	finally:
 		J.void()
 
-def test_junction_out_of_cycle(test):
+def test_array_out_of_cycle(test):
 	'context manager to terminate on exit'
 	try:
 		J = kernel.Array()
@@ -133,7 +133,7 @@ def test_junction_out_of_cycle(test):
 		with J:
 			pass
 
-def test_junction_resize_exoresource(test):
+def test_array_resize_exoresource(test):
 	J = kernel.Array()
 	try:
 		J.force()
@@ -144,7 +144,7 @@ def test_junction_resize_exoresource(test):
 		with J:
 			pass
 
-def test_junction_rallocate_octets(test):
+def test_array_rallocate_octets(test):
 	transits = set()
 	try:
 		J = kernel.Array()
@@ -161,7 +161,7 @@ def test_junction_rallocate_octets(test):
 			x.terminate()
 		J.terminate()
 
-def test_junction_new_failure(test):
+def test_array_new_failure(test):
 	test.skip(sys.platform == 'linux')
 	test.skip(not 'EOVERRIDE' in dir(kernel))
 	try:
@@ -172,7 +172,7 @@ def test_junction_new_failure(test):
 	finally:
 		kernel.EOVERRIDE.clear()
 
-def test_junction_resize_exoresource(test):
+def test_array_resize_exoresource(test):
 	try:
 		J = kernel.Array()
 		J.resize_exoresource(1)
@@ -281,7 +281,7 @@ def test_octets_rallocate(test):
 	b = bytes(mv[11])
 	mb[10:15] = b'fffff'
 
-def test_junction_rallocate_errors(test):
+def test_array_rallocate_errors(test):
 	J = kernel.Array()
 	try:
 		with test/LookupError as exc:
@@ -291,7 +291,7 @@ def test_junction_rallocate_errors(test):
 	finally:
 		J.void()
 
-def test_junction_collection_countdown(test):
+def test_array_collection_countdown(test):
 	J = kernel.Array()
 	try:
 		J.resize_exoresource(2)

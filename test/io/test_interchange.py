@@ -17,7 +17,7 @@ def test_interchange_empty(test):
 	l, a = new()
 	ix = lib.Interchange(a)
 	'kernel' in test/ix.routes
-	test/len(ix.junctions) == 0
+	test/len(ix.arrays) == 0
 
 def test_interchange_routes(test):
 	l, a = new()
@@ -33,7 +33,7 @@ def test_interchange_termination(test):
 		alloc('octets://spawn/unidirectional')
 	ix.terminate()
 
-def test_idle_junction_terminates(test):
+def test_idle_array_terminates(test):
 	import time
 
 	# we use the adapter's callbacks to increment our counter and to trip j.force()
@@ -52,7 +52,7 @@ def test_idle_junction_terminates(test):
 
 	ix = lib.Interchange(adapter)
 	try:
-		ix._getj() # kicks off the junction's thread
+		ix._getj() # kicks off the array's thread
 
 		# we use j.force to rapidly trip the countdown.
 		# there are no transits, so we should be able to trigger it quickly
@@ -60,19 +60,19 @@ def test_idle_junction_terminates(test):
 		while loops < 128:
 			# encourage switch
 			time.sleep(0.00001)
-			if len(list(ix._iterjunctions())) == 0:
+			if len(list(ix._iterarrays())) == 0:
 				break
 
-		test/len(list(ix._iterjunctions())) == 0
+		test/len(list(ix._iterarrays())) == 0
 	finally:
 		ix.terminate()
 
-def test_active_junction_continues(test):
+def test_active_array_continues(test):
 	import time
 
-	# in the previous test, we validate that the thread terminates an idle junction.
+	# in the previous test, we validate that the thread terminates an idle array.
 
-	# in this test, we want to validate the inverse, an active junction
+	# in this test, we want to validate the inverse, an active array
 	# is never terminated
 
 	loops = 0
@@ -90,7 +90,7 @@ def test_active_junction_continues(test):
 
 	ix = lib.Interchange(adapter)
 	try:
-		ix._getj() # kicks off the junction's thread
+		ix._getj() # kicks off the array's thread
 		with ix.xact() as st:
 			r, w = st('octets://spawn/unidirectional')
 
@@ -100,13 +100,13 @@ def test_active_junction_continues(test):
 		ix.force()
 		while loops < 256:
 			# encourage switch
-			if not list(ix._iterjunctions()):
+			if not list(ix._iterarrays()):
 				break
-		test/list(ix._iterjunctions()) != []
+		test/list(ix._iterarrays()) != []
 
 		ix.terminate()
 
-		while list(ix._iterjunctions()):
+		while list(ix._iterarrays()):
 			time.sleep(0.000001)
 		test/w.terminated == True
 		test/r.terminated == True
@@ -130,7 +130,7 @@ def test_interchange_transfer(test):
 		while not w.terminated or not r.terminated:
 			pass
 
-		# trigger the junction recovery code
+		# trigger the array recovery code
 		for x in range(8):
 			ix.force(a)
 
@@ -142,7 +142,7 @@ def test_interchange_transfer(test):
 		r.terminate()
 		w.terminate()
 
-		while not list(ix._iterjunctions()):
+		while not list(ix._iterarrays()):
 			ix.force()
 		test/bytes(buf) == b'4' * 60
 	finally:
@@ -171,14 +171,14 @@ def test_interchange_overflow(test):
 	# test the effect of the limit attribute
 	l, a = new()
 	ix = lib.Interchange(a)
-	ix.transits_per_junction = 0
+	ix.transits_per_array = 0
 	try:
 		with ix.xact() as alloc:
 			for i in range(20):
 				alloc(('octets', 'file', 'read'), '/dev/zero')
-		# checking for per junction limits
-		# ix.acquire allows the entire overflow to spill into the new junction.
-		test/len(list(ix._iterjunctions())) == 2
+		# checking for per array limits
+		# ix.acquire allows the entire overflow to spill into the new array.
+		test/len(list(ix._iterarrays())) == 2
 	finally:
 		ix.terminate()
 
