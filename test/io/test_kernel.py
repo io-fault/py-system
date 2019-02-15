@@ -1,15 +1,18 @@
-# This file *should* contain traffic.io *specific* tests.
+"""
+# This file *should* contain system.io *specific* tests.
 # Primarily, invasive tests that rely on implementation specific functionality.
 
 # Arguably, there's quite a bit of redundancy in this file.
 # However, cases analyzed here that appear similar often have one-off cases
 # that make it rather annoying to generalize.
+"""
 import time
 import os
 import socket
 import struct
 import errno
 import sys
+
 from ... import io
 from ... import core
 
@@ -29,7 +32,6 @@ def test_channel_already_acquired(test):
 		J2.void()
 
 def test_array_termination(test):
-	'termination sequence with no channels'
 	J = io.Array()
 	test/J.terminated == False
 
@@ -352,11 +354,11 @@ def test_octets_acquire_badfd_detect(test):
 
 		xs, xsw = J.rallocate('octets://acquire/socket', r)
 		test/xs.port.error_code == errno.EBADF
-		test/xs.port.call == 'identify' # traffic local call
+		test/xs.port.call == 'identify' # local call
 
 		xs = J.rallocate('sockets://acquire/socket', w)
 		test/xs.port.error_code == errno.EBADF
-		test/xs.port.call == 'identify' # traffic local call
+		test/xs.port.call == 'identify' # local call
 	finally:
 		os.close(r)
 		os.close(w)

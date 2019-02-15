@@ -274,7 +274,7 @@ def test_acquire_after_terminate(test):
 	w.terminate()
 	# We don't throw terminated errors here as there is
 	# a race condition involved with parallel event collection.
-	# Termination is noted in traffic loop before the exhaust event
+	# Termination is noted in loop before the exhaust event
 	# is processed by its receiver.
 	test/r.acquire(r.rallocate(0)) == None
 	test/w.acquire(w.rallocate(0)) == None

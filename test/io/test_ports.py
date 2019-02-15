@@ -1,6 +1,5 @@
 """
-# Referring to the Channel, traffic.io.Ports.
-
+# Referring to the Channel, .io.Ports.
 # Test the Transfer of Ports, file descriptors.
 """
 import os
