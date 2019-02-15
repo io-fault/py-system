@@ -158,7 +158,7 @@ typedef struct sockaddr * if_addr_ref_t;
 #define SIGNED_MIN(T) (const signed T) ~(SIGNED_MAX(T))
 
 /**
-	Freight types conveyed by a Transit.
+	Freight types conveyed by a Channel.
 */
 typedef enum freight {
 	f_void = 0,   /* 'v' */
@@ -187,7 +187,7 @@ typedef enum ktype {
 } ktype_t;
 
 /**
-	Transit status codes used to signal the reaction to the success or failure of a system call.
+	Channel status codes used to signal the reaction to the success or failure of a system call.
 */
 typedef enum io_status {
 	io_stop,
@@ -199,7 +199,7 @@ typedef enum io_status {
 	Kernel Port (file descriptor) structure representation.
 
 	This structure exists because of sockets.
-	It was the best way to allow the Transits to synchronize their release
+	It was the best way to allow the Channels to synchronize their release
 	of the file descriptor resource. Arguably, a bitmap could be used as well,
 	but this easier and provides utility beyond that necessity. (port specific introspection)
 */
@@ -220,7 +220,7 @@ struct Port {
 typedef struct Port * Port;
 
 /**
-	I/O operation pointer used by TransitType class instances to
+	I/O operation pointer used by ChannelType class instances to
 	specify the read and write operation.
 */
 typedef io_status_t (*io_op_t)(Port port, uint32_t *consumed, void *resource, uint32_t quantity);
@@ -229,7 +229,7 @@ typedef io_status_t (*io_op_t)(Port port, uint32_t *consumed, void *resource, ui
  * It is critical that latches are zeroed the moment
  * an EBADF is seen. It possible that the process
  * will allocate a descriptor with the same port.id (fileno).
- * If latches is non-zero, a Transit will run unlatch in the future
+ * If latches is non-zero, a Channel will run unlatch in the future
  * performing some state change to a shattered port.
  */
 #define Port_SetError(P, ERROR, SCAUSE) do { \

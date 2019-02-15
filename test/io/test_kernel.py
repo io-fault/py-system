@@ -186,16 +186,16 @@ def test_module_protocol(test):
 	"Port" in test/dir(kernel)
 	"Endpoint" in test/dir(kernel)
 
-	"Transit" in test/dir(kernel)
+	"Channel" in test/dir(kernel)
 	"Octets" in test/dir(kernel)
 	"Sockets" in test/dir(kernel)
 	"Ports" in test/dir(kernel)
 	"Junction" in test/dir(kernel)
 
-	test.issubclass(kernel.Octets, kernel.Transit)
-	test.issubclass(kernel.Sockets, kernel.Transit)
-	test.issubclass(kernel.Ports, kernel.Transit)
-	test.issubclass(kernel.Junction, kernel.Transit)
+	test.issubclass(kernel.Octets, kernel.Channel)
+	test.issubclass(kernel.Sockets, kernel.Channel)
+	test.issubclass(kernel.Ports, kernel.Channel)
+	test.issubclass(kernel.Junction, kernel.Channel)
 
 def test_no_subtyping(test):
 	types = (
@@ -207,9 +207,9 @@ def test_no_subtyping(test):
 
 	for x in types:
 		with test/TypeError as t:
-			# Transit types extend the storage internally.
+			# Channel types extend the storage internally.
 			# Discourage subtyping.
-			# XXX: Transit can still be subclassed?
+			# XXX: Channel can still be subclassed?
 			class Foo(x):
 				pass
 

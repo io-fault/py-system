@@ -20,7 +20,7 @@ def test_delta(test):
 	test.isinstance(repr(d), str)
 	test.isinstance(str(d), str)
 
-	class Transit(object):
+	class Channel(object):
 		def __init__(self):
 			self.polarity = 1
 			self.terminated = False
@@ -46,7 +46,7 @@ def test_delta(test):
 		def endpoint(self):
 			return self.mendpoint
 
-	T = Transit()
+	T = Channel()
 	T.mendpoint = "END"
 	T.terminated = True
 	T.acquire(b'foo')
@@ -58,7 +58,7 @@ def test_delta(test):
 	test.isinstance(str(d), str)
 	test/d.endpoint == "END"
 
-	T = Transit()
+	T = Channel()
 	T.polarity = -1
 	T.acquire(b'bar')
 	T.exhausted = True
@@ -131,7 +131,7 @@ def test_transit_force(test):
 	# Junction.force() causes the user filter to be triggered
 	# in order to interrupt any waiting kevent() call.
 
-	# Transit.force() causes an empty transfer to occur on the
+	# Channel.force() causes an empty transfer to occur on the
 	# transit given that the transit's resource is not exhausted.
 	j = kernel.Junction()
 	try:
@@ -280,7 +280,7 @@ def test_acquire_after_terminate(test):
 	test/w.acquire(w.rallocate(0)) == None
 
 def test_junction_flush_release(test):
-	"Validates the Transit's resource is released on flush"
+	"Validates the Channel's resource is released on flush"
 	J = kernel.Junction()
 	r, w = J.rallocate('octets://spawn/unidirectional')
 	J.acquire(r)

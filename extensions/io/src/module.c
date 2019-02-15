@@ -241,7 +241,7 @@ sockaddr_interface(any_addr_t *ss, char *dst, size_t dstlen)
 }
 
 #if ! FV_OPTIMAL() || F_TRACE()
-	static void ptransit(Transit);
+	static void ptransit(Channel);
 	static void pkevent(kevent_t *);
 #endif
 
@@ -275,10 +275,10 @@ kcall_identifier(kcall_t kc)
 static PyObj new_array = NULL; /* array.array("i", [-1]).__mul__ */
 static PyObj polarity_objects[2] = {NULL,NULL};
 
-#define PyErr_SetTransitTerminatedError(t) \
-	PyErr_SetString(PyExc_TransitionViolation, "already terminated")
-#define PyErr_SetTransitResourceError(t) \
-	PyErr_SetString(PyExc_TransitionViolation, "resource already present")
+#define PyErr_SetChannelTerminatedError(t) \
+	PyErr_SetString(PyExc_ChannelionViolation, "already terminated")
+#define PyErr_SetChannelResourceError(t) \
+	PyErr_SetString(PyExc_ChannelionViolation, "resource already present")
 
 static int
 socket_receive_buffer(kpoint_t kp)
@@ -396,15 +396,15 @@ static PyMethodDef port_methods[] = {
 		(PyCFunction) port_shatter, METH_NOARGS,
 		PyDoc_STR(
 			"Destroy the resource reference without triggering representation shutdowns such as (/unix/man/2)`shutdown` on sockets. "
-			"Ports with Junction attached Transits should never be shattered as it causes the event subscription to be lost. "
-			"Subsequently, the Transit will remain in the Junction ring until terminated by user code.\n\n"
+			"Ports with Junction attached Channels should never be shattered as it causes the event subscription to be lost. "
+			"Subsequently, the Channel will remain in the Junction ring until terminated by user code.\n\n"
 	)},
 
 	{"leak",
 		(PyCFunction) port_leak, METH_NOARGS,
 		PyDoc_STR(
 			"Leak the kernel resource reference. Allows use of the file descriptor "
-			"without fear of a subsequent shutdown or close from a Transit.\n\n"
+			"without fear of a subsequent shutdown or close from a Channel.\n\n"
 	)},
 
 	{"raised",
@@ -534,7 +534,7 @@ static PyGetSetDef port_getset[] = {
 
 	{"freight", port_get_freight, NULL,
 		PyDoc_STR(
-			"What was being transferred by the Transit.\n"
+			"What was being transferred by the Channel.\n"
 	)},
 
 	{"error_description", port_get_error_description, NULL,
@@ -1030,46 +1030,46 @@ EndpointType = {
 #include "transit.h"
 
 /**
-	# Datagrams (struct)&Transit Structure.
+	# Datagrams (struct)&Channel Structure.
 */
 struct Datagrams {
-	Transit_HEAD
+	Channel_HEAD
 	int pf; /* Necessary for resource allocation (ip4 vs ip6) */
 };
 
 #define INIT_TRANSIT(t, J) do { \
-	Transit_SetJunction(t, J); \
-	Transit_SetNextTransfer(t, NULL); \
-	Transit_SetResource(t, NULL); \
-	Transit_SetLink(t, NULL); \
-	Transit_ClearWindow(t); \
-	Transit_State(t) = 0; \
-	Transit_SetDelta(t, 0); \
-	Transit_SetEvents(t, 0); \
+	Channel_SetJunction(t, J); \
+	Channel_SetNextTransfer(t, NULL); \
+	Channel_SetResource(t, NULL); \
+	Channel_SetLink(t, NULL); \
+	Channel_ClearWindow(t); \
+	Channel_State(t) = 0; \
+	Channel_SetDelta(t, 0); \
+	Channel_SetEvents(t, 0); \
 } while(0)
 
 #define INIT_INPUT_TRANSIT(t, J) do { \
 	INIT_TRANSIT(t, J); \
-	Transit_SetControl(t, ctl_polarity); \
+	Channel_SetControl(t, ctl_polarity); \
 } while(0)
 
 #define INIT_OUTPUT_TRANSIT(t, J) do { \
 	INIT_TRANSIT(t, J); \
-	Transit_NulControl(t, ctl_polarity); \
+	Channel_NulControl(t, ctl_polarity); \
 } while(0)
 
 #define Junction_Cycling(J)               (J->lltransfer != NULL)
-#define Junction_GetTransitCount(J)       ((J->choice.junction.ntransits))
-#define Junction_ResetTransitCount(J)     ((J->choice.junction.ntransits) = 0)
-#define Junction_IncrementTransitCount(J) (++ Junction_GetTransitCount(J))
-#define Junction_DecrementTransitCount(t) (-- Junction_GetTransitCount(t))
+#define Junction_GetChannelCount(J)       ((J->choice.junction.ntransits))
+#define Junction_ResetChannelCount(J)     ((J->choice.junction.ntransits) = 0)
+#define Junction_IncrementChannelCount(J) (++ Junction_GetChannelCount(J))
+#define Junction_DecrementChannelCount(t) (-- Junction_GetChannelCount(t))
 
 static int junction_fall(Junction, int);
 
 /* Append to the end of the doubly linked list; requires GIL. */
-#define Transit_EnqueueDelta(t) do { \
-	Junction J = (Transit_GetJunction(t)); \
-	if (Transit_GetDelta(t) != 0 && ((Junction)(t)) != J) { \
+#define Channel_EnqueueDelta(t) do { \
+	Junction J = (Channel_GetJunction(t)); \
+	if (Channel_GetDelta(t) != 0 && ((Junction)(t)) != J) { \
 		TRANSIT_RELOCATE_SEGMENT_BEFORE(J, (t), (t)); \
 		junction_fall(J, 0); \
 	} \
@@ -1081,15 +1081,15 @@ static int junction_fall(Junction, int);
 	# The transfer linked list is the list that manages the transits
 	# that have significant state changes: transfer occurred--with exhaustion--or termination.
 */
-#define Transit_GetNextTransfer(t)       ((t)->lltransfer)
-#define Transit_IsTransfer(t)            (Transit_GetNextTransfer(t) != NULL)
-#define Transit_SetNextTransfer(t, sett) (Transit_GetNextTransfer(t) = sett)
+#define Channel_GetNextTransfer(t)       ((t)->lltransfer)
+#define Channel_IsTransfer(t)            (Channel_GetNextTransfer(t) != NULL)
+#define Channel_SetNextTransfer(t, sett) (Channel_GetNextTransfer(t) = sett)
 
 #define Junction_AddTransfer(J, t) \
 	do { \
-		if (Transit_GetNextTransfer(t) == NULL) { \
-			Transit_SetNextTransfer(t, Transit_GetNextTransfer(J)); \
-			Transit_SetNextTransfer(J, t); \
+		if (Channel_GetNextTransfer(t) == NULL) { \
+			Channel_SetNextTransfer(t, Channel_GetNextTransfer(J)); \
+			Channel_SetNextTransfer(J, t); \
 		} \
 	} while(0)
 
@@ -1099,17 +1099,17 @@ static int junction_fall(Junction, int);
 */
 #define TRANSIT_JOIN(PREV, NEXT) \
 	do { \
-		PREV->next = (Transit) NEXT; \
-		NEXT->prev = (Transit) PREV; \
+		PREV->next = (Channel) NEXT; \
+		NEXT->prev = (Channel) PREV; \
 	} while (0)
 
 /**
 	# Extends ring from behind. (Relative to TARGET, usually a Junction instance)
 */
 #define TRANSIT_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
-	Transit T_prev = TARGET->prev; \
+	Channel T_prev = TARGET->prev; \
 	FIRST->prev = T_prev; \
-	LAST->next = (Transit) TARGET; \
+	LAST->next = (Channel) TARGET; \
 	TARGET->prev = LAST; \
 	T_prev->next = FIRST; \
 } while (0)
@@ -1118,10 +1118,10 @@ static int junction_fall(Junction, int);
 	# Extends ring from front.
 */
 #define TRANSIT_ATTACH_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
-	FIRST->prev = (Transit) TARGET; \
-	LAST->next = (Transit) TARGET->next; \
-	TARGET->next->prev = (Transit) LAST; \
-	TARGET->next = (Transit) FIRST; \
+	FIRST->prev = (Channel) TARGET; \
+	LAST->next = (Channel) TARGET->next; \
+	TARGET->next->prev = (Channel) LAST; \
+	TARGET->next = (Channel) FIRST; \
 } while (0)
 
 #define TRANSIT_RELOCATE_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
@@ -1130,9 +1130,9 @@ static int junction_fall(Junction, int);
 } while (0)
 
 #define TRANSIT_DETACH_SEGMENT(FIRST, LAST) do { \
-	Transit f_prev = FIRST->prev, l_next = LAST->next; \
-	f_prev->next = (Transit) l_next; \
-	l_next->prev = (Transit) f_prev; \
+	Channel f_prev = FIRST->prev, l_next = LAST->next; \
+	f_prev->next = (Channel) l_next; \
+	l_next->prev = (Channel) f_prev; \
 } while(0)
 
 #define TRANSIT_RELOCATE_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
@@ -1150,26 +1150,26 @@ static int junction_fall(Junction, int);
 #define TRANSIT_ATTACH_AFTER(TARGET, TRANSIT) \
 	TRANSIT_ATTACH_SEGMENT_AFTER(TARGET, TRANSIT, TRANSIT)
 #define TRANSIT_ATTACH(TRANSIT) \
-	TRANSIT_ATTACH_BEFORE(Transit_GetJunction(TRANSIT), TRANSIT)
+	TRANSIT_ATTACH_BEFORE(Channel_GetJunction(TRANSIT), TRANSIT)
 
-#define Transit_GetResourceArray(TYP, T) ((TYP *)(Transit_GetResourceBuffer(T) + (Transit_GetWindowStop(T) * sizeof(TYP))))
-#define Transit_GetRemainder(TYP, T) ((Transit_GetResourceSize(T) / sizeof(TYP)) - Transit_GetWindowStop(T))
+#define Channel_GetResourceArray(TYP, T) ((TYP *)(Channel_GetResourceBuffer(T) + (Channel_GetWindowStop(T) * sizeof(TYP))))
+#define Channel_GetRemainder(TYP, T) ((Channel_GetResourceSize(T) / sizeof(TYP)) - Channel_GetWindowStop(T))
 
 /**
 	# Requires GIL.
 */
 static void
-Transit_ReleaseResource(Transit t)
+Channel_ReleaseResource(Channel t)
 {
 	/**
 		# Free any Python resources associated with the transit.
 	*/
-	if (Transit_HasResource(t))
+	if (Channel_HasResource(t))
 	{
-		PyBuffer_Release(Transit_GetResourceView(t));
-		Py_DECREF(Transit_GetResource(t));
-		Transit_SetResource(t, NULL);
-		Transit_ClearWindow(t);
+		PyBuffer_Release(Channel_GetResourceView(t));
+		Py_DECREF(Channel_GetResource(t));
+		Channel_SetResource(t, NULL);
+		Channel_ClearWindow(t);
 	}
 }
 
@@ -1177,21 +1177,21 @@ Transit_ReleaseResource(Transit t)
 	# Requires GIL. Decrements the link reference and sets the field to &NULL.
 */
 static void
-Transit_ReleaseLink(Transit t)
+Channel_ReleaseLink(Channel t)
 {
 	/**
 		# Free any Python resources associated with the transit.
 	*/
-	if (Transit_GetLink(t))
+	if (Channel_GetLink(t))
 	{
-		Py_DECREF(Transit_GetLink(t));
-		Transit_SetLink(t, NULL);
+		Py_DECREF(Channel_GetLink(t));
+		Channel_SetLink(t, NULL);
 	}
 }
 
 #ifdef EVMECH_EPOLL
 static void
-kfilter_cancel(Transit t, kevent_t *kev)
+kfilter_cancel(Channel t, kevent_t *kev)
 {
 	const int filters[2] = {EPOLLIN, EPOLLOUT};
 	Port p;
@@ -1199,21 +1199,21 @@ kfilter_cancel(Transit t, kevent_t *kev)
 
 	kev->data.ptr = t;
 	kev->events = EPOLLERR | EPOLLHUP | EPOLLRDHUP | EPOLLET
-		| filters[!Transit_GetControl(t, ctl_polarity)];
+		| filters[!Channel_GetControl(t, ctl_polarity)];
 
 	if (kev->events & EPOLLOUT)
 	{
-		wp.point = Transit_GetJunction(t)->choice.junction.wfd;
+		wp.point = Channel_GetJunction(t)->choice.junction.wfd;
 		p = &wp;
 	}
 	else
-		p = Transit_GetJunctionPort(t);
+		p = Channel_GetJunctionPort(t);
 
-	port_epoll_ctl(p, EPOLL_CTL_DEL, Transit_GetPort(t), kev);
+	port_epoll_ctl(p, EPOLL_CTL_DEL, Channel_GetPort(t), kev);
 }
 
 static void
-kfilter_attach(Transit t, kevent_t *kev)
+kfilter_attach(Channel t, kevent_t *kev)
 {
 	const int filters[2] = {EPOLLIN, EPOLLOUT};
 	Port p;
@@ -1221,17 +1221,17 @@ kfilter_attach(Transit t, kevent_t *kev)
 
 	kev->data.ptr = t;
 	kev->events = EPOLLERR | EPOLLHUP | EPOLLRDHUP | EPOLLET
-		| filters[!Transit_GetControl(t, ctl_polarity)];
+		| filters[!Channel_GetControl(t, ctl_polarity)];
 
 	if (kev->events & EPOLLOUT)
 	{
-		wp.point = Transit_GetJunction(t)->choice.junction.wfd;
+		wp.point = Channel_GetJunction(t)->choice.junction.wfd;
 		p = &wp;
 	}
 	else
-		p = Transit_GetJunctionPort(t);
+		p = Channel_GetJunctionPort(t);
 
-	port_epoll_ctl(p, EPOLL_CTL_ADD, Transit_GetPort(t), kev);
+	port_epoll_ctl(p, EPOLL_CTL_ADD, Channel_GetPort(t), kev);
 }
 #else
 #if ! FV_OPTIMAL() || F_TRACE()
@@ -1270,7 +1270,7 @@ pkevent(kevent_t *kev)
 	# Used for tracing operations during debugging.
 */
 static void
-ptransit(Transit t)
+ptransit(Channel t)
 {
 	struct sockaddr_storage ss;
 	socklen_t sslen = sizeof(ss);
@@ -1279,15 +1279,15 @@ ptransit(Transit t)
 	struct aport_t port;
 	port.data.numeric2 = 0;
 
-	if (Transit_PortLatched(t))
+	if (Channel_PortLatched(t))
 	{
-		if (Transit_Sends(t))
+		if (Channel_Sends(t))
 		{
-			getpeername(Transit_GetKPoint(t), (if_addr_ref_t) &ss, &sslen);
+			getpeername(Channel_GetKPoint(t), (if_addr_ref_t) &ss, &sslen);
 		}
 		else
 		{
-			getsockname(Transit_GetKPoint(t), (if_addr_ref_t) &ss, &sslen);
+			getsockname(Channel_GetKPoint(t), (if_addr_ref_t) &ss, &sslen);
 		}
 	}
 	else
@@ -1322,23 +1322,23 @@ ptransit(Transit t)
 		"ktype:%s {refcnt:%d}"
 		"\n",
 		Py_TYPE(t)->tp_name,
-		Transit_GetKPoint(t),
+		Channel_GetKPoint(t),
 		buf, port.data.filename,
-		kcall_identifier(Transit_GetKCall(t)),
-		Transit_GetKError(t),
-		Transit_GetKError(t) != 0 ? strerror(Transit_GetKError(t)) : "",
+		kcall_identifier(Channel_GetKCall(t)),
+		Channel_GetKError(t),
+		Channel_GetKError(t) != 0 ? strerror(Channel_GetKError(t)) : "",
 
-		Transit_GetControl(t, ctl_polarity)  ? "IRECEIVES" : "ISENDS",
-		Transit_IQualified(t, teq_terminate) ? "|ITerm" : "",
-		Transit_IQualified(t, teq_transfer)  ? "|ITransfer" : "",
-		Transit_XQualified(t, teq_terminate) ? "|XTerm" : "",
-		Transit_XQualified(t, teq_transfer)  ? "|XTransfer" : "",
-		Transit_GetControl(t, ctl_connect)   ? "|ctl_connect" : "",
-		Transit_GetControl(t, ctl_force)     ? "|ctl_force" : "",
-		Transit_GetControl(t, ctl_requeue)   ? "|ctl_requeue" : "",
-		Transit_HasEvent(t, tev_terminate)   ? "|terminate" : "",
-		Transit_HasEvent(t, tev_transfer)    ? "|transfer" : "",
-		ktype_string(Transit_GetKType(t)),
+		Channel_GetControl(t, ctl_polarity)  ? "IRECEIVES" : "ISENDS",
+		Channel_IQualified(t, teq_terminate) ? "|ITerm" : "",
+		Channel_IQualified(t, teq_transfer)  ? "|ITransfer" : "",
+		Channel_XQualified(t, teq_terminate) ? "|XTerm" : "",
+		Channel_XQualified(t, teq_transfer)  ? "|XTransfer" : "",
+		Channel_GetControl(t, ctl_connect)   ? "|ctl_connect" : "",
+		Channel_GetControl(t, ctl_force)     ? "|ctl_force" : "",
+		Channel_GetControl(t, ctl_requeue)   ? "|ctl_requeue" : "",
+		Channel_HasEvent(t, tev_terminate)   ? "|terminate" : "",
+		Channel_HasEvent(t, tev_transfer)    ? "|transfer" : "",
+		ktype_string(Channel_GetKType(t)),
 		(int) Py_REFCNT(t)
 	);
 }
@@ -1348,22 +1348,22 @@ pkevents(const char *where, Junction J)
 {
 	int i;
 	errpf("[%s]\n", where);
-	for (i = 0; i < Transit_GetWindowStart(J); ++i)
+	for (i = 0; i < Channel_GetWindowStart(J); ++i)
 	{
 		pkevent(&(Junction_GetKEvents(J)[i]));
-		ptransit((Transit) (Junction_GetKEvents(J)[i]).udata);
+		ptransit((Channel) (Junction_GetKEvents(J)[i]).udata);
 	}
 	errpf("\n");
 }
 #endif
 
 static void
-kfilter_cancel(Transit t, kevent_t *kev)
+kfilter_cancel(Channel t, kevent_t *kev)
 {
 	const int filters[2] = {EVFILT_READ, EVFILT_WRITE};
 
-	kev->filter = filters[!Transit_GetControl(t, ctl_polarity)];
-	kev->ident = Transit_GetKPoint(t);
+	kev->filter = filters[!Channel_GetControl(t, ctl_polarity)];
+	kev->ident = Channel_GetKPoint(t);
 	kev->flags = EV_CLEAR | EV_DELETE | EV_RECEIPT;
 	kev->fflags = 0;
 	kev->data = 0;
@@ -1371,12 +1371,12 @@ kfilter_cancel(Transit t, kevent_t *kev)
 }
 
 static void
-kfilter_attach(Transit t, kevent_t *kev)
+kfilter_attach(Channel t, kevent_t *kev)
 {
 	const int filters[2] = {EVFILT_READ, EVFILT_WRITE};
 
-	kev->filter = filters[!Transit_GetControl(t, ctl_polarity)];
-	kev->ident = Transit_GetKPoint(t);
+	kev->filter = filters[!Channel_GetControl(t, ctl_polarity)];
+	kev->ident = Channel_GetKPoint(t);
 	kev->flags = EV_CLEAR | EV_ADD | EV_RECEIPT;
 	kev->fflags = 0;
 	kev->data = 0;
@@ -1387,8 +1387,8 @@ kfilter_attach(Transit t, kevent_t *kev)
 /**
 	# &PyTypeObject extension structure for configuring the I/O callbacks to use.
 */
-struct TransitInterface
-TransitTIF = {
+struct ChannelInterface
+ChannelTIF = {
 	{NULL, NULL},
 	f_void, 0,
 };
@@ -1410,7 +1410,7 @@ struct jxi {
 	/**
 		# Position in transfer linked list.
 	*/
-	Transit t;
+	Channel t;
 };
 
 /**
@@ -1419,22 +1419,22 @@ struct jxi {
 static PyObj
 jxi_next(PyObj self)
 {
-	Transit this;
+	Channel this;
 	struct jxi *i = (struct jxi *) self;
 
 	if (i->t == NULL)
 		return(NULL);
 
-	if (!Transit_InCycle(i->t))
+	if (!Channel_InCycle(i->t))
 	{
 		PyErr_SetString(PyExc_RuntimeError,
 			"junction transfer iterator used outside of cycle");
 		return(NULL);
 	}
 
-	for (this = i->t; this != (Transit) i->J && Transit_GetEvents(this) == 0; this = Transit_GetNextTransfer(this));
+	for (this = i->t; this != (Channel) i->J && Channel_GetEvents(this) == 0; this = Channel_GetNextTransfer(this));
 
-	if (this == (Transit) i->J)
+	if (this == (Channel) i->J)
 	{
 		Py_DECREF(i->t);
 		Py_DECREF(i->J);
@@ -1445,7 +1445,7 @@ jxi_next(PyObj self)
 	}
 	else
 	{
-		i->t = Transit_GetNextTransfer(this);
+		i->t = Channel_GetNextTransfer(this);
 		Py_INCREF(i->t);
 	}
 
@@ -1469,7 +1469,7 @@ jxi_iter(PyObj self)
 	return(self);
 }
 
-PyDoc_STRVAR(jxi_doc, "iterator producing Transits with events to be processed");
+PyDoc_STRVAR(jxi_doc, "iterator producing Channels with events to be processed");
 PyTypeObject jxi_type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("jxi"),   /* tp_name */
@@ -1511,7 +1511,7 @@ new_jxi(Junction J, int polarity)
 		return(NULL);
 
 	i->J = J;
-	i->t = Transit_GetNextTransfer(J);
+	i->t = Channel_GetNextTransfer(J);
 	Py_XINCREF(i->t);
 	Py_INCREF(i->J);
 
@@ -1519,19 +1519,19 @@ new_jxi(Junction J, int polarity)
 }
 
 static char
-transit_can_acquire(Transit t)
+transit_can_acquire(Channel t)
 {
 	/*
 		# This should be called after receiving an exhaust event, which
 		# removes this internal flag.
 	*/
-	if (Transit_IQualified(t, teq_transfer))
+	if (Channel_IQualified(t, teq_transfer))
 	{
 		/*
 			# This needs to error out as the traffic flow may be using the
 			# transit's resource at this particular moment.
 		*/
-		PyErr_SetTransitResourceError(t);
+		PyErr_SetChannelResourceError(t);
 		return(0);
 	}
 
@@ -1539,20 +1539,20 @@ transit_can_acquire(Transit t)
 }
 
 /**
-	# Acquire a resource for faciliting a transfer. Qualifies the Transit for transfers.
+	# Acquire a resource for faciliting a transfer. Qualifies the Channel for transfers.
 
-	# The given &resource object is set on the &Transit and the memory buffer is filled
-	# out based on the direction of the transit. If the Transit has been acquired
-	# by a &Junction, the Transit will be marked and enqueued for a subsequent transfer
-	# attempt. Otherwise, the Transit is qualified for transfer allowing the subsequent
+	# The given &resource object is set on the &Channel and the memory buffer is filled
+	# out based on the direction of the transit. If the Channel has been acquired
+	# by a &Junction, the Channel will be marked and enqueued for a subsequent transfer
+	# attempt. Otherwise, the Channel is qualified for transfer allowing the subsequent
 	# &junction_acquire to ready a transfer.
 */
 static PyObj
 transit_acquire(PyObj self, PyObj resource)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
-	if (Transit_Terminating(t))
+	if (Channel_Terminating(t))
 	{
 		/*
 			# Ignore resource acquisitions if terminating.
@@ -1581,23 +1581,23 @@ transit_acquire(PyObj self, PyObj resource)
 		# REQUIRES GIL
 	*/
 
-	Transit_ReleaseResource(t);
+	Channel_ReleaseResource(t);
 	Py_INCREF(resource);
-	Transit_SetResource(t, resource);
+	Channel_SetResource(t, resource);
 
-	if (PyObject_GetBuffer(resource, Transit_GetResourceView(t), Transit_Receives(t) ? PyBUF_WRITABLE : 0))
+	if (PyObject_GetBuffer(resource, Channel_GetResourceView(t), Channel_Receives(t) ? PyBUF_WRITABLE : 0))
 	{
-		Transit_SetResource(t, NULL);
+		Channel_SetResource(t, NULL);
 		Py_DECREF(resource);
 		return(NULL);
 	}
 
-	Transit_ClearWindow(t);
+	Channel_ClearWindow(t);
 
-	if (Transit_GetJunction(t) != NULL)
+	if (Channel_GetJunction(t) != NULL)
 	{
-		Transit_DQualify(t, teq_transfer);
-		Transit_EnqueueDelta(t); /* REQUIRES GIL */
+		Channel_DQualify(t, teq_transfer);
+		Channel_EnqueueDelta(t); /* REQUIRES GIL */
 	}
 	else
 	{
@@ -1606,7 +1606,7 @@ transit_acquire(PyObj self, PyObj resource)
 			# Directly apply the event qualification and
 			# the junction will enqueue it when acquired.
 		*/
-		Transit_IQualify(t, teq_transfer);
+		Channel_IQualify(t, teq_transfer);
 	}
 
 	Py_INCREF(self);
@@ -1616,15 +1616,15 @@ transit_acquire(PyObj self, PyObj resource)
 static PyObj
 transit_force(PyObj self)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
-	Transit_DControl(t, ctl_force);
+	Channel_DControl(t, ctl_force);
 
-	if (Transit_Attached(t) && Transit_IQualified(t, teq_transfer))
+	if (Channel_Attached(t) && Channel_IQualified(t, teq_transfer))
 	{
 		/* No Junction? Do not enqueue, but allow the effect */
 		/* to occur when it is later acquired.               */
-		Transit_EnqueueDelta(t); /* REQUIRES GIL */
+		Channel_EnqueueDelta(t); /* REQUIRES GIL */
 	}
 
 	Py_RETURN_NONE;
@@ -1634,32 +1634,32 @@ transit_force(PyObj self)
 static PyObj
 transit_slice(PyObj self)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
-	if (!Transit_HasResource(t))
+	if (!Channel_HasResource(t))
 		Py_RETURN_NONE;
 
-	return(_PySlice_FromIndices(Transit_GetWindowStart(t), Transit_GetWindowStop(t)));
+	return(_PySlice_FromIndices(Channel_GetWindowStart(t), Channel_GetWindowStop(t)));
 }
 
 static PyObj
 transit_transfer(PyObj self)
 {
-	Transit t = (Transit) self;
-	int unit = Transit_GetInterface(t)->ti_unit;
+	Channel t = (Channel) self;
+	int unit = Channel_GetInterface(t)->ti_unit;
 	PyObj rob;
 	PyObj s;
 
-	if (!Transit_HasResource(t)
-		|| !Transit_HasEvent(t, tev_transfer))
+	if (!Channel_HasResource(t)
+		|| !Channel_HasEvent(t, tev_transfer))
 	{
 		Py_RETURN_NONE;
 	}
 
-	s = _PySlice_FromIndices(Transit_GetWindowStart(t) / unit, Transit_GetWindowStop(t) / unit);
+	s = _PySlice_FromIndices(Channel_GetWindowStart(t) / unit, Channel_GetWindowStop(t) / unit);
 	if (s == NULL) return(NULL);
 
-	rob = PyObject_GetItem(Transit_GetResource(t), s);
+	rob = PyObject_GetItem(Channel_GetResource(t), s);
 	Py_DECREF(s);
 
 	return(rob);
@@ -1669,12 +1669,12 @@ static PyObj
 transit_sizeof_transfer(PyObj self)
 {
 	uint32_t size;
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
-	if (!Transit_HasResource(t) || !Transit_HasEvent(t, tev_transfer))
+	if (!Channel_HasResource(t) || !Channel_HasEvent(t, tev_transfer))
 		return(PyLong_FromLong(0));
 
-	size = Transit_GetWindowStop(t) - Transit_GetWindowStart(t);
+	size = Channel_GetWindowStop(t) - Channel_GetWindowStart(t);
 
 	return(PyLong_FromUnsignedLong(size));
 }
@@ -1682,25 +1682,25 @@ transit_sizeof_transfer(PyObj self)
 static PyObj
 transit_terminate(PyObj self)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
-	if (!Transit_Attached(t))
+	if (!Channel_Attached(t))
 	{
 		/*
 			# Has GIL, not in Traffic.
-			# Junction instances cannot acquire Transits without the GIL.
+			# Junction instances cannot acquire Channels without the GIL.
 
 			# Running terminate directly is safe.
 		*/
-		if (!Transit_Terminated(t))
+		if (!Channel_Terminated(t))
 		{
-			Transit_IQualify(t, teq_terminate);
-			Transit_ReleaseResource(t);
-			Transit_ReleaseLink(t);
-			port_unlatch(Transit_GetPort(t), Transit_Polarity(t)); /* Kernel Resources (file descriptor) */
+			Channel_IQualify(t, teq_terminate);
+			Channel_ReleaseResource(t);
+			Channel_ReleaseLink(t);
+			port_unlatch(Channel_GetPort(t), Channel_Polarity(t)); /* Kernel Resources (file descriptor) */
 		}
 	}
-	else if (!Transit_Terminating(t))
+	else if (!Channel_Terminating(t))
 	{
 		/*
 			# Acquired by a Junction instance, that Junction
@@ -1708,7 +1708,7 @@ transit_terminate(PyObj self)
 
 			# Has GIL, so place teq_terminate event qualification on the delta.
 		*/
-		Transit_DQualify(t, teq_terminate);
+		Channel_DQualify(t, teq_terminate);
 
 		if ((PyObj) Py_TYPE(t) == junctiontype)
 		{
@@ -1716,7 +1716,7 @@ transit_terminate(PyObj self)
 		}
 		else
 		{
-			Transit_EnqueueDelta(t); /* REQUIRES GIL */
+			Channel_EnqueueDelta(t); /* REQUIRES GIL */
 		}
 	}
 
@@ -1732,21 +1732,21 @@ transit_resize_exoresource(PyObj self, PyObj args)
 static PyObj
 transit_endpoint(PyObj self)
 {
-	Transit t = (Transit) self;
-	kpoint_t kp = Transit_GetKPoint(t);
+	Channel t = (Channel) self;
+	kpoint_t kp = Channel_GetKPoint(t);
 	any_addr_t addr;
 	int r;
 
 	socklen_t addrlen = sizeof(addr);
 
-	if (!Transit_PortLatched(t))
+	if (!Channel_PortLatched(t))
 		Py_RETURN_NONE;
 
 	addrlen = sizeof(addr);
 	addr.ss_family = AF_UNSPEC;
 	bzero(&addr, addrlen);
 
-	if (Transit_Polarity(t) == p_output)
+	if (Channel_Polarity(t) == p_output)
 	{
 		/*
 			# Sends, get peer.
@@ -1832,7 +1832,7 @@ static PyMethodDef
 transit_methods[] = {
 	{"endpoint", (PyCFunction) transit_endpoint, METH_NOARGS,
 		PyDoc_STR(
-			"Construct an Endpoint object from the Transit describing the known destination of the channel, the end-point.\n"
+			"Construct an Endpoint object from the Channel describing the known destination of the channel, the end-point.\n"
 			"For output transits, the endpoint will be the remote host. For input transits, the endpoint will be "
 			"the local interface and port."
 			"\n\n"
@@ -1847,16 +1847,16 @@ transit_methods[] = {
 		(PyCFunction) transit_acquire, METH_O,
 		PyDoc_STR(
 			"Acquire a resource for facilitating transfers. The `resource` type depends on\n"
-			"the Transit subclass, but it is *normally* an object supporting the buffer interface.\n"
-			"The particular Transit type should document the kind of object it expects."
+			"the Channel subclass, but it is *normally* an object supporting the buffer interface.\n"
+			"The particular Channel type should document the kind of object it expects."
 			"\n\n"
 			"[Parameters]\n"
 			"/(&object)`resource`/\n"
 			"\tThe resource to use facitate transfers.\n"
 			"\n\n"
 			"[Effects]\n"
-			"/(&Transit)`Return`/"
-			"\tThe Transit instance acquiring the resource.\n"
+			"/(&Channel)`Return`/"
+			"\tThe Channel instance acquiring the resource.\n"
 			"\n"
 		)
 	},
@@ -1867,7 +1867,7 @@ transit_methods[] = {
 			"Resize the related exoresource.\n"
 			"[Parameters]\n"
 			"/(&int)`new_size`/\n"
-			"\tThe size, relative or absolute, of the kernel resource that should be used for the Transit.\n"
+			"\tThe size, relative or absolute, of the kernel resource that should be used for the Channel.\n"
 		)
 	},
 
@@ -1915,10 +1915,10 @@ transit_methods[] = {
 	{"terminate",
 		(PyCFunction) transit_terminate, METH_NOARGS,
 		PyDoc_STR(
-			"Terminate the Transit permanently causing events to subside. Eventually, \n"
+			"Terminate the Channel permanently causing events to subside. Eventually, \n"
 			"resources being held by the Tranist will be released.\n"
 			"[Effects]\n"
-			"/(&Transit)`Return`/\n"
+			"/(&Channel)`Return`/\n"
 			"\tThe transit being terminated.\n"
 		)
 	},
@@ -1929,23 +1929,23 @@ transit_methods[] = {
 static PyMemberDef
 transit_members[] = {
 	{"junction",
-		T_OBJECT, offsetof(struct Transit, junction), READONLY,
+		T_OBJECT, offsetof(struct Channel, junction), READONLY,
 		PyDoc_STR(
-			"The &Junction instance that the Transit has been acquired by.\n"
-			"`None` if the Transit has not been acquired by a Junction instance."
+			"The &Junction instance that the Channel has been acquired by.\n"
+			"`None` if the Channel has not been acquired by a Junction instance."
 		)
 	},
 
 	{"port",
-		T_OBJECT, offsetof(struct Transit, port), READONLY,
+		T_OBJECT, offsetof(struct Channel, port), READONLY,
 		PyDoc_STR(
-			"The &Port instance that the Transit uses to communicate with the kernel.\n"
-			"This object is always present on the Transit."
+			"The &Port instance that the Channel uses to communicate with the kernel.\n"
+			"This object is always present on the Channel."
 		)
 	},
 
 	{"link",
-		T_OBJECT, offsetof(struct Transit, link), 0,
+		T_OBJECT, offsetof(struct Channel, link), 0,
 		PyDoc_STR(
 			"User storage slot for attaching data for adapter callback mechanisms."
 		)
@@ -1955,11 +1955,11 @@ transit_members[] = {
 		# Internal state access.
 	*/
 	#if FV_INJECTIONS()
-		{"_state", T_UBYTE, offsetof(struct Transit, state), READONLY,
+		{"_state", T_UBYTE, offsetof(struct Channel, state), READONLY,
 			PyDoc_STR("bit map defining the internal and external state of the transit")},
-		{"_delta", T_UBYTE, offsetof(struct Transit, delta), READONLY,
+		{"_delta", T_UBYTE, offsetof(struct Channel, delta), READONLY,
 			PyDoc_STR("bit map defining the internal state changes")},
-		{"_event", T_UBYTE, offsetof(struct Transit, events), READONLY,
+		{"_event", T_UBYTE, offsetof(struct Channel, events), READONLY,
 			PyDoc_STR("bit map of events that occurred this cycle")},
 	#endif
 
@@ -1969,38 +1969,38 @@ transit_members[] = {
 static void
 transit_dealloc(PyObj self)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
 	#if F_TRACE(dealloc)
 		errpf("DEALLOC: %p %s\n", self, Py_TYPE(self)->tp_name);
 	#endif
 
 	/*
-		# Junction instances hold a reference to a Transit until it is
+		# Junction instances hold a reference to a Channel until it is
 		# removed from the ring.
-		# Transits hold their reference to the junction until..now:
+		# Channels hold their reference to the junction until..now:
 	*/
-	Py_XDECREF(Transit_GetJunction(t));
-	Transit_SetJunction(t, NULL);
+	Py_XDECREF(Channel_GetJunction(t));
+	Channel_SetJunction(t, NULL);
 
-	Py_DECREF(Transit_GetPort(t)); /* Alloc and init ports *before* using Transits. */
-	Transit_SetPort(t, NULL);
+	Py_DECREF(Channel_GetPort(t)); /* Alloc and init ports *before* using Channels. */
+	Channel_SetPort(t, NULL);
 
-	Py_XDECREF(Transit_GetLink(t)); /* Alloc and init ports *before* using Transits. */
-	Transit_SetLink(t, NULL);
+	Py_XDECREF(Channel_GetLink(t)); /* Alloc and init ports *before* using Channels. */
+	Channel_SetLink(t, NULL);
 }
 
 static PyObj
 transit_get_polarity(PyObj self, void *_)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 	PyObj rob;
 
 	/*
-		# The polarity of a Transit may be often accessed, so
+		# The polarity of a Channel may be often accessed, so
 		# avoid creating new objects.
 	*/
-	rob = polarity_objects[!Transit_GetControl(t, ctl_polarity)];
+	rob = polarity_objects[!Channel_GetControl(t, ctl_polarity)];
 	Py_INCREF(rob);
 
 	return(rob);
@@ -2009,10 +2009,10 @@ transit_get_polarity(PyObj self, void *_)
 static PyObj
 transit_get_terminated(PyObj self, void *_)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 	PyObj rob;
 
-	if (Transit_Terminating(t))
+	if (Channel_Terminating(t))
 		rob = Py_True;
 	else
 		rob = Py_False;
@@ -2024,9 +2024,9 @@ transit_get_terminated(PyObj self, void *_)
 static PyObj
 transit_get_exhausted(PyObj self, void *_)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 
-	if (Transit_Terminating(t))
+	if (Channel_Terminating(t))
 	{
 		/*
 			# Don't indicate that a resource can be acquired.
@@ -2039,7 +2039,7 @@ transit_get_exhausted(PyObj self, void *_)
 		# This should be called after receiving an exhaust event, which
 		# removes this internal flag.
 	*/
-	if (Transit_IQualified(t, teq_transfer) || Transit_DQualified(t, teq_transfer))
+	if (Channel_IQualified(t, teq_transfer) || Channel_DQualified(t, teq_transfer))
 	{
 		/*
 			# This needs to error out as the traffic flow may be using the
@@ -2056,10 +2056,10 @@ transit_get_exhausted(PyObj self, void *_)
 static PyObj
 transit_get_resource(PyObj self, void *_)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 	PyObj r;
 
-	r = Transit_GetResource(t);
+	r = Channel_GetResource(t);
 	if (r == NULL)
 		r = Py_None;
 
@@ -2071,10 +2071,10 @@ transit_get_resource(PyObj self, void *_)
 	static PyObj
 	transit_get_xtransfer(PyObj self, void *_)
 	{
-		Transit t = (Transit) self;
+		Channel t = (Channel) self;
 		PyObj rob;
 
-		if (Transit_XQualified(t, teq_transfer))
+		if (Channel_XQualified(t, teq_transfer))
 			rob = Py_True;
 		else
 			rob = Py_False;
@@ -2086,10 +2086,10 @@ transit_get_resource(PyObj self, void *_)
 	static PyObj
 	transit_get_itransfer(PyObj self, void *_)
 	{
-		Transit t = (Transit) self;
+		Channel t = (Channel) self;
 		PyObj rob;
 
-		if (Transit_IQualified(t, teq_transfer))
+		if (Channel_IQualified(t, teq_transfer))
 			rob = Py_True;
 		else
 			rob = Py_False;
@@ -2101,12 +2101,12 @@ transit_get_resource(PyObj self, void *_)
 	static int
 	transit_set_xtransfer(PyObj self, PyObj val, void *_)
 	{
-		Transit t = (Transit) self;
+		Channel t = (Channel) self;
 
 		if (val == Py_True)
-			Transit_XQualify(t, teq_transfer);
+			Channel_XQualify(t, teq_transfer);
 		else
-			Transit_XNQualify(t, teq_transfer);
+			Channel_XNQualify(t, teq_transfer);
 
 		return(0);
 	}
@@ -2114,12 +2114,12 @@ transit_get_resource(PyObj self, void *_)
 	static int
 	transit_set_itransfer(PyObj self, PyObj val, void *_)
 	{
-		Transit t = (Transit) self;
+		Channel t = (Channel) self;
 
 		if (val == Py_True)
-			Transit_IQualify(t, teq_transfer);
+			Channel_IQualify(t, teq_transfer);
 		else
-			Transit_INQualify(t, teq_transfer);
+			Channel_INQualify(t, teq_transfer);
 
 		return(0);
 	}
@@ -2143,7 +2143,7 @@ static PyGetSetDef transit_getset[] = {
 
 	{"resource", transit_get_resource, NULL,
 		PyDoc_STR("The object whose buffer was acquired, &Octets.acquire, "
-			"as the Transit's transfer resource.\n\n&None if there is no resource.")
+			"as the Channel's transfer resource.\n\n&None if there is no resource.")
 	},
 
 	#if FV_INJECTIONS()
@@ -2162,16 +2162,16 @@ static PyGetSetDef transit_getset[] = {
 };
 
 PyDoc_STRVAR(transit_doc,
-	"The base Transit type, &.abstract.Transit, created and used by &.kernel.\n"
+	"The base Channel type, &.abstract.Channel, created and used by &.kernel.\n"
 );
 
 /**
 	# Base type for the transit implementations.
 */
-TransitPyTypeObject TransitType = {{
+ChannelPyTypeObject ChannelType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Transit"),   /* tp_name */
-	sizeof(struct Transit),   /* tp_basicsize */
+	PYTHON_MODULE_PATH("Channel"),   /* tp_name */
+	sizeof(struct Channel),   /* tp_basicsize */
 	0,                        /* tp_itemsize */
 	transit_dealloc,          /* tp_dealloc */
 	NULL,                     /* tp_print */
@@ -2209,13 +2209,13 @@ TransitPyTypeObject TransitType = {{
 	NULL,                     /* tp_alloc */
 	NULL,                     /* tp_new */
 },
-	&TransitTIF,
+	&ChannelTIF,
 };
 
 static PyObj
 octets_resize_exoresource(PyObj self, PyObj args)
 {
-	Port p = Transit_GetPort(((Transit) self));
+	Port p = Channel_GetPort(((Channel) self));
 	int size;
 
 	if (!PyArg_ParseTuple(args, "i", &size))
@@ -2224,7 +2224,7 @@ octets_resize_exoresource(PyObj self, PyObj args)
 	switch (p->type)
 	{
 		case kt_socket:
-			if (port_set_socket_option(p, Transit_Sends(((Transit) self)) ? SO_SNDBUF : SO_RCVBUF, size))
+			if (port_set_socket_option(p, Channel_Sends(((Channel) self)) ? SO_SNDBUF : SO_RCVBUF, size))
 			{
 				/*
 					# Throw Warning
@@ -2263,7 +2263,7 @@ alloc_port(void)
 static PyObj
 alloci(PyObj isubtype, PyObj osubtype, Port *out)
 {
-	Transit t;
+	Channel t;
 	PyObj rob;
 	Port p;
 
@@ -2278,10 +2278,10 @@ alloci(PyObj isubtype, PyObj osubtype, Port *out)
 		Py_DECREF(p);
 		return(NULL);
 	}
-	t = (Transit) rob;
+	t = (Channel) rob;
 
 	INIT_INPUT_TRANSIT(t, NULL);
-	Transit_SetPort(t, p);
+	Channel_SetPort(t, p);
 	p->latches = 1;
 
 	*out = p;
@@ -2293,7 +2293,7 @@ static PyObj
 alloco(PyObj isubtype, PyObj osubtype, Port *out)
 {
 	PyObj rob;
-	Transit t;
+	Channel t;
 	Port p;
 
 	p = alloc_port();
@@ -2308,10 +2308,10 @@ alloco(PyObj isubtype, PyObj osubtype, Port *out)
 		return(NULL);
 	}
 
-	t = (Transit) rob;
+	t = (Channel) rob;
 
 	INIT_OUTPUT_TRANSIT(t, NULL);
-	Transit_SetPort(t, p);
+	Channel_SetPort(t, p);
 	p->latches = 1 << 4;
 	*out = p;
 
@@ -2326,7 +2326,7 @@ allocio(PyObj isubtype, PyObj osubtype, Port *out)
 {
 	PyObj rob;
 	Port port;
-	Transit i, o;
+	Channel i, o;
 
 	PYTHON_RECEPTACLE("alloc_pair", &rob, alloc_pair);
 	if (rob == NULL)
@@ -2343,14 +2343,14 @@ allocio(PyObj isubtype, PyObj osubtype, Port *out)
 		goto error;
 
 	Py_INCREF(port);
-	Transit_SetPort(i, port);
+	Channel_SetPort(i, port);
 	PyTuple_SET_ITEM(rob, 0, (PyObj) i);
 
 	PYTHON_RECEPTACLE("alloc_osubtype", &o, PyAllocate, osubtype);
 	if (o == NULL)
 		goto error;
 
-	Transit_SetPort(o, port);
+	Channel_SetPort(o, port);
 	PyTuple_SET_ITEM(rob, 1, (PyObj) o);
 
 	INIT_INPUT_TRANSIT(i, NULL);
@@ -2369,7 +2369,7 @@ allocio(PyObj isubtype, PyObj osubtype, Port *out)
 }
 
 /**
-	# Same as allocio, but the Ports for each Transit are distinct objects.
+	# Same as allocio, but the Ports for each Channel are distinct objects.
 	# (os.pipe(), dup() pairs.
 */
 static PyObj
@@ -2413,7 +2413,7 @@ allociopair(PyObj isubtype, PyObj osubtype, Port p[])
 static PyObj
 allocioio(PyObj isubtype, PyObj osubtype, Port p[])
 {
-	Transit r1 = NULL, w1 = NULL, r2 = NULL, w2 = NULL;
+	Channel r1 = NULL, w1 = NULL, r2 = NULL, w2 = NULL;
 	PyObj rob;
 	Port porta = NULL, portb = NULL;
 
@@ -2433,28 +2433,28 @@ allocioio(PyObj isubtype, PyObj osubtype, Port p[])
 	if (r1 == NULL)
 		goto error;
 	INIT_INPUT_TRANSIT(r1, NULL);
-	Transit_SetPort(r1, porta);
+	Channel_SetPort(r1, porta);
 	Py_INCREF(porta);
 
 	PYTHON_RECEPTACLE("alloc_osubtype1", &w1, PyAllocate, osubtype);
 	if (w1 == NULL)
 		goto error;
 	INIT_OUTPUT_TRANSIT(w1, NULL);
-	Transit_SetPort(w1, porta);
+	Channel_SetPort(w1, porta);
 	Py_INCREF(porta);
 
 	PYTHON_RECEPTACLE("alloc_isubtype2", &r2, PyAllocate, isubtype);
 	if (r2 == NULL)
 		goto error;
 	INIT_INPUT_TRANSIT(r2, NULL);
-	Transit_SetPort(r2, portb);
+	Channel_SetPort(r2, portb);
 	Py_INCREF(portb);
 
 	PYTHON_RECEPTACLE("alloc_osubtype2", &w2, PyAllocate, osubtype);
 	if (w2 == NULL)
 		goto error;
 	INIT_OUTPUT_TRANSIT(w2, NULL);
-	Transit_SetPort(w2, portb);
+	Channel_SetPort(w2, portb);
 	Py_INCREF(portb);
 
 	PyTuple_SET_ITEM(rob, 0, (PyObj) r1);
@@ -2530,17 +2530,17 @@ static PyMethodDef octets_methods[] = {
 	{NULL,},
 };
 
-struct TransitInterface
+struct ChannelInterface
 OctetsTIF = {
 	{(io_op_t) port_input_octets, (io_op_t) port_output_octets},
 	f_octets, 1,
 };
 
-PyDoc_STRVAR(Octets_doc, "Transit transferring binary data in bytes.");
-TransitPyTypeObject OctetsType = {{
+PyDoc_STRVAR(Octets_doc, "Channel transferring binary data in bytes.");
+ChannelPyTypeObject OctetsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Octets"),   /* tp_name */
-	sizeof(struct Transit),  /* tp_basicsize */
+	sizeof(struct Channel),  /* tp_basicsize */
 	0,                       /* tp_itemsize */
 	NULL,                    /* tp_dealloc */
 	NULL,                    /* tp_print */
@@ -2568,7 +2568,7 @@ TransitPyTypeObject OctetsType = {{
 	octets_methods,          /* tp_methods */
 	NULL,                    /* tp_members */
 	NULL,                    /* tp_getset */
-	&TransitType.typ,        /* tp_base */
+	&ChannelType.typ,        /* tp_base */
 	NULL,                    /* tp_dict */
 	NULL,                    /* tp_descr_get */
 	NULL,                    /* tp_descr_set */
@@ -2580,7 +2580,7 @@ TransitPyTypeObject OctetsType = {{
 	&OctetsTIF
 };
 
-struct TransitInterface
+struct ChannelInterface
 SocketsTIF = {
 	{(io_op_t) port_input_sockets, NULL},
 	f_sockets, sizeof(int),
@@ -2589,13 +2589,13 @@ SocketsTIF = {
 static PyObj
 sockets_set_accept_filter(PyObj self, PyObj args)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 	char *filtername;
 
 	if (!PyArg_ParseTuple(args, "s", &filtername))
 		return(NULL);
 
-	if (Transit_PortLatched(t))
+	if (Channel_PortLatched(t))
 	{
 		#ifdef SO_ACCEPTFILTER
 		{
@@ -2609,7 +2609,7 @@ sockets_set_accept_filter(PyObj self, PyObj args)
 
 			bzero(&afa, sizeof(afa));
 			strcpy(afa.af_name, filtername);
-			setsockopt(Transit_GetKPoint(t), SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
+			setsockopt(Channel_GetKPoint(t), SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
 		}
 		#else
 			;/* XXX: warn about accept filter absence? */
@@ -2628,13 +2628,13 @@ allocate_array(PyObj subtype, PyObj args)
 static PyObj
 sockets_resize_exoresource(PyObj self, PyObj args)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 	int backlog;
 
 	if (!PyArg_ParseTuple(args, "i", &backlog))
 		return(NULL);
 
-	if (Transit_PortLatched(t))
+	if (Channel_PortLatched(t))
 	{
 		/*
 			# Failure to resize the listening queue is not necessarily
@@ -2642,7 +2642,7 @@ sockets_resize_exoresource(PyObj self, PyObj args)
 			# we are essentially checking that the socket *can* listen.
 		*/
 
-		port_listen(Transit_GetPort(t), backlog);
+		port_listen(Channel_GetPort(t), backlog);
 	}
 
 	Py_RETURN_NONE;
@@ -2707,10 +2707,10 @@ static PyMethodDef sockets_methods[] = {
 
 PyDoc_STRVAR(Sockets_doc, "transit transferring file descriptors accepted by accept(2)");
 
-TransitPyTypeObject SocketsType = {{
+ChannelPyTypeObject SocketsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Sockets"),  /* tp_name */
-	sizeof(struct Transit),  /* tp_basicsize */
+	sizeof(struct Channel),  /* tp_basicsize */
 	0,                       /* tp_itemsize */
 	NULL,                    /* tp_dealloc */
 	NULL,                    /* tp_print */
@@ -2738,7 +2738,7 @@ TransitPyTypeObject SocketsType = {{
 	sockets_methods,         /* tp_methods */
 	NULL,                    /* tp_members */
 	NULL,                    /* tp_getset */
-	&TransitType.typ,        /* tp_base */
+	&ChannelType.typ,        /* tp_base */
 	NULL,                    /* tp_dict */
 	NULL,                    /* tp_descr_get */
 	NULL,                    /* tp_descr_set */
@@ -2750,7 +2750,7 @@ TransitPyTypeObject SocketsType = {{
 	&SocketsTIF,
 };
 
-struct TransitInterface
+struct ChannelInterface
 PortsTIF = {
 	{(io_op_t) port_input_ports, (io_op_t) port_output_ports},
 	f_ports, sizeof(int),
@@ -2778,11 +2778,11 @@ ports_methods[] = {
 
 PyDoc_STRVAR(Ports_doc, "");
 
-TransitPyTypeObject
+ChannelPyTypeObject
 PortsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Ports"),    /* tp_name */
-	sizeof(struct Transit),  /* tp_basicsize */
+	sizeof(struct Channel),  /* tp_basicsize */
 	0,                       /* tp_itemsize */
 	NULL,                    /* tp_dealloc */
 	NULL,                    /* tp_print */
@@ -2810,7 +2810,7 @@ PortsType = {{
 	ports_methods,           /* tp_methods */
 	NULL,                    /* tp_members */
 	NULL,                    /* tp_getset */
-	&TransitType.typ,        /* tp_base */
+	&ChannelType.typ,        /* tp_base */
 	NULL,                    /* tp_dict */
 	NULL,                    /* tp_descr_get */
 	NULL,                    /* tp_descr_set */
@@ -3375,22 +3375,22 @@ datagrams_rallocate(PyObj self, PyObj args)
 static PyObj
 datagrams_transfer(PyObj self)
 {
-	Transit t = (Transit) self;
+	Channel t = (Channel) self;
 	DatagramArray resource;
 	uint32_t unit;
 	PyObj rob;
 	PyObj s;
 
-	if (!Transit_HasResource(t)
-		|| !Transit_HasEvent(t, tev_transfer))
+	if (!Channel_HasResource(t)
+		|| !Channel_HasEvent(t, tev_transfer))
 	{
 		Py_RETURN_NONE;
 	}
 
-	resource = (DatagramArray) Transit_GetResource(t);
+	resource = (DatagramArray) Channel_GetResource(t);
 	unit = DatagramCalculateUnit(resource->space, resource->addrlen);
 
-	s = _PySlice_FromIndices(Transit_GetWindowStart(t) / unit, Transit_GetWindowStop(t) / unit);
+	s = _PySlice_FromIndices(Channel_GetWindowStart(t) / unit, Channel_GetWindowStop(t) / unit);
 	if (s == NULL) return(NULL);
 
 	rob = PyObject_GetItem((PyObj) resource, s);
@@ -3417,7 +3417,7 @@ static PyMethodDef datagrams_methods[] = {
 	{NULL,},
 };
 
-struct TransitInterface
+struct ChannelInterface
 DatagramsTIF = {
 	{(io_op_t) port_input_datagrams, (io_op_t) port_output_datagrams},
 	f_datagrams, 1,
@@ -3430,7 +3430,7 @@ DatagramsTIF = {
 */
 
 PyDoc_STRVAR(datagrams_doc, "transit transferring DatagramArray's");
-TransitPyTypeObject DatagramsType = {{
+ChannelPyTypeObject DatagramsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Datagrams"),  /* tp_name */
 	sizeof(struct Datagrams),  /* tp_basicsize */
@@ -3461,7 +3461,7 @@ TransitPyTypeObject DatagramsType = {{
 	datagrams_methods,         /* tp_methods */
 	NULL,                      /* tp_members */
 	NULL,                      /* tp_getset */
-	&TransitType.typ,          /* tp_base */
+	&ChannelType.typ,          /* tp_base */
 	NULL,                      /* tp_dict */
 	NULL,                      /* tp_descr_get */
 	NULL,                      /* tp_descr_set */
@@ -3503,10 +3503,10 @@ junction_resize_exoresource(PyObj self, PyObj args)
 	if (new_area != NULL)
 	{
 		Junction_SetKEvents(J, new_area);
-		Transit_SetWindowStop(J, new_size);
+		Channel_SetWindowStop(J, new_size);
 	}
 
-	return(PyLong_FromUnsignedLong(Transit_GetWindowStop(J)));
+	return(PyLong_FromUnsignedLong(Channel_GetWindowStop(J)));
 }
 
 /*
@@ -3562,26 +3562,26 @@ static PyObj
 junction_acquire(PyObj self, PyObj ob)
 {
 	Junction J = (Junction) self;
-	Transit t = (Transit) ob;
+	Channel t = (Channel) ob;
 
-	if (!PyObject_IsInstance(ob, (PyObj) &TransitType))
+	if (!PyObject_IsInstance(ob, (PyObj) &ChannelType))
 	{
 		PyErr_SetString(PyExc_TypeError, "cannot attach objects that are not transits");
 		return(NULL);
 	}
 
-	if (Transit_Terminating(J))
+	if (Channel_Terminating(J))
 	{
 		/* Junction is Terminated */
-		PyErr_SetTransitTerminatedError(J);
+		PyErr_SetChannelTerminatedError(J);
 		return(NULL);
 	}
 
-	if (!Transit_Attached(t))
+	if (!Channel_Attached(t))
 	{
-		if (Transit_Terminated(t))
+		if (Channel_Terminated(t))
 		{
-			/* Given Transit is Terminated */
+			/* Given Channel is Terminated */
 			/*
 				# Terminating check performed after the NULL check because
 				# if the given transit is already acquired by the Junction,
@@ -3590,27 +3590,27 @@ junction_acquire(PyObj self, PyObj ob)
 				# Additionally, it's desired that ResourceError is consistently
 				# thrown in this case.
 			*/
-			PyErr_SetTransitTerminatedError(t);
+			PyErr_SetChannelTerminatedError(t);
 			return(NULL);
 		}
 
 		/* Control bit signals needs to connect. (kfilter) */
-		Transit_DControl(t, ctl_connect);
+		Channel_DControl(t, ctl_connect);
 
 		Py_INCREF(J); /* Newly acquired transit's reference to Junction.     */
-		Py_INCREF(t); /* Junction's reference to the newly acquired Transit. */
+		Py_INCREF(t); /* Junction's reference to the newly acquired Channel. */
 
-		Transit_SetJunction(t, J);
+		Channel_SetJunction(t, J);
 		TRANSIT_ATTACH(t);
 
-		Junction_IncrementTransitCount(J);
+		Junction_IncrementChannelCount(J);
 	}
 	else
 	{
-		if (Transit_GetJunction(t) != J)
+		if (Channel_GetJunction(t) != J)
 		{
-			/* Another Junction instance acquired the Transit */
-			PyErr_SetTransitResourceError(t);
+			/* Another Junction instance acquired the Channel */
+			PyErr_SetChannelResourceError(t);
 			return(NULL);
 		}
 
@@ -3625,7 +3625,7 @@ static void
 junction_init(Junction J)
 {
 	const struct timespec ts = {0,0};
-	Port p = Transit_GetPort(J);
+	Port p = Channel_GetPort(J);
 	int nkevents;
 	kevent_t kev;
 
@@ -3669,7 +3669,7 @@ junction_init(Junction J)
 static void
 junction_start_cycle(Junction J)
 {
-	Transit_SetNextTransfer(J, (Transit) J); /* Start with an Empty Transfer List */
+	Channel_SetNextTransfer(J, (Channel) J); /* Start with an Empty Transfer List */
 }
 
 static void
@@ -3677,7 +3677,7 @@ junction_finish_cycle(Junction J)
 {
 	/* Complete Junction termination? */
 
-	Transit_SetNextTransfer(J, NULL); /* NULL transfer list means the cycle is over. */
+	Channel_SetNextTransfer(J, NULL); /* NULL transfer list means the cycle is over. */
 	Junction_ResetTransferCount(J);
 }
 
@@ -3688,7 +3688,7 @@ static void
 junction_kevent_change(Junction J)
 {
 	const static struct timespec nowait = {0,0}; /* Never wait for change submission. */
-	Port port = Transit_GetPort(J);
+	Port port = Channel_GetPort(J);
 	int r = 0, nkevents = Junction_NChanges(J);
 	kevent_t *kevs = Junction_GetKEvents(J);
 
@@ -3713,7 +3713,7 @@ junction_kevent_change(Junction J)
 static void
 junction_kevent_collect(Junction J, int waiting)
 {
-	Port port = Transit_GetPort(J);
+	Port port = Channel_GetPort(J);
 	kevent_t *kevs = Junction_GetKEvents(J);
 	int nkevents = 0;
 
@@ -3731,9 +3731,9 @@ junction_kevent_collect(Junction J, int waiting)
 			{
 				struct Port wp;
 				wp.point = J->choice.junction.wfd;
-				port_epoll_wait(&wp, &nkevents, kevs, Transit_GetWindowStop(J), (waiting ? wait : nowait));
+				port_epoll_wait(&wp, &nkevents, kevs, Channel_GetWindowStop(J), (waiting ? wait : nowait));
 
-				if (nkevents < Transit_GetWindowStop(J))
+				if (nkevents < Channel_GetWindowStop(J))
 					J->choice.junction.haswrites = 0;
 				else
 					J->choice.junction.haswrites = 2;
@@ -3743,7 +3743,7 @@ junction_kevent_collect(Junction J, int waiting)
 			case 2:
 				J->choice.junction.haswrites = 1; /* alternates between reads and writes */
 			case 0:
-				port_epoll_wait(port, &nkevents, kevs, Transit_GetWindowStop(J), (waiting ? wait : nowait));
+				port_epoll_wait(port, &nkevents, kevs, Channel_GetWindowStop(J), (waiting ? wait : nowait));
 			break;
 		}
 	#else
@@ -3751,7 +3751,7 @@ junction_kevent_collect(Junction J, int waiting)
 		const static struct timespec waitfor = {9,0};
 
 		struct timespec *wait = (struct timespec *) (waiting ? &waitfor : &nowait);
-		port_kevent(port, 1, &nkevents, NULL, 0, kevs, Transit_GetWindowStop(J), wait);
+		port_kevent(port, 1, &nkevents, NULL, 0, kevs, Channel_GetWindowStop(J), wait);
 	#endif
 
 	Junction_SetNCollected(J, nkevents);
@@ -3761,27 +3761,27 @@ junction_kevent_collect(Junction J, int waiting)
 		for (int i = 0; i < nkevents; ++i)
 		{
 			pkevent(&(kevs[i]));
-			ptransit((Transit) kevs->udata);
+			ptransit((Channel) kevs->udata);
 		}
 	#endif
 }
 
 /**
-	# Note tev_join events on all Transits.
+	# Note tev_join events on all Channels.
 
 	# Run before junction_transfer_delta to have all
-	# Transit's corresponding kevent filter to be loaded.
+	# Channel's corresponding kevent filter to be loaded.
 */
 static void
 junction_reload(Junction J)
 {
-	Transit t = J->next;
+	Channel t = J->next;
 
 	/* MUST HAVE GIL */
 
-	while (t != (Transit) J)
+	while (t != (Channel) J)
 	{
-		Transit_DControl(t, ctl_connect);
+		Channel_DControl(t, ctl_connect);
 		t = t->next;
 	}
 }
@@ -3792,23 +3792,23 @@ junction_reload(Junction J)
 static void
 junction_transfer_delta(Junction J)
 {
-	Transit t;
+	Channel t;
 
 	/* MUST HAVE GIL */
 
 	/*
 		# Scans the ring behind the Junction.
-		# Process Events are queued up by moving the Transit behind the Junction after
+		# Process Events are queued up by moving the Channel behind the Junction after
 		# applying flags to transit->delta.
 	*/
-	for (t = J->prev; Transit_GetDelta(t) != 0; t = t->prev)
+	for (t = J->prev; Channel_GetDelta(t) != 0; t = t->prev)
 	{
 		/*
 			# prepend to the lltransfer list.
 			# The first 't' was the last enqueued.
 		*/
-		Transit_StateMerge(t, Transit_GetDelta(t)); /* Record the internal event quals. */
-		Transit_ClearDelta(t); /* for subsequent use; after gil gets released */
+		Channel_StateMerge(t, Channel_GetDelta(t)); /* Record the internal event quals. */
+		Channel_ClearDelta(t); /* for subsequent use; after gil gets released */
 
 		/*
 			# Add to event list.
@@ -3827,7 +3827,7 @@ junction_current_kevent_slot(Junction J)
 		junction_kevent_change(J);
 	}
 
-	return(Junction_GetKEventSlot(J, Transit_GetWindowStart(J)));
+	return(Junction_GetKEventSlot(J, Channel_GetWindowStart(J)));
 }
 
 /**
@@ -3836,39 +3836,39 @@ junction_current_kevent_slot(Junction J)
 static void
 junction_apply_delta(Junction J)
 {
-	Transit prev, t;
+	Channel prev, t;
 
 	/* NO GIL */
 
-	prev = (Transit) J;
+	prev = (Channel) J;
 
 	/* Reset kev state for slot acquisition. */
 	Junction_ResetWindow(J);
 
 	/*
 		# Iterate through the transfer list in order to make any necessary
-		# changes to the Transit's kfilter.
+		# changes to the Channel's kfilter.
 
 		# There is a need to keep track of the previous item on the list in case we need to
-		# evict the Transit from our event list.
+		# evict the Channel from our event list.
 	*/
 
-	for (t = Transit_GetNextTransfer(J); t != (Transit) J; t = Transit_GetNextTransfer(prev))
+	for (t = Channel_GetNextTransfer(J); t != (Channel) J; t = Channel_GetNextTransfer(prev))
 	{
-		if (Transit_ShouldXConnect(t))
+		if (Channel_ShouldXConnect(t))
 		{
 			/*
 				# iff xterminate hasn't occurred.
 				# Happens with transits that are terminated at creation due to syscall failure.
 			*/
-			if (Transit_PortError(t) || !Transit_PortLatched(t))
+			if (Channel_PortError(t) || !Channel_PortLatched(t))
 			{
 				/*
 					# Inherit error or ignore connect if unlatched.
 				*/
-				Transit_XQualify(t, teq_terminate);
+				Channel_XQualify(t, teq_terminate);
 			}
-			else if (!Transit_GetControl(t, ctl_requeue))
+			else if (!Channel_GetControl(t, ctl_requeue))
 			{
 				/*
 					# Only connect if our port is latched
@@ -3878,28 +3878,28 @@ junction_apply_delta(Junction J)
 				Junction_ConsumeKEventSlot(J);
 			}
 
-			Transit_NulControl(t, ctl_connect);
+			Channel_NulControl(t, ctl_connect);
 		}
 
-		if (Transit_GetControl(t, ctl_force))
+		if (Channel_GetControl(t, ctl_force))
 		{
 			/*
 				# Remove the flag.
 			*/
-			Transit_NulControl(t, ctl_force);
+			Channel_NulControl(t, ctl_force);
 
 			/*
 				# It's a lie. The buffer will be zero, but the transfer
 				# attempt will still occur likely resulting in zero read.
 			*/
-			Transit_XQualify(t, teq_transfer);
+			Channel_XQualify(t, teq_transfer);
 		}
 
 		/*
-			# Determine whether or not the Transit should be processed due to
+			# Determine whether or not the Channel should be processed due to
 			# the state change performed by the process.
 		*/
-		if (Transit_EventState(t))
+		if (Channel_EventState(t))
 		{
 			/*
 				# There is no check for "should exhaust" as exhaustion only
@@ -3919,8 +3919,8 @@ junction_apply_delta(Junction J)
 				# Afterwards, this Tranit's next pointer to NULL to signal that
 				# it is not participating in a Transfer.
 			*/
-			Transit_SetNextTransfer(prev, Transit_GetNextTransfer(t));
-			Transit_SetNextTransfer(t, NULL);
+			Channel_SetNextTransfer(prev, Channel_GetNextTransfer(t));
+			Channel_SetNextTransfer(t, NULL);
 		}
 	}
 
@@ -3932,25 +3932,25 @@ junction_apply_delta(Junction J)
 
 #ifdef EVMECH_EPOLL
 /**
-	# Transform the collected events into local Transit state.
+	# Transform the collected events into local Channel state.
 	# Place actionable events onto their respective transfer list.
 */
 static void
 junction_kevent_transform(Junction J)
 {
-	Transit t;
+	Channel t;
 	Port p;
 	kevent_t *kev, *kevs = Junction_GetKEvents(J);
 	uint32_t i, nkevents = Junction_NCollected(J);
 
 	/*
 		# Iterate over the collected events and
-		# transform the kevent state data into Transit state.
+		# transform the kevent state data into Channel state.
 	*/
 	for (i = 0; i < nkevents; ++i)
 	{
 		kev = &(kevs[i]);
-		t = (Transit) kev->data.ptr;
+		t = (Channel) kev->data.ptr;
 
 		/*
 			# The eventfd to trip epoll_wait()
@@ -3969,14 +3969,14 @@ junction_kevent_transform(Junction J)
 			J->choice.junction.haswrites = 1;
 		}
 
-		p = Transit_GetPort(t);
+		p = Channel_GetPort(t);
 
 		if (kev->events & EPOLLIN
 			|| kev->events & EPOLLOUT)
 		{
-			Transit_XQualify(t, teq_transfer);
+			Channel_XQualify(t, teq_transfer);
 
-			if (Transit_IQualified(t, teq_transfer))
+			if (Channel_IQualified(t, teq_transfer))
 				Junction_AddTransfer(J, t);
 		}
 
@@ -3984,7 +3984,7 @@ junction_kevent_transform(Junction J)
 			|| kev->events & EPOLLERR
 			|| kev->events & EPOLLHUP)
 		{
-			Transit_XQualify(t, teq_terminate);
+			Channel_XQualify(t, teq_terminate);
 			Junction_AddTransfer(J, t);
 		}
 	}
@@ -3993,35 +3993,35 @@ junction_kevent_transform(Junction J)
 #else
 
 /**
-	# Transform the collected events into local Transit state.
+	# Transform the collected events into local Channel state.
 	# Place actionable events onto their respective transfer list.
 */
 static void
 junction_kevent_transform(Junction J)
 {
-	Transit t;
+	Channel t;
 	Port p;
 	kevent_t *kev, *kevs = Junction_GetKEvents(J);
 	uint32_t i, nkevents = Junction_NCollected(J);
 
 	/*
 		# Iterate over the collected events and
-		# transform the kevent state data into Transit state.
+		# transform the kevent state data into Channel state.
 	*/
 	for (i = 0; i < nkevents; ++i)
 	{
 		kev = &(kevs[i]);
-		t = (Transit) kev->udata;
+		t = (Channel) kev->udata;
 
 		/*
 			# (EVFILT_USER) user signaled for kevent exit?
 		*/
-		if (t == (Transit) J)
+		if (t == (Channel) J)
 		{
 			continue;
 		}
 
-		p = Transit_GetPort(t);
+		p = Channel_GetPort(t);
 
 		if (kev->filter == EVFILT_WRITE && kev->flags & EV_EOF)
 		{
@@ -4030,7 +4030,7 @@ junction_kevent_transform(Junction J)
 				# io_terminate will handle termination on Input transits
 				# in order to make sure that all data has been transferred into the process.
 			*/
-			Transit_XQualify(t, teq_terminate);
+			Channel_XQualify(t, teq_terminate);
 			Port_SetError(p, kev->fflags, kc_eof);
 
 			/*
@@ -4046,12 +4046,12 @@ junction_kevent_transform(Junction J)
 			*/
 
 			/* Zero read triggers termination, writes are terminated by [local] host. */
-			Transit_XQualify(t, teq_transfer);
+			Channel_XQualify(t, teq_transfer);
 
 			/*
 				# Kernel can transfer, if the transit can too, then queue it up.
 			*/
-			if (Transit_IQualified(t, teq_transfer))
+			if (Channel_IQualified(t, teq_transfer))
 				Junction_AddTransfer(J, t);
 		}
 	}
@@ -4082,7 +4082,7 @@ junction_fall(Junction J, int force)
 		kev.data = 0;
 		kev.flags = EV_RECEIPT;
 
-		if (port_kevent(Transit_GetPort(J), 1, &out, &kev, 1, NULL, 0, &ts))
+		if (port_kevent(Channel_GetPort(J), 1, &out, &kev, 1, NULL, 0, &ts))
 		{
 			return(-1);
 		}
@@ -4098,7 +4098,7 @@ junction_force(PyObj self)
 	PyObj rob;
 	Junction J = (Junction) self;
 
-	if (Transit_Terminating(J))
+	if (Channel_Terminating(J))
 		Py_RETURN_NONE;
 
 	rob = junction_fall(J, 1) == 0 ? Py_False : Py_True;
@@ -4107,13 +4107,13 @@ junction_force(PyObj self)
 }
 
 static void
-_junction_terminate(Transit J)
+_junction_terminate(Channel J)
 {
-	Transit t;
-	Transit_IQualify(J, teq_terminate);
+	Channel t;
+	Channel_IQualify(J, teq_terminate);
 
 	/*
-		# Terminate all the Transits in the Junction's ring.
+		# Terminate all the Channels in the Junction's ring.
 	*/
 	for (t = J->next; t != J; t = t->next)
 	{
@@ -4121,10 +4121,10 @@ _junction_terminate(Transit J)
 			# Enqueue is necessary here because ALL transits will
 			# have a terminate action.
 		*/
-		Transit_DQualify(t, teq_terminate);
+		Channel_DQualify(t, teq_terminate);
 	}
 
-	port_unlatch(Transit_GetPort(J), 0);
+	port_unlatch(Channel_GetPort(J), 0);
 
 	#ifdef EVMECH_EPOLL
 	{
@@ -4142,21 +4142,21 @@ _junction_terminate(Transit J)
 static void
 _junction_flow(Junction J)
 {
-	Transit t;
+	Channel t;
 
 	junction_start_cycle(J);
 
 	/*
 		# Check for Junction termination.
 	*/
-	if (Transit_Terminating(J))
+	if (Channel_Terminating(J))
 	{
 		/*
 			# terminate all transits
 		*/
-		_junction_terminate((Transit) J);
+		_junction_terminate((Channel) J);
 	}
-	else if (!Transit_PortLatched(J))
+	else if (!Channel_PortLatched(J))
 	{
 		/*
 			# kqueue file descriptor went bad.
@@ -4165,7 +4165,7 @@ _junction_flow(Junction J)
 		junction_init(J);
 		junction_reload(J);
 	}
-	Transit_ClearDelta(J);
+	Channel_ClearDelta(J);
 
 	/*
 		# Enqueue changed transits to lltransfer.
@@ -4186,20 +4186,20 @@ _junction_flow(Junction J)
 
 	/*
 		# The GIL is no longer necessary, and concurrent
-		# code can send signals to Transits as desired.
+		# code can send signals to Channels as desired.
 	*/
 
 	Py_BEGIN_ALLOW_THREADS
 
 	/*
-		# The ring portion of the Transit objects are managed with the GIL.
+		# The ring portion of the Channel objects are managed with the GIL.
 		# t->next/t->prev CAN BE USED BY OTHER THREADS. DO NOT USE WITHOUT GIL.
 	*/
 
 	junction_apply_delta(J);
 
 	/* don't bother collecting/transforming if terminating */
-	if (!Transit_Terminating(J))
+	if (!Channel_Terminating(J))
 	{
 		unsigned int countdown = 3;
 
@@ -4242,9 +4242,9 @@ _junction_flow(Junction J)
 		# Iterate over all the transits in the transfer list and process their events.
 		# Sort the list into the I/O list.
 	*/
-	for (t = Transit_GetNextTransfer(J); t != (Transit) J; t = Transit_GetNextTransfer(t))
+	for (t = Channel_GetNextTransfer(J); t != (Channel) J; t = Channel_GetNextTransfer(t))
 	{
-		int polarity = !Transit_GetControl(t, ctl_polarity);
+		int polarity = !Channel_GetControl(t, ctl_polarity);
 
 		#if F_TRACE(transfers)
 			ptransit(t);
@@ -4252,18 +4252,18 @@ _junction_flow(Junction J)
 
 		Junction_IncrementTransferCount(J);
 
-		if (Transit_ShouldTerminate(t))
+		if (Channel_ShouldTerminate(t))
 		{
 			/*
 				# Disconnect from the kevent stream iff requeue is not configured.
 			*/
-			if (!Transit_GetControl(t, ctl_requeue))
+			if (!Channel_GetControl(t, ctl_requeue))
 			{
 				kfilter_cancel(t, junction_current_kevent_slot(J));
 				Junction_ConsumeKEventSlot(J);
 			}
 
-			Transit_NoteEvent(t, tev_terminate);
+			Channel_NoteEvent(t, tev_terminate);
 
 			/*
 				# _flush will perform resource releases (close and ReleaseResource)
@@ -4273,26 +4273,26 @@ _junction_flow(Junction J)
 				# 2. GIL is needed to release local resources.
 			*/
 		}
-		else if (Transit_ShouldTransfer(t))
+		else if (Channel_ShouldTransfer(t))
 		{
 			/*
 				# Transfers are preempted by termination.
 			*/
 			io_status_t stat;
 			uint32_t xfer = 0;
-			Port p = Transit_GetPort(t);
-			char *buf = Transit_GetResourceBuffer(t);
+			Port p = Channel_GetPort(t);
+			char *buf = Channel_GetResourceBuffer(t);
 
 			/*
 				# The max transfer window spans from the end of the current window
 				# to the end of the resource. The stop is adjusted after the operation
 				# cannot transfer anymore.
 			*/
-			uint32_t rsize = Transit_GetResourceSize(t);
-			uint32_t pos = Transit_GetWindowStop(t);
+			uint32_t rsize = Channel_GetResourceSize(t);
+			uint32_t pos = Channel_GetWindowStop(t);
 			uint32_t request = rsize - pos;
 
-			Transit_NoteEvent(t, tev_transfer);
+			Channel_NoteEvent(t, tev_transfer);
 
 			/*
 				# Adjust by the transit's window.
@@ -4300,10 +4300,10 @@ _junction_flow(Junction J)
 			buf += (intptr_t) pos;
 
 			/*
-				# Acquire the IO operation from the TransitType
+				# Acquire the IO operation from the ChannelType
 				# using the polarity to select the proper function pointer.
 			*/
-			io_op_t io = Transit_GetInterface(t)->io[polarity];
+			io_op_t io = Channel_GetInterface(t)->io[polarity];
 
 			#if F_TRACE(transfers)
 				#define trace(...) errpf(__VA_ARGS__)
@@ -4314,11 +4314,11 @@ _junction_flow(Junction J)
 			#endif
 
 			stat = io(p, &xfer, buf, request);
-			Transit_ExpandWindow(t, xfer);
-			if (Transit_GetWindowStop(t) > rsize)
+			Channel_ExpandWindow(t, xfer);
+			if (Channel_GetWindowStop(t) > rsize)
 				fprintf(stderr, "\nwindow stop exceeded resource\n");
 
-			trace("XFER: %u %s\n", xfer, Transit_Sends(t) ? "OUT" : "IN");
+			trace("XFER: %u %s\n", xfer, Channel_Sends(t) ? "OUT" : "IN");
 			switch (stat)
 			{
 				/*
@@ -4327,9 +4327,9 @@ _junction_flow(Junction J)
 				case io_flow:
 					/*
 						# Buffer exhausted and EAGAIN *not* triggered
-						# Transit_XQualified(t, teq_transfer) == True
+						# Channel_XQualified(t, teq_transfer) == True
 					*/
-					Transit_INQualify(t, teq_transfer);
+					Channel_INQualify(t, teq_transfer);
 					trace(" FLOWS\n");
 				break;
 
@@ -4337,7 +4337,7 @@ _junction_flow(Junction J)
 					/*
 						# EAGAIN; wait for kernel event for continuation.
 					*/
-					Transit_XNQualify(t, teq_transfer);
+					Channel_XNQualify(t, teq_transfer);
 					trace(" WOULDBLOCK\n");
 				break;
 
@@ -4346,10 +4346,10 @@ _junction_flow(Junction J)
 						# EOF condition or error returned.
 						# It is possible that this has a transfer.
 					*/
-					Transit_XQualify(t, teq_terminate);
-					Transit_NoteEvent(t, tev_terminate);
+					Channel_XQualify(t, teq_terminate);
+					Channel_NoteEvent(t, tev_terminate);
 
-					if (!Transit_GetControl(t, ctl_requeue))
+					if (!Channel_GetControl(t, ctl_requeue))
 					{
 						kfilter_cancel(t, junction_current_kevent_slot(J));
 						Junction_ConsumeKEventSlot(J);
@@ -4379,13 +4379,13 @@ _junction_flow(Junction J)
 	/*
 		# Perform any disconnects queued up in the loop.
 	*/
-	if (!Transit_Terminating(J))
+	if (!Channel_Terminating(J))
 		junction_kevent_change(J);
 
 	Py_END_ALLOW_THREADS
 }
 
-struct TransitInterface
+struct ChannelInterface
 JunctionTIF = {
 	{NULL, NULL},
 	f_transits, 1,
@@ -4400,7 +4400,7 @@ junction_transfer(PyObj self)
 	Junction J = (Junction) self;
 	PyObj rob;
 
-	if (!Transit_InCycle(J))
+	if (!Channel_InCycle(J))
 		rob = PyTuple_New(0);
 	else
 		rob = new_jxi(J, 0);
@@ -4413,7 +4413,7 @@ junction_sizeof_transfer(PyObj self)
 {
 	Junction J = (Junction) self;
 
-	if (!Transit_InCycle(J))
+	if (!Channel_InCycle(J))
 		return(PyLong_FromLong(0));
 
 	return(PyLong_FromUnsignedLong(Junction_GetTransferCount(J)));
@@ -4422,27 +4422,27 @@ junction_sizeof_transfer(PyObj self)
 static void
 _junction_flush(Junction J)
 {
-	Transit t, next;
+	Channel t, next;
 
 	/* REQUIRES GIL */
 
-	t = Transit_GetNextTransfer(J);
-	while (t != (Transit) J)
+	t = Channel_GetNextTransfer(J);
+	while (t != (Channel) J)
 	{
-		next = Transit_GetNextTransfer(t);
-		Transit_SetNextTransfer(t, NULL);
+		next = Channel_GetNextTransfer(t);
+		Channel_SetNextTransfer(t, NULL);
 
 		/*
 			# Unconditionally collapse the window here.
-			# We have the GIL so no concurrent Transit.acquire() calls are in progress.
+			# We have the GIL so no concurrent Channel.acquire() calls are in progress.
 			# If the user acquired the resource during the cycle, collapse will merely
 			# set the stop to zero.
 
 			# In cases where no transfer occurred, it's a no-op.
 		*/
-		Transit_CollapseWindow(t);
+		Channel_CollapseWindow(t);
 
-		if (Transit_HasEvent(t, tev_terminate))
+		if (Channel_HasEvent(t, tev_terminate))
 		{
 			/*
 				# Release any resources owned by the transit.
@@ -4450,12 +4450,12 @@ _junction_flush(Junction J)
 				# In the case where the resource was acquired in the cycle,
 				# we're not doing anything with the resource anyways, so get rid of it.
 			*/
-			Transit_ReleaseResource(t);
-			Transit_ReleaseLink(t);
-			port_unlatch(Transit_GetPort(t), Transit_Polarity(t));
+			Channel_ReleaseResource(t);
+			Channel_ReleaseLink(t);
+			port_unlatch(Channel_GetPort(t), Channel_Polarity(t));
 
 			TRANSIT_DETACH(t);
-			Junction_DecrementTransitCount(J);
+			Junction_DecrementChannelCount(J);
 
 			/*
 				# Emitted termination? Release traffic's reference to the transit.
@@ -4468,8 +4468,8 @@ _junction_flush(Junction J)
 				# If the delta qualification exists, the user transit.acquire()'d during
 				# the cycle, so don't release the new resource.
 			*/
-			int exhausted = !Transit_DQualified(t, teq_transfer)
-				&& !Transit_IQualified(t, teq_transfer);
+			int exhausted = !Channel_DQualified(t, teq_transfer)
+				&& !Channel_IQualified(t, teq_transfer);
 
 			if (exhausted)
 			{
@@ -4480,14 +4480,14 @@ _junction_flush(Junction J)
 					# The user has the option to acquire() a new buffer within and
 					# after a cycle.
 				*/
-				Transit_ReleaseResource(t);
+				Channel_ReleaseResource(t);
 			}
 		}
 
 		/*
 			# Cycle is over. Clear events.
 		*/
-		Transit_ClearEvents(t);
+		Channel_ClearEvents(t);
 
 		t = next;
 	}
@@ -4502,21 +4502,21 @@ static PyObj
 junction_void(PyObj self)
 {
 	Junction J = (Junction) self;
-	Transit t;
+	Channel t;
 
 	/* GIL Required */
 
 	if (Junction_Cycling(J))
 		junction_finish_cycle(J);
 
-	for (t = J->next; t != (Transit) J; t = t->next)
+	for (t = J->next; t != (Channel) J; t = t->next)
 	{
-		Port p = Transit_GetPort(t);
+		Port p = Channel_GetPort(t);
 		/*
 			# Clear any transfer state.
 		*/
-		Transit_IQualify(t, teq_terminate);
-		Transit_SetNextTransfer(t, NULL);
+		Channel_IQualify(t, teq_terminate);
+		Channel_SetNextTransfer(t, NULL);
 		port_unlatch(p, 0);
 		p->cause = kc_void;
 
@@ -4530,11 +4530,11 @@ junction_void(PyObj self)
 	}
 	t->next = NULL;
 
-	J->next = (Transit) J;
-	J->prev = (Transit) J;
+	J->next = (Channel) J;
+	J->prev = (Channel) J;
 	Junction_ResetTransferCount(J);
-	Junction_ResetTransitCount(J);
-	port_unlatch(Transit_GetPort(J), 0);
+	Junction_ResetChannelCount(J);
+	port_unlatch(Channel_GetPort(J), 0);
 
 	#ifdef EVMECH_EPOLL
 		close(J->choice.junction.efd);
@@ -4552,13 +4552,13 @@ junction_enter(PyObj self)
 {
 	Junction J = (Junction) self;
 
-	if (Transit_Terminating(J) && !Transit_PortLatched(J))
+	if (Channel_Terminating(J) && !Channel_PortLatched(J))
 	{
-		PyErr_SetTransitTerminatedError(J);
+		PyErr_SetChannelTerminatedError(J);
 		return(NULL);
 	}
 
-	if (Transit_InCycle(J))
+	if (Channel_InCycle(J))
 	{
 		PyErr_SetString(PyExc_RuntimeError,
 			"cycle must be completed before starting another");
@@ -4579,7 +4579,7 @@ junction_exit(PyObj self, PyObj args)
 {
 	Junction J = (Junction) self;
 
-	if (Transit_InCycle(J))
+	if (Channel_InCycle(J))
 		_junction_flush(J);
 
 	Py_RETURN_NONE;
@@ -4606,11 +4606,11 @@ junction_methods[] = {
 	{"rallocate",
 		(PyCFunction) junction_rallocate, METH_VARARGS|METH_CLASS,
 		PyDoc_STR(
-			"Returns a Transit or a sequence of Transits constructed from the request.\n"
+			"Returns a Channel or a sequence of Channels constructed from the request.\n"
 
 			"[ Parameters ]\n"
 			"/(&tuple)`request`/\n"
-			"\tThe address and parameters to the Transit allocator.\n"
+			"\tThe address and parameters to the Channel allocator.\n"
 		)
 	},
 
@@ -4624,11 +4624,11 @@ junction_methods[] = {
 	{"acquire",
 		(PyCFunction) junction_acquire, METH_O,
 		PyDoc_STR(
-			"Acquires the Transit so that it may participate in &Junction cycles.\n"
+			"Acquires the Channel so that it may participate in &Junction cycles.\n"
 
 			"[Parameters]\n"
 			"/transit/\n"
-			"\tThe &Transit that will be managed by this Junction.\n"
+			"\tThe &Channel that will be managed by this Junction.\n"
 		)
 	},
 
@@ -4666,7 +4666,7 @@ junction_methods[] = {
 			"! NOTE:\n"
 			"\tCurrently unavailable.\n\n"
 			"\n"
-			"Returns the number of Transits with events this cycle.\n"
+			"Returns the number of Channels with events this cycle.\n"
 		)
 	},
 
@@ -4695,14 +4695,14 @@ junction_get_resource(PyObj self, void *_)
 	PyObj l;
 	Py_ssize_t i = 0;
 	Junction J = (Junction) self;
-	Transit t = J->next;
+	Channel t = J->next;
 
 	/*
 		# Requires GIL.
 	*/
 
-	l = PyList_New(Junction_GetTransitCount(J));
-	while (t != (Transit) J)
+	l = PyList_New(Junction_GetChannelCount(J));
+	while (t != (Channel) J)
 	{
 		PyObj ob = (PyObj) t;
 
@@ -4718,7 +4718,7 @@ junction_get_resource(PyObj self, void *_)
 
 static PyGetSetDef junction_getset[] = {
 	{"resource", junction_get_resource, NULL,
-		PyDoc_STR("A &list of all Transits attached to this Junction instance, save the Junction instance.")
+		PyDoc_STR("A &list of all Channels attached to this Junction instance, save the Junction instance.")
 	},
 	{NULL,},
 };
@@ -4747,21 +4747,21 @@ junction_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	p->type = kt_kqueue;
 	p->freight = Type_GetInterface(subtype)->ti_freight;
 
-	Transit_SetJunction(J, J);
-	Transit_XQualify(J, teq_transfer);
-	Transit_SetControl(J, ctl_polarity);
+	Channel_SetJunction(J, J);
+	Channel_XQualify(J, teq_transfer);
+	Channel_SetControl(J, ctl_polarity);
 
-	Junction_ResetTransitCount(J);
+	Junction_ResetChannelCount(J);
 	Junction_ResetTransferCount(J);
 
 	/*
 		# For Junctions, the Window's Stop is the size of malloc / sizeof(struct kevent)
 	*/
-	Transit_SetWindow(J, 0, CONFIG_DEFAULT_JUNCTION_SIZE);
-	Junction_SetKEvents(J, PyMem_Malloc(sizeof(kevent_t) * Transit_GetWindowStop(J)));
+	Channel_SetWindow(J, 0, CONFIG_DEFAULT_JUNCTION_SIZE);
+	Junction_SetKEvents(J, PyMem_Malloc(sizeof(kevent_t) * Channel_GetWindowStop(J)));
 
-	J->next = (Transit) J;
-	J->prev = (Transit) J;
+	J->next = (Channel) J;
+	J->prev = (Channel) J;
 
 	junction_init(J);
 
@@ -4771,7 +4771,7 @@ junction_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 PyDoc_STRVAR(Junction_doc,
 "The Junction implementation, &.abstract.Junction, for performing I/O with the kernel.");
 
-TransitPyTypeObject
+ChannelPyTypeObject
 JunctionType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Junction"),  /* tp_name */
@@ -4803,7 +4803,7 @@ JunctionType = {{
 	junction_methods,         /* tp_methods */
 	junction_members,         /* tp_members */
 	junction_getset,          /* tp_getset */
-	&TransitType.typ,         /* tp_base */
+	&ChannelType.typ,         /* tp_base */
 	NULL,                     /* tp_dict */
 	NULL,                     /* tp_descr_get */
 	NULL,                     /* tp_descr_set */
@@ -4997,8 +4997,8 @@ _init_intarray(void)
 #define ports_init_octets_file(f, P, x) do { \
 	ports_open(P[0], x.fa_path, f); \
 	if (P[0]->type == kt_file || P[0]->type == kt_device) { \
-		Transit_XQualify(((Transit) rob), teq_transfer); \
-		Transit_SetControl(((Transit) rob), ctl_requeue); \
+		Channel_XQualify(((Channel) rob), teq_transfer); \
+		Channel_SetControl(((Channel) rob), ctl_requeue); \
 	} \
 } while(0)
 
@@ -5263,7 +5263,7 @@ INIT(PyDoc_STR("Kernel based Traffic implementation.\n"))
 		goto error;
 
 	/*
-		# Initialize Transit types.
+		# Initialize Channel types.
 	*/
 	#define ID(NAME, IGNORED) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
@@ -5286,14 +5286,14 @@ INIT(PyDoc_STR("Kernel based Traffic implementation.\n"))
 		# Setup exception instances.
 	*/
 	{
-		PyExc_TransitionViolation = PyErr_NewException(PYTHON_MODULE_PATH("TransitionViolation"), NULL, NULL);
-		if (PyExc_TransitionViolation == NULL)
+		PyExc_ChannelionViolation = PyErr_NewException(PYTHON_MODULE_PATH("ChannelionViolation"), NULL, NULL);
+		if (PyExc_ChannelionViolation == NULL)
 			goto error;
 
-		if (PyModule_AddObject(mod, "TransitionViolation", PyExc_TransitionViolation) < 0)
+		if (PyModule_AddObject(mod, "ChannelionViolation", PyExc_ChannelionViolation) < 0)
 		{
-			Py_DECREF(PyExc_TransitionViolation);
-			PyExc_TransitionViolation = NULL;
+			Py_DECREF(PyExc_ChannelionViolation);
+			PyExc_ChannelionViolation = NULL;
 			goto error;
 		}
 	}

@@ -1,5 +1,5 @@
 """
-# Referring to the Transit, traffic.kernel.Ports.
+# Referring to the Channel, traffic.kernel.Ports.
 
 # Test the Transfer of Ports, file descriptors.
 """

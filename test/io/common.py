@@ -17,12 +17,10 @@ class Delta(tuple):
 
 	@property
 	def transit(self):
-		"The :py:class:`.abstract.Transit` instance."
 		return self[0]
 
 	@property
 	def demand(self):
-		"The Transit's acquire method or :py:obj:`None` if the Transit doesn't need another resource"
 		return self[-1]
 
 	@property
@@ -158,7 +156,7 @@ class JunctionActionManager(object):
 
 class Events(object):
 	"""
-	# For cases involving single Transits.
+	# For cases involving single Channels.
 
 	# No autoread setup.
 	"""
