@@ -64,7 +64,7 @@ def test_Import_tree(test):
 	pkgs, mods = map(set, project.tree())
 
 	test/((project/'test') in pkgs) == True
-	test/((project/'library') in mods) == True
+	test/((project/'execution') in mods) == True
 
 def test_Import_get_last_modified(test):
 	# This is essentally the implementation; the method is mere convenience.
