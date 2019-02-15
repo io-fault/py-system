@@ -1,23 +1,23 @@
-#ifndef _TRAFFIC_PORT_H_included_
-#define _TRAFFIC_PORT_H_included_
+#ifndef _SYSTEM_IO_PORT_H_included_
+#define _SYSTEM_IO_PORT_H_included_
 
 /**
-	Type used to represent file descriptors.
+	# Type used to represent file descriptors.
 */
 typedef int kpoint_t;
 
 /**
-	Type used to represent recoreded errno's.
+	# Type used to represent recoreded errno's.
 */
 typedef int kerror_t;
 
 /**
-	Datatype for representing
+	# Datatype for representing
 */
 typedef uint8_t kcall_t; /* the contrived kcall type */
 
 /**
-	Preprocessor macro listing of syscalls used.
+	# Preprocessor macro listing of syscalls used.
 */
 #define KCALLS() \
 	KC(pyalloc) KC(none) \
@@ -52,7 +52,7 @@ typedef uint8_t kcall_t; /* the contrived kcall type */
 	KC(INVALID)
 
 /**
-	Enum for &kcall_t.
+	# Enum for &kcall_t.
 */
 enum kcall {
 	#define KC(x) kc_##x ,
@@ -60,18 +60,18 @@ enum kcall {
 	#undef KC
 };
 
-/*
- * Beware. Abstractions for the socket interfaces ahead.
- *
- * There were too many hand written case statements in this code, so here's a ton
- * of macros helping to abstract the socket interfaces so we can write horribly confusing
- * template macros that will cause rage at the author of this source.
- *
- * AF_LOCAL:
- * We generalize local addressing by declaring the socket file directory as the interface
- * and the file name as the port. This allows us to handle local addresses in a way that
- * is reasonably consistent with internet addresses.
- */
+/**
+	# Beware. Abstractions for the socket interfaces ahead.
+
+	# There were too many hand written case statements in this code, so here's a ton
+	# of macros helping to abstract the socket interfaces so we can write horribly confusing
+	# template macros that will cause rage at the author of this source.
+
+	# AF_LOCAL:
+	# We generalize local addressing by declaring the socket file directory as the interface
+	# and the file name as the port. This allows us to handle local addresses in a way that
+	# is reasonably consistent with internet addresses.
+*/
 typedef struct sockaddr_storage any_addr_t;
 typedef struct sockaddr if_addr_t;
 typedef struct sockaddr * if_addr_ref_t;
@@ -105,11 +105,11 @@ typedef struct sockaddr * if_addr_ref_t;
 	#define SETADDRLEN(TARGET, VALUE) TARGET = VALUE
 #endif
 
-/*
- * These are the same on OS X and probably other platforms.
- * Traffic treats them the same, so be sure to handle platforms
- * that have distinct values for EAGAIN/EWOULDBLOCK.
- */
+/**
+	# These are the same on OS X and probably other platforms.
+	# Traffic treats them the same, so be sure to handle platforms
+	# that have distinct values for EAGAIN/EWOULDBLOCK.
+*/
 #ifdef EWOULDBLOCK
 	#if EAGAIN == EWOULDBLOCK
 		#define AGAIN EAGAIN
@@ -158,7 +158,7 @@ typedef struct sockaddr * if_addr_ref_t;
 #define SIGNED_MIN(T) (const signed T) ~(SIGNED_MAX(T))
 
 /**
-	Freight types conveyed by a Channel.
+	# Freight types conveyed by a Channel.
 */
 typedef enum freight {
 	f_void = 0,   /* 'v' */
@@ -171,8 +171,8 @@ typedef enum freight {
 } freight_t;
 
 /**
-	local identifiers for the particular types of file descriptors.
-	Primarily used in cases where the channel supports multiple kinds.
+	# local identifiers for the particular types of file descriptors.
+	# Primarily used in cases where the channel supports multiple kinds.
 */
 typedef enum ktype {
 	kt_unknown = 0,
@@ -187,7 +187,7 @@ typedef enum ktype {
 } ktype_t;
 
 /**
-	Channel status codes used to signal the reaction to the success or failure of a system call.
+	# Channel status codes used to signal the reaction to the success or failure of a system call.
 */
 typedef enum io_status {
 	io_stop,
@@ -196,12 +196,12 @@ typedef enum io_status {
 } io_status_t;
 
 /**
-	Kernel Port (file descriptor) structure representation.
+	# Kernel Port (file descriptor) structure representation.
 
-	This structure exists because of sockets.
-	It was the best way to allow the Channels to synchronize their release
-	of the file descriptor resource. Arguably, a bitmap could be used as well,
-	but this easier and provides utility beyond that necessity. (port specific introspection)
+	# This structure exists because of sockets.
+	# It was the best way to allow the Channels to synchronize their release
+	# of the file descriptor resource. Arguably, a bitmap could be used as well,
+	# but this easier and provides utility beyond that necessity. (port specific introspection)
 */
 struct Port {
 	OBJSYS_HEAD()
@@ -220,18 +220,18 @@ struct Port {
 typedef struct Port * Port;
 
 /**
-	I/O operation pointer used by ChannelType class instances to
-	specify the read and write operation.
+	# I/O operation pointer used by ChannelType class instances to
+	# specify the read and write operation.
 */
 typedef io_status_t (*io_op_t)(Port port, uint32_t *consumed, void *resource, uint32_t quantity);
 
-/*
- * It is critical that latches are zeroed the moment
- * an EBADF is seen. It possible that the process
- * will allocate a descriptor with the same port.id (fileno).
- * If latches is non-zero, a Channel will run unlatch in the future
- * performing some state change to a shattered port.
- */
+/**
+	# It is critical that latches are zeroed the moment
+	# an EBADF is seen. It possible that the process
+	# will allocate a descriptor with the same port.id (fileno).
+	# If latches is non-zero, a Channel will run unlatch in the future
+	# performing some state change to a shattered port.
+*/
 #define Port_SetError(P, ERROR, SCAUSE) do { \
 	P->cause = SCAUSE; \
 	P->error = ERROR; \
@@ -243,9 +243,9 @@ typedef io_status_t (*io_op_t)(Port port, uint32_t *consumed, void *resource, ui
 	errno = 0; \
 } while (0)
 
-/*
- * Currently only used by socketpair()
- */
+/**
+	# Currently only used by socketpair()
+*/
 #define Ports_NoteError(p1, p2, scause) do { \
 	p2->cause = p1->cause = scause; \
 	p2->error = p1->error = errno; \
@@ -286,12 +286,12 @@ int port_dup(Port p, int fd);
 int port_bind(Port p, if_addr_ref_t addr, socklen_t addrlen);
 
 #ifdef EVMECH_EPOLL
-int port_epoll_create(Port p);
-int port_epoll_ctl(Port epp, int op, Port t, kevent_t *ke);
-int port_epoll_wait(Port p, int *out, kevent_t *ke, int nevents, int timeout);
+	int port_epoll_create(Port p);
+	int port_epoll_ctl(Port epp, int op, Port t, kevent_t *ke);
+	int port_epoll_wait(Port p, int *out, kevent_t *ke, int nevents, int timeout);
 #else
-int port_kqueue(Port p);
-int port_kevent(Port p, int retry, int *out, kevent_t *changes, int nchanges, kevent_t *events, int nevents, const struct timespec *timeout);
+	int port_kqueue(Port p);
+	int port_kevent(Port p, int retry, int *out, kevent_t *changes, int nchanges, kevent_t *events, int nevents, const struct timespec *timeout);
 #endif
 
 int port_connect(Port p, if_addr_ref_t addr, socklen_t addrlen);
@@ -301,7 +301,7 @@ int port_init_socket(Port p);
 int port_init_listening_socket(Port p);
 
 #ifdef F_SETNOSIGPIPE
-int port_nosigpipe(Port p);
+	int port_nosigpipe(Port p);
 #endif
 
 int port_noblocking(Port p);
@@ -318,5 +318,4 @@ io_status_t port_input_sockets(Port p, uint32_t *consumed, int *buf, uint32_t si
 
 io_status_t port_input_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t quantity);
 io_status_t port_output_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t quantity);
-
 #endif

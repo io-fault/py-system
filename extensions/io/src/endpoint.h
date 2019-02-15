@@ -1,12 +1,12 @@
-#ifndef _TRAFFIC_ENDPOINT_H_included_
-#define _TRAFFIC_ENDPOINT_H_included_
+#ifndef _SYSTEM_IO_ENDPOINT_H_included_
+#define _SYSTEM_IO_ENDPOINT_H_included_
 
-/*
- * Endpoint - Hold an arbitrary socket address.
- *
- * The data is zero-length array so the object is varsized to
- * compensate for file system sockets rather large address storage.
- */
+/**
+	# Endpoint - Hold an arbitrary socket address.
+
+	# The data is zero-length array so the object is varsized to
+	# compensate for file system sockets rather large address storage.
+*/
 struct Endpoint {
 	PyObject_VAR_HEAD
 	socklen_t len;
@@ -22,9 +22,9 @@ struct Endpoint {
 	#define SOCK_MAXADDRLEN 255
 #endif
 
-/*
- * These port structures should only be allocated on the stack.
- */
+/**
+	# These port structures should only be allocated on the stack.
+*/
 typedef enum {
 	aport_kind_numeric2,
 	aport_kind_filename,
@@ -104,12 +104,12 @@ typedef struct sockaddr_un local_addr_t;
 void local_str(char *dst, size_t dstsize, local_addr_t *addr);
 void local_port(struct aport_t *port, size_t dstsize, local_addr_t *addr);
 
-/*
- * File addresses are not usually passed around this way, so don't
- * worry too much about the waste. If it ever gets particularly
- * desirable to do so, however, we can leverage the VarSize object
- * more and make the fa_path variably sized.
- */
+/**
+	# File addresses are not usually passed around this way, so don't
+	# worry too much about the waste. If it ever gets particularly
+	# desirable to do so, however, we can leverage the VarSize object
+	# more and make the fa_path variably sized.
+*/
 typedef struct {
 	struct sockaddr sa;
 	char fa_path[PATH_MAX];
@@ -125,9 +125,9 @@ typedef struct {
 #define file_parse(dst, src)          strncpy(dst, src, PATH_MAX)
 #define file_casted(NAME, src)        file_addr_t * NAME = (file_addr_t *) src
 
-/*
- * pseudo domains
- */
+/**
+	# pseudo domains
+*/
 #define acquire_pf (SOCK_MAXADDRLEN - 2)
 #define clone_pf  (SOCK_MAXADDRLEN - 3)
 #define spawn_pf  (SOCK_MAXADDRLEN - 4)

@@ -276,9 +276,9 @@ static PyObj new_array = NULL; /* array.array("i", [-1]).__mul__ */
 static PyObj polarity_objects[2] = {NULL,NULL};
 
 #define PyErr_SetChannelTerminatedError(t) \
-	PyErr_SetString(PyExc_ChannelionViolation, "already terminated")
+	PyErr_SetString(PyExc_TransitionViolation, "already terminated")
 #define PyErr_SetChannelResourceError(t) \
-	PyErr_SetString(PyExc_ChannelionViolation, "resource already present")
+	PyErr_SetString(PyExc_TransitionViolation, "resource already present")
 
 static int
 socket_receive_buffer(kpoint_t kp)
@@ -5286,14 +5286,14 @@ INIT(PyDoc_STR("Kernel based Traffic implementation.\n"))
 		# Setup exception instances.
 	*/
 	{
-		PyExc_ChannelionViolation = PyErr_NewException(PYTHON_MODULE_PATH("ChannelionViolation"), NULL, NULL);
-		if (PyExc_ChannelionViolation == NULL)
+		PyExc_TransitionViolation = PyErr_NewException(PYTHON_MODULE_PATH("TransitionViolation"), NULL, NULL);
+		if (PyExc_TransitionViolation == NULL)
 			goto error;
 
-		if (PyModule_AddObject(mod, "ChannelionViolation", PyExc_ChannelionViolation) < 0)
+		if (PyModule_AddObject(mod, "TransitionViolation", PyExc_TransitionViolation) < 0)
 		{
-			Py_DECREF(PyExc_ChannelionViolation);
-			PyExc_ChannelionViolation = NULL;
+			Py_DECREF(PyExc_TransitionViolation);
+			PyExc_TransitionViolation = NULL;
 			goto error;
 		}
 	}
