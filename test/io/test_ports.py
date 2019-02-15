@@ -15,12 +15,12 @@ def test_io(test):
 			for x in range(64)
 		]
 
-		transits = J.rallocate('ports://spawn/bidirectional')
-		for x in transits:
+		channels = J.rallocate('ports://spawn/bidirectional')
+		for x in channels:
 			J.acquire(x)
 
-		parent = transits[:2]
-		child = transits[2:]
+		parent = channels[:2]
+		child = channels[2:]
 
 		test/parent[0].port.freight == "ports"
 		test/parent[1].port.freight == "ports"

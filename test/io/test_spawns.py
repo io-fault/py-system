@@ -27,31 +27,31 @@ def test_pipe(test, req = ('octets', 'acquire')):
 			cw = jam.array.rallocate(req + ('output',), p2[1])
 
 			server = common.Endpoint((sr, sw))
-			test/server.write_transit.polarity == lib.polarity.output
-			test/server.read_transit.polarity == lib.polarity.input
+			test/server.write_channel.polarity == lib.polarity.output
+			test/server.read_channel.polarity == lib.polarity.input
 
 			client = common.Endpoint((cr, cw))
-			test/client.write_transit.polarity == lib.polarity.output
-			test/client.read_transit.polarity == lib.polarity.input
+			test/client.write_channel.polarity == lib.polarity.output
+			test/client.read_channel.polarity == lib.polarity.input
 
 			with jam.manage(server), jam.manage(client):
 				exchange(test, jam, client, server)
 
-			test/server.transits[0].terminated == True
-			test/server.transits[1].terminated == True
-			test/client.transits[0].terminated == True
-			test/client.transits[1].terminated == True
+			test/server.channels[0].terminated == True
+			test/server.channels[1].terminated == True
+			test/client.channels[0].terminated == True
+			test/client.channels[1].terminated == True
 
 			if False:
-				test/server.transits[0].transfer() == None
-				test/server.transits[1].transfer() == None
-				test/client.transits[0].transfer() == None
-				test/client.transits[1].transfer() == None
+				test/server.channels[0].transfer() == None
+				test/server.channels[1].transfer() == None
+				test/client.channels[0].transfer() == None
+				test/client.channels[1].transfer() == None
 
-			test/server.transits[0].exhausted != True
-			test/server.transits[1].exhausted != True
-			test/client.transits[0].exhausted != True
-			test/client.transits[1].exhausted != True
+			test/server.channels[0].exhausted != True
+			test/server.channels[1].exhausted != True
+			test/client.channels[0].exhausted != True
+			test/client.channels[1].exhausted != True
 	test/jam.array.terminated == True
 
 # two pipe()'s
@@ -63,31 +63,31 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 			cr, sw = jam.array.rallocate(req)
 			sr, cw = jam.array.rallocate(req)
 			server = common.Endpoint((sr, sw))
-			test/server.write_transit.polarity == lib.polarity.output
-			test/server.read_transit.polarity == lib.polarity.input
+			test/server.write_channel.polarity == lib.polarity.output
+			test/server.read_channel.polarity == lib.polarity.input
 
 			client = common.Endpoint((cr, cw))
-			test/client.write_transit.polarity == lib.polarity.output
-			test/client.read_transit.polarity == lib.polarity.input
+			test/client.write_channel.polarity == lib.polarity.output
+			test/client.read_channel.polarity == lib.polarity.input
 
 			with jam.manage(server), jam.manage(client):
 				exchange(test, jam, client, server)
 
-			test/server.transits[0].terminated == True
-			test/server.transits[1].terminated == True
-			test/client.transits[0].terminated == True
-			test/client.transits[1].terminated == True
+			test/server.channels[0].terminated == True
+			test/server.channels[1].terminated == True
+			test/client.channels[0].terminated == True
+			test/client.channels[1].terminated == True
 
 			if False:
-				test/server.transits[0].transfer() == None
-				test/server.transits[1].transfer() == None
-				test/client.transits[0].transfer() == None
-				test/client.transits[1].transfer() == None
+				test/server.channels[0].transfer() == None
+				test/server.channels[1].transfer() == None
+				test/client.channels[0].transfer() == None
+				test/client.channels[1].transfer() == None
 
-			test/server.transits[0].exhausted != True
-			test/server.transits[1].exhausted != True
-			test/client.transits[0].exhausted != True
-			test/client.transits[1].exhausted != True
+			test/server.channels[0].exhausted != True
+			test/server.channels[1].exhausted != True
+			test/client.channels[0].exhausted != True
+			test/client.channels[1].exhausted != True
 	test/jam.array.terminated == True
 
 # one socketpair()'s
@@ -98,31 +98,31 @@ def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 		for exchange in common.transfer_cases:
 			cxn = jam.array.rallocate(req)
 			server = common.Endpoint(cxn[:2])
-			test/server.write_transit.polarity == lib.polarity.output
-			test/server.read_transit.polarity == lib.polarity.input
+			test/server.write_channel.polarity == lib.polarity.output
+			test/server.read_channel.polarity == lib.polarity.input
 
 			client = common.Endpoint(cxn[2:])
-			test/client.write_transit.polarity == lib.polarity.output
-			test/client.read_transit.polarity == lib.polarity.input
+			test/client.write_channel.polarity == lib.polarity.output
+			test/client.read_channel.polarity == lib.polarity.input
 
 			with jam.manage(server), jam.manage(client):
 				exchange(test, jam, client, server)
 
-			test/server.transits[0].terminated == True
-			test/server.transits[1].terminated == True
-			test/client.transits[0].terminated == True
-			test/client.transits[1].terminated == True
+			test/server.channels[0].terminated == True
+			test/server.channels[1].terminated == True
+			test/client.channels[0].terminated == True
+			test/client.channels[1].terminated == True
 
 			if False:
-				test/server.transits[0].transfer() == None
-				test/server.transits[1].transfer() == None
-				test/client.transits[0].transfer() == None
-				test/client.transits[1].transfer() == None
+				test/server.channels[0].transfer() == None
+				test/server.channels[1].transfer() == None
+				test/client.channels[0].transfer() == None
+				test/client.channels[1].transfer() == None
 
-			test/server.transits[0].exhausted != True
-			test/server.transits[1].exhausted != True
-			test/client.transits[0].exhausted != True
-			test/client.transits[1].exhausted != True
+			test/server.channels[0].exhausted != True
+			test/server.channels[1].exhausted != True
+			test/client.channels[0].exhausted != True
+			test/client.channels[1].exhausted != True
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

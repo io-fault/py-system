@@ -3,7 +3,7 @@
  */
 
 /**
- * A singular datagram transmitted by &.kernel.Datagrams transits.
+ * A singular datagram transmitted by &.kernel.Datagrams channels.
  */
 struct Datagram {
 	uint32_t gramspace, gramsize;

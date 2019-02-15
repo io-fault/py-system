@@ -777,17 +777,17 @@ def test_sockets_io_nomem(test):
 		fdset = r.rallocate(128)
 		r.acquire(fdset)
 
-		transits = J.rallocate('octets://ip4', r.endpoint())
-		J.acquire(transits[0])
-		J.acquire(transits[1])
+		channels = J.rallocate('octets://ip4', r.endpoint())
+		J.acquire(channels[0])
+		J.acquire(channels[1])
 
 		while not r.terminated:
 			with J:
 				pass
 
 		test/g1(0) == (errno.ENOMEM,)
-		transits[0].terminate()
-		transits[1].terminate()
+		channels[0].terminate()
+		channels[1].terminate()
 		with J:
 			pass
 
@@ -800,9 +800,9 @@ def test_sockets_io_nomem(test):
 		fdset = r.rallocate(128)
 		r.acquire(fdset)
 
-		transits = J.rallocate('octets://ip4', r.endpoint())
-		J.acquire(transits[0])
-		J.acquire(transits[1])
+		channels = J.rallocate('octets://ip4', r.endpoint())
+		J.acquire(channels[0])
+		J.acquire(channels[1])
 
 		while fdset[0] == -1:
 			with J:
@@ -856,12 +856,12 @@ def test_ports_io_nomem(test):
 			for x in range(128)
 		]
 
-		transits = J.rallocate('ports://spawn/bidirectional')
-		for x in transits:
+		channels = J.rallocate('ports://spawn/bidirectional')
+		for x in channels:
 			J.acquire(x)
 
-		parent = transits[:2]
-		child = transits[2:]
+		parent = channels[:2]
+		child = channels[2:]
 
 		buf = parent[1].rallocate(64)
 		for x in range(64):
@@ -938,12 +938,12 @@ def test_ports_io_again(test):
 	test.skip(sys.platform == 'linux')
 	J = kernel.Array()
 	try:
-		transits = J.rallocate('ports://spawn/bidirectional')
-		for x in transits:
+		channels = J.rallocate('ports://spawn/bidirectional')
+		for x in channels:
 			J.acquire(x)
 
-		parent = transits[:2]
-		child = transits[2:]
+		parent = channels[:2]
+		child = channels[2:]
 
 		buf = parent[1].rallocate(64)
 		parent[1].acquire(buf)
@@ -1109,21 +1109,21 @@ def test_nosigpipe(test):
 
 		r, w = os.pipe()
 
-		transits = J.rallocate('octets://spawn/bidirectional')
-		transits[0].port.leak()
-		transits[2].port.shatter()
-		sp = transits[0].port.id
-		for x in transits:
+		channels = J.rallocate('octets://spawn/bidirectional')
+		channels[0].port.leak()
+		channels[2].port.shatter()
+		sp = channels[0].port.id
+		for x in channels:
 			x.terminate()
 		cases.append(('octets://acquire/socket', sp))
 
 		# trip failure in nosigpipe
 		for x in cases:
-			transits = J.rallocate(*x)
-			for y in transits[1::2]:
+			channels = J.rallocate(*x)
+			for y in channels[1::2]:
 				test/y.port.error_code == errno.EINTR
 				test/y.port.call == 'fcntl'
-			for y in transits:
+			for y in channels:
 				y.terminate()
 	finally:
 		kernel.__ERRNO_RECEPTACLE__.clear()

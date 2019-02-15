@@ -16,7 +16,7 @@ from .. import core
 def test_array_rtypes(test):
 	test/list(kernel.Array.rtypes()) != []
 
-def test_transit_already_acquired(test):
+def test_channel_already_acquired(test):
 	try:
 		J1 = kernel.Array()
 		J2 = kernel.Array()
@@ -29,7 +29,7 @@ def test_transit_already_acquired(test):
 		J2.void()
 
 def test_array_termination(test):
-	'termination sequence with no transits'
+	'termination sequence with no channels'
 	J = kernel.Array()
 	test/J.terminated == False
 
@@ -51,7 +51,7 @@ def test_array_exceptions(test):
 		with test/TypeError:
 			J.resize_exoresource("foobar") # need an unsigned integer
 		with test/TypeError:
-			J.acquire("foobar") # not a transit
+			J.acquire("foobar") # not a channel
 		r, w = J.rallocate("octets://spawn/unidirectional")
 		r.terminate()
 		w.terminate()
@@ -145,19 +145,19 @@ def test_array_resize_exoresource(test):
 			pass
 
 def test_array_rallocate_octets(test):
-	transits = set()
+	channels = set()
 	try:
 		J = kernel.Array()
 		connection = J.rallocate(('octets', 'spawn', 'bidirectional'))
 		three_four = J.rallocate(('octets', 'spawn', 'unidirectional'))
-		transits.update(connection)
-		transits.update(three_four)
+		channels.update(connection)
+		channels.update(three_four)
 
 		for x in connection + three_four:
 			test.isinstance(x, kernel.Octets)
 	finally:
 		# don't leak
-		for x in transits:
+		for x in channels:
 			x.terminate()
 		J.terminate()
 
@@ -298,9 +298,9 @@ def test_array_collection_countdown(test):
 		data = b'SOME DATA'
 		bufs = []
 		for x in range(6):
-			transits = J.rallocate("octets://spawn/bidirectional")
-			reads = transits[0::2]
-			writes = transits[1::2]
+			channels = J.rallocate("octets://spawn/bidirectional")
+			reads = channels[0::2]
+			writes = channels[1::2]
 
 			for y in writes:
 				J.acquire(y)

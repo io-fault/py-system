@@ -16,7 +16,7 @@ class Delta(tuple):
 	__slots__ = ()
 
 	@property
-	def transit(self):
+	def channel(self):
 		return self[0]
 
 	@property
@@ -44,15 +44,15 @@ class Delta(tuple):
 		return None
 
 	@classmethod
-	def construct(typ, transit):
-		s = transit.slice()
-		x = transit.transfer()
+	def construct(typ, channel):
+		s = channel.slice()
+		x = channel.transfer()
 		if s is not None:
-			assert transit.sizeof_transfer() == s.stop - s.start
+			assert channel.sizeof_transfer() == s.stop - s.start
 		a = None
-		if transit.exhausted:
-			a = transit.acquire
-		return typ((transit, transit.resource, s, x, a))
+		if channel.exhausted:
+			a = channel.acquire
+		return typ((channel, channel.resource, s, x, a))
 
 def snapshot(array, list = list, map = map, construct = Delta.construct):
 	# list() is invoked here as materialization of the
@@ -107,7 +107,7 @@ class ArrayActionManager(object):
 			# append all events.
 			# for testing, we're primarily interested in
 			# the sequence for a given channel.
-			self.effects.get(x.transit, self.deadend.append)(x)
+			self.effects.get(x.channel, self.deadend.append)(x)
 		self.cycled.set()
 
 	def loop(self):
@@ -129,17 +129,17 @@ class ArrayActionManager(object):
 	def manage(self, ct):
 		try:
 			self.effects.update(ct.effects)
-			for x in ct.transits:
+			for x in ct.channels:
 				self.array.acquire(x)
 			yield
 		finally:
 			ct.terminate()
 			for x in self.delta():
-				terms = [y.terminated for y in ct.transits]
+				terms = [y.terminated for y in ct.channels]
 				if all(terms):
 					# all have been terminated
 					break
-			for x in ct.transits:
+			for x in ct.channels:
 				x.port.raised()
 			for k in ct.effects:
 				del self.effects[k]
@@ -160,30 +160,30 @@ class Events(object):
 
 	# No autoread setup.
 	"""
-	def __init__(self, *transits):
-		self.transits = transits
+	def __init__(self, *channels):
+		self.channels = channels
 		self.events = []
 		self.effects = {}
 
-		for x in transits:
+		for x in channels:
 			self.effects[x] = self.events.append
 
 	def terminate(self):
-		for x in self.transits:
+		for x in self.channels:
 			x.terminate()
 
 	def _term_check(self):
-		for x in self.transits:
+		for x in self.channels:
 			if x.terminated:
 				raise Terminated(x, self)
 
 	def raised(self):
-		for x in self.transits:
+		for x in self.channels:
 			x.port.raised()
 
 	@property
 	def terminated(self):
-		for x in self.transits:
+		for x in self.channels:
 			if x.terminated:
 				return True
 		return False
@@ -212,20 +212,20 @@ class Events(object):
 		del self.events[:]
 
 	def setup_read(self, quantity):
-		for x in self.transits:
+		for x in self.channels:
 			x.acquire(x.rallocate(quantity))
 
 	def setup_write(self, resource):
-		for x in self.transits:
+		for x in self.channels:
 			x.acquire(resource)
 
 class Endpoint(object):
 	"""
 	# For cases involving send and receives.
 	"""
-	def __init__(self, transits, bufsize = 64):
-		self.transits = transits
-		self.read_transit, self.write_transit = transits
+	def __init__(self, channels, bufsize = 64):
+		self.channels = channels
+		self.read_channel, self.write_channel = channels
 
 		self.read_events = []
 		self.write_events = []
@@ -233,8 +233,8 @@ class Endpoint(object):
 		self.default_bufsize = bufsize
 
 		self.effects = {
-			self.read_transit: self._read_event,
-			self.write_transit: self.write_events.append,
+			self.read_channel: self._read_event,
+			self.write_channel: self.write_events.append,
 		}
 
 	def _read_event(self, activity):
@@ -243,20 +243,20 @@ class Endpoint(object):
 			self.read_length += len(activity.transferred)
 		if d is not None:
 			# chain reads
-			d(activity.transit.rallocate(self.default_bufsize))
+			d(activity.channel.rallocate(self.default_bufsize))
 		self.read_events.append(activity)
 
 	def terminate(self):
-		for x in self.transits:
+		for x in self.channels:
 			x.terminate()
 
 	def _write_term_check(self):
-		if self.write_transit.terminated:
-			raise Terminated(self.write_transit, self) from self.write_transit.port.exception()
+		if self.write_channel.terminated:
+			raise Terminated(self.write_channel, self) from self.write_channel.port.exception()
 
 	def _read_term_check(self):
-		if self.read_transit.terminated:
-			raise Terminated(self.read_transit, self) from self.read_transit.port.exception()
+		if self.read_channel.terminated:
+			raise Terminated(self.read_channel, self) from self.read_channel.port.exception()
 
 	@property
 	def read_exhaustions(self):
@@ -271,7 +271,7 @@ class Endpoint(object):
 	@property
 	def read_payload_int(self):
 		self._read_term_check()
-		payload = self.read_transit.rallocate(0)
+		payload = self.read_channel.rallocate(0)
 		for x in self.read_events:
 			if x.transferred:
 				payload += x.transferred
@@ -314,19 +314,19 @@ class Endpoint(object):
 
 	def setup_read(self, rallocation):
 		self._read_term_check()
-		self.read_transit.acquire(self.read_transit.rallocate(rallocation))
+		self.read_channel.acquire(self.read_channel.rallocate(rallocation))
 
 	def setup_write(self, resource):
 		self._write_term_check()
-		self.write_transit.acquire(resource)
+		self.write_channel.acquire(resource)
 
 class Objects(object):
 	"""
 	# Endpoint that transfers objects.
 	"""
-	def __init__(self, transits):
-		self.transits = transits
-		self.read_transit, self.write_transit = transits
+	def __init__(self, channels):
+		self.channels = channels
+		self.read_channel, self.write_channel = channels
 		self.read_state = None
 		self._read_buf = bytearray(0)
 		self.received_objects = []
@@ -335,10 +335,10 @@ class Objects(object):
 		self.send_complete = 0
 
 		self.effects = {
-			self.read_transit: self._read_event,
-			self.write_transit: self._write_event,
+			self.read_channel: self._read_event,
+			self.write_channel: self._write_event,
 		}
-		self.read_transit.acquire(self.read_transit.rallocate(128))
+		self.read_channel.acquire(self.read_channel.rallocate(128))
 
 	def _read_event(self, activity):
 		d = activity.demand
@@ -351,28 +351,28 @@ class Objects(object):
 			except:
 				pass
 		if d is not None:
-			d(activity.transit.rallocate(512))
+			d(activity.channel.rallocate(512))
 
 	def _write_event(self, activity):
 		if activity.demand is not None:
 			self.send_complete += 1
 
 	def terminate(self):
-		for x in self.transits:
+		for x in self.channels:
 			x.terminate()
 
 	def _write_term_check(self):
-		if self.write_transit.terminated:
-			raise Terminated(self.write_transit, self) from self.write_transit.port.exception()
+		if self.write_channel.terminated:
+			raise Terminated(self.write_channel, self) from self.write_channel.port.exception()
 
 	def _read_term_check(self):
-		if self.read_transit.terminated:
-			raise Terminated(self.read_transit, self) from self.read_transit.port.exception()
+		if self.read_channel.terminated:
+			raise Terminated(self.read_channel, self) from self.read_channel.port.exception()
 
 	@property
 	def done_writing(self):
 		self._write_term_check()
-		return self.write_transit.exhausted
+		return self.write_channel.exhausted
 
 	def clear(self):
 		del self.received_objects[:]
@@ -380,7 +380,7 @@ class Objects(object):
 	def send(self, obj):
 		self._write_term_check()
 		d = pickle.dumps(obj)
-		self.write_transit.acquire(d)
+		self.write_channel.acquire(d)
 
 def child_echo(jam, objects):
 	"""
@@ -388,10 +388,10 @@ def child_echo(jam, objects):
 	"""
 	for x in jam.delta():
 		# continually echo the received objects until termination
-		if objects.read_transit.terminated:
+		if objects.read_channel.terminated:
 			# expecting to be killed by receiving a None object.
-			objects.read_transit.port.raised()
-		if objects.write_transit.exhausted:
+			objects.read_channel.port.raised()
+		if objects.write_channel.exhausted:
 			if objects.received_objects:
 				ob = objects.received_objects[0]
 				del objects.received_objects[0]
@@ -433,13 +433,13 @@ def exchange_few_bytes(test, jam, client, server):
 	server.clear()
 
 	# there are resources, so force a zero transfer
-	server.read_transit.force()
-	client.read_transit.force()
+	server.read_channel.force()
+	client.read_channel.force()
 
 	for x in jam.delta():
 		if server.read_events and client.read_events:
 			break
-	# inspect the transit directly, read_data
+	# inspect the channel directly, read_data
 	test/bytes(server.read_events[-1].transferred) == b''
 	test/bytes(client.read_events[-1].transferred) == b''
 
@@ -451,12 +451,12 @@ def exchange_many_bytes(test, jam, client, server):
 	client.setup_read(len(server_sends))
 
 	# there are resources, so force a zero transfer
-	server.read_transit.force()
-	client.read_transit.force()
+	server.read_channel.force()
+	client.read_channel.force()
 	for x in jam.delta():
 		if server.read_events and client.read_events:
 			break
-	# inspect the transit directly, read_data
+	# inspect the channel directly, read_data
 	test/bytes(server.read_events[0].transferred) == b''
 	test/bytes(client.read_events[0].transferred) == b''
 
@@ -594,18 +594,18 @@ def stream_listening_connection(test, version, address, port = None):
 	with jam.thread(), jam.manage(listen):
 
 		for exchange in transfer_cases:
-			client_transits = jam.array.rallocate(('octets', version), full_address)
-			client_transits[0].port.raised()
-			client_transits[0].resize_exoresource(1024 * 32)
-			client_transits[1].resize_exoresource(1024 * 32)
-			client = Endpoint(client_transits)
+			client_channels = jam.array.rallocate(('octets', version), full_address)
+			client_channels[0].port.raised()
+			client_channels[0].resize_exoresource(1024 * 32)
+			client_channels[1].resize_exoresource(1024 * 32)
+			client = Endpoint(client_channels)
 
-			test.isinstance(client_transits[0].port.freight, str)
-			test.isinstance(client_transits[1].port.freight, str)
+			test.isinstance(client_channels[0].port.freight, str)
+			test.isinstance(client_channels[1].port.freight, str)
 
 			with jam.manage(client):
-				c_endpoint = client.write_transit.endpoint()
-				r_endpoint = client.read_transit.endpoint()
+				c_endpoint = client.write_channel.endpoint()
+				r_endpoint = client.read_channel.endpoint()
 
 				listen.setup_read(1)
 				for x in jam.delta():
@@ -615,11 +615,11 @@ def stream_listening_connection(test, version, address, port = None):
 				fd = listen.sockets[0]
 				listen.clear()
 
-				server_transits = jam.array.rallocate(('octets', 'acquire', 'socket'), fd)
-				server = Endpoint(server_transits)
+				server_channels = jam.array.rallocate(('octets', 'acquire', 'socket'), fd)
+				server = Endpoint(server_channels)
 				with jam.manage(server):
-					sr_endpoint = server.read_transit.endpoint()
-					sw_endpoint = server.write_transit.endpoint()
+					sr_endpoint = server.read_channel.endpoint()
+					sw_endpoint = server.write_channel.endpoint()
 
 					if isinstance(sr_endpoint, kernel.Endpoint) and isinstance(c_endpoint, kernel.Endpoint):
 						test/sr_endpoint.interface == c_endpoint.interface
@@ -632,25 +632,25 @@ def stream_listening_connection(test, version, address, port = None):
 						test/sw_endpoint.port == r_endpoint.port
 
 					exchange(test, jam, client, server)
-				test/server.transits[0].terminated == True
-				test/server.transits[1].terminated == True
-				test/server.transits[0].exhausted == False
-				test/server.transits[1].exhausted == False
+				test/server.channels[0].terminated == True
+				test/server.channels[1].terminated == True
+				test/server.channels[0].exhausted == False
+				test/server.channels[1].exhausted == False
 				for x in jam.delta():
 					break
-				test/server.transits[0].endpoint() == None
-				test/server.transits[1].endpoint() == None
+				test/server.channels[0].endpoint() == None
+				test/server.channels[1].endpoint() == None
 				del server
 
-			test/client.transits[0].terminated == True
-			test/client.transits[1].terminated == True
-			test/client.transits[0].exhausted == False
-			test/client.transits[1].exhausted == False
+			test/client.channels[0].terminated == True
+			test/client.channels[1].terminated == True
+			test/client.channels[0].exhausted == False
+			test/client.channels[1].exhausted == False
 			for x in jam.delta():
 				break
-			test/client.transits[0].endpoint() == None
-			test/client.transits[1].endpoint() == None
+			test/client.channels[0].endpoint() == None
+			test/client.channels[1].endpoint() == None
 			del client
 
-	test/listen.transits[0].terminated == True
+	test/listen.channels[0].terminated == True
 	test/jam.array.terminated == True

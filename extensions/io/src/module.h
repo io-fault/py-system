@@ -12,7 +12,7 @@
 
 #define TRANSIT_TYPES() \
 	ID(Channel, void) \
-	ID(Array, transits) \
+	ID(Array, channels) \
 	ID(Octets, octets) \
 	ID(Sockets, sockets) \
 	ID(Ports, ports) \

@@ -44,13 +44,13 @@ ChannelPyTypeObject
 #define Channel_HEAD \
 	PyObject_HEAD \
 	Port port;          /* Port for Kernel communication */ \
-	Array array;  /* transit controller */ \
+	Array array;  /* channel controller */ \
 	PyObj link;         /* User storage usually used by callbacks. */ \
-	Channel prev, next; /* transit ring; all transit in traffic */ \
+	Channel prev, next; /* channel ring; all channel in traffic */ \
 	Channel lltransfer; /* linked list pointer to next evented Channel */ \
 	\
 	transfer_window_t window; /* The area of the resource that was transferred. */ \
-	union transit_choice choice; /* Array or Memory Channel */ \
+	union channel_choice choice; /* Array or Memory Channel */ \
 	\
 	/* state flags */ \
 	uint8_t delta;  /* delta to apply to the state; new internal equals (GIL) */ \
@@ -60,15 +60,15 @@ ChannelPyTypeObject
 	uint8_t events; /* bit map of produced events */
 
 /**
-	# Generalized events used by all transits
+	# Generalized events used by all channels
 */
 typedef enum {
 	/* No event */
 	/* Events emitted by Channels */
-	tev_terminate = 0,  /* transit was terminated */
+	tev_terminate = 0,  /* channel was terminated */
 	tev_transfer,       /* transfer occurred */
 	tev_terminal_,
-} transit_event_t;
+} channel_event_t;
 
 /**
 	# event qualifications
@@ -76,14 +76,14 @@ typedef enum {
 	# Pairs of qualifications must occur in order to produce an event.
 	# (Kernel Qualification and Process Qualification)
 */
-enum transit_equal {
+enum channel_equal {
 	teq_terminate = 0, /* terminated noted/requested */
 	teq_transfer,      /* transfer potential noted */
 	teq_terminal_,
-} transit_equal_t;
+} channel_equal_t;
 
-enum transit_control {
-	ctl_polarity = 0, /* direction of the transit */
+enum channel_control {
+	ctl_polarity = 0, /* direction of the channel */
 	ctl_force,        /* force a transfer to occur */
 	ctl_requeue,      /* requeue the Channel */
 	ctl_connect,      /* connect to kqueue */
@@ -94,9 +94,9 @@ typedef uint32_t transfer_window_t[2];
 const static uint32_t transfer_window_limit = (0-1);
 
 /**
-	# Regular Channel or Array (collection of active transits)
+	# Regular Channel or Array (collection of active channels)
 */
-union transit_choice {
+union channel_choice {
 	struct {
 		PyObj resource;
 		Py_buffer view;
@@ -105,7 +105,7 @@ union transit_choice {
 	struct {
 		kevent_t *kevents;
 		uint8_t will_wait;
-		Py_ssize_t ntransits; /* volume */
+		Py_ssize_t nchannels; /* volume */
 		uint32_t ntransfers;
 
 		#ifdef EVMECH_EPOLL

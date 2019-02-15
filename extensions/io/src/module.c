@@ -81,7 +81,7 @@ freight_charcode(freight_t f)
 			return 'w';
 		case f_void:
 			return 'v';
-		case f_transits:
+		case f_channels:
 			return 't'; /* Array */
 		case f_octets:
 			return 'o';
@@ -104,8 +104,8 @@ freight_identifier(freight_t f)
 			return "wolves";
 		case f_void:
 			return "void";
-		case f_transits:
-			return "transits";
+		case f_channels:
+			return "channels";
 		case f_octets:
 			return "octets";
 		case f_datagrams:
@@ -241,7 +241,7 @@ sockaddr_interface(any_addr_t *ss, char *dst, size_t dstlen)
 }
 
 #if ! FV_OPTIMAL() || F_TRACE()
-	static void ptransit(Channel);
+	static void pchannel(Channel);
 	static void pkevent(kevent_t *);
 #endif
 
@@ -789,7 +789,7 @@ endpoint_getset[] = {
 
 	{"interface", endpoint_get_interface, NULL,
 		PyDoc_STR(
-			"The local endpoint of the transit. Normally regarding socket connections.\n"
+			"The local endpoint of the channel. Normally regarding socket connections.\n"
 			"If the connection is to a local socket, the interface will be the directory containing the socket file.")
 	},
 
@@ -1027,7 +1027,7 @@ EndpointType = {
 	endpoint_new,            /* tp_new */
 };
 
-#include "transit.h"
+#include "channel.h"
 
 /**
 	# Datagrams (struct)&Channel Structure.
@@ -1059,8 +1059,8 @@ struct Datagrams {
 } while(0)
 
 #define Array_Cycling(J)               (J->lltransfer != NULL)
-#define Array_GetChannelCount(J)       ((J->choice.array.ntransits))
-#define Array_ResetChannelCount(J)     ((J->choice.array.ntransits) = 0)
+#define Array_GetChannelCount(J)       ((J->choice.array.nchannels))
+#define Array_ResetChannelCount(J)     ((J->choice.array.nchannels) = 0)
 #define Array_IncrementChannelCount(J) (++ Array_GetChannelCount(J))
 #define Array_DecrementChannelCount(t) (-- Array_GetChannelCount(t))
 
@@ -1078,7 +1078,7 @@ static int array_fall(Array, int);
 /**
 	# Transfer Linked List management.
 
-	# The transfer linked list is the list that manages the transits
+	# The transfer linked list is the list that manages the channels
 	# that have significant state changes: transfer occurred--with exhaustion--or termination.
 */
 #define Channel_GetNextTransfer(t)       ((t)->lltransfer)
@@ -1094,7 +1094,7 @@ static int array_fall(Array, int);
 	} while(0)
 
 /**
-	# Array only holds one reference to transits no matter
+	# Array only holds one reference to channels no matter
 	# how often they're referenced.
 */
 #define TRANSIT_JOIN(PREV, NEXT) \
@@ -1162,7 +1162,7 @@ static void
 Channel_ReleaseResource(Channel t)
 {
 	/**
-		# Free any Python resources associated with the transit.
+		# Free any Python resources associated with the channel.
 	*/
 	if (Channel_HasResource(t))
 	{
@@ -1180,7 +1180,7 @@ static void
 Channel_ReleaseLink(Channel t)
 {
 	/**
-		# Free any Python resources associated with the transit.
+		# Free any Python resources associated with the channel.
 	*/
 	if (Channel_GetLink(t))
 	{
@@ -1266,11 +1266,11 @@ pkevent(kevent_t *kev)
 }
 
 /**
-	# Print transit structure to standard error.
+	# Print channel structure to standard error.
 	# Used for tracing operations during debugging.
 */
 static void
-ptransit(Channel t)
+pchannel(Channel t)
 {
 	struct sockaddr_storage ss;
 	socklen_t sslen = sizeof(ss);
@@ -1351,7 +1351,7 @@ pkevents(const char *where, Array J)
 	for (i = 0; i < Channel_GetWindowStart(J); ++i)
 	{
 		pkevent(&(Array_GetKEvents(J)[i]));
-		ptransit((Channel) (Array_GetKEvents(J)[i]).udata);
+		pchannel((Channel) (Array_GetKEvents(J)[i]).udata);
 	}
 	errpf("\n");
 }
@@ -1519,7 +1519,7 @@ new_jxi(Array J, int polarity)
 }
 
 static char
-transit_can_acquire(Channel t)
+channel_can_acquire(Channel t)
 {
 	/*
 		# This should be called after receiving an exhaust event, which
@@ -1529,7 +1529,7 @@ transit_can_acquire(Channel t)
 	{
 		/*
 			# This needs to error out as the traffic flow may be using the
-			# transit's resource at this particular moment.
+			# channel's resource at this particular moment.
 		*/
 		PyErr_SetChannelResourceError(t);
 		return(0);
@@ -1542,13 +1542,13 @@ transit_can_acquire(Channel t)
 	# Acquire a resource for faciliting a transfer. Qualifies the Channel for transfers.
 
 	# The given &resource object is set on the &Channel and the memory buffer is filled
-	# out based on the direction of the transit. If the Channel has been acquired
+	# out based on the direction of the channel. If the Channel has been acquired
 	# by a &Array, the Channel will be marked and enqueued for a subsequent transfer
 	# attempt. Otherwise, the Channel is qualified for transfer allowing the subsequent
 	# &array_acquire to ready a transfer.
 */
 static PyObj
-transit_acquire(PyObj self, PyObj resource)
+channel_acquire(PyObj self, PyObj resource)
 {
 	Channel t = (Channel) self;
 
@@ -1568,7 +1568,7 @@ transit_acquire(PyObj self, PyObj resource)
 	/*
 		# Raise ResourceError; user isn't paying attention to exhaust events.
 	*/
-	if (!transit_can_acquire(t))
+	if (!channel_can_acquire(t))
 	{
 		/*
 			# Exhaust events are the only safe way that we can invalidate
@@ -1614,7 +1614,7 @@ transit_acquire(PyObj self, PyObj resource)
 }
 
 static PyObj
-transit_force(PyObj self)
+channel_force(PyObj self)
 {
 	Channel t = (Channel) self;
 
@@ -1632,7 +1632,7 @@ transit_force(PyObj self)
 
 /* Raw buffer interface */
 static PyObj
-transit_slice(PyObj self)
+channel_slice(PyObj self)
 {
 	Channel t = (Channel) self;
 
@@ -1643,7 +1643,7 @@ transit_slice(PyObj self)
 }
 
 static PyObj
-transit_transfer(PyObj self)
+channel_transfer(PyObj self)
 {
 	Channel t = (Channel) self;
 	int unit = Channel_GetInterface(t)->ti_unit;
@@ -1666,7 +1666,7 @@ transit_transfer(PyObj self)
 }
 
 static PyObj
-transit_sizeof_transfer(PyObj self)
+channel_sizeof_transfer(PyObj self)
 {
 	uint32_t size;
 	Channel t = (Channel) self;
@@ -1680,7 +1680,7 @@ transit_sizeof_transfer(PyObj self)
 }
 
 static PyObj
-transit_terminate(PyObj self)
+channel_terminate(PyObj self)
 {
 	Channel t = (Channel) self;
 
@@ -1724,13 +1724,13 @@ transit_terminate(PyObj self)
 }
 
 static PyObj
-transit_resize_exoresource(PyObj self, PyObj args)
+channel_resize_exoresource(PyObj self, PyObj args)
 {
 	Py_RETURN_NONE;
 }
 
 static PyObj
-transit_endpoint(PyObj self)
+channel_endpoint(PyObj self)
 {
 	Channel t = (Channel) self;
 	kpoint_t kp = Channel_GetKPoint(t);
@@ -1829,11 +1829,11 @@ transit_endpoint(PyObj self)
 }
 
 static PyMethodDef
-transit_methods[] = {
-	{"endpoint", (PyCFunction) transit_endpoint, METH_NOARGS,
+channel_methods[] = {
+	{"endpoint", (PyCFunction) channel_endpoint, METH_NOARGS,
 		PyDoc_STR(
 			"Construct an Endpoint object from the Channel describing the known destination of the channel, the end-point.\n"
-			"For output transits, the endpoint will be the remote host. For input transits, the endpoint will be "
+			"For output channels, the endpoint will be the remote host. For input channels, the endpoint will be "
 			"the local interface and port."
 			"\n\n"
 			"[Effect]\n"
@@ -1844,7 +1844,7 @@ transit_methods[] = {
 	},
 
 	{"acquire",
-		(PyCFunction) transit_acquire, METH_O,
+		(PyCFunction) channel_acquire, METH_O,
 		PyDoc_STR(
 			"Acquire a resource for facilitating transfers. The `resource` type depends on\n"
 			"the Channel subclass, but it is *normally* an object supporting the buffer interface.\n"
@@ -1862,7 +1862,7 @@ transit_methods[] = {
 	},
 
 	{"resize_exoresource",
-		(PyCFunction) transit_resize_exoresource, METH_VARARGS,
+		(PyCFunction) channel_resize_exoresource, METH_VARARGS,
 		PyDoc_STR(
 			"Resize the related exoresource.\n"
 			"[Parameters]\n"
@@ -1872,17 +1872,17 @@ transit_methods[] = {
 	},
 
 	{"force",
-		(PyCFunction) transit_force, METH_NOARGS,
+		(PyCFunction) channel_force, METH_NOARGS,
 		PyDoc_STR(
-			"Force the transit to perform a transfer.\n"
+			"Force the channel to perform a transfer.\n"
 			"This causes an empty transfer event to occur.\n"
 		)
 	},
 
-	{"transfer", (PyCFunction) transit_transfer, METH_NOARGS,
+	{"transfer", (PyCFunction) channel_transfer, METH_NOARGS,
 		PyDoc_STR(
 			"This returns the slice of the resource that was transferred iff a transfer occurred.\n"
-			"It is essentially `transit.resource[transit.slice()]`.\n"
+			"It is essentially `channel.resource[channel.slice()]`.\n"
 			"\n"
 			"[Effects]\n"
 			"/(&object)`Return`/\n"
@@ -1891,9 +1891,9 @@ transit_methods[] = {
 		)
 	},
 
-	{"slice", (PyCFunction) transit_slice, METH_NOARGS,
+	{"slice", (PyCFunction) channel_slice, METH_NOARGS,
 		PyDoc_STR(
-			"The slice method is always available. In cases where the transit is not in a cycle, a zero-distance slice "
+			"The slice method is always available. In cases where the channel is not in a cycle, a zero-distance slice "
 			"will be returned desribing the current position in the resource's buffer.\n"
 			"[Effects]\n"
 			"/(&slice)`Return`/\n"
@@ -1901,7 +1901,7 @@ transit_methods[] = {
 		)
 	},
 
-	{"sizeof_transfer", (PyCFunction) transit_sizeof_transfer, METH_NOARGS,
+	{"sizeof_transfer", (PyCFunction) channel_sizeof_transfer, METH_NOARGS,
 		PyDoc_STR(
 			"Get the size of the current transfer; `0` if there is no transfer.\n"
 			"\n"
@@ -1913,13 +1913,13 @@ transit_methods[] = {
 	},
 
 	{"terminate",
-		(PyCFunction) transit_terminate, METH_NOARGS,
+		(PyCFunction) channel_terminate, METH_NOARGS,
 		PyDoc_STR(
 			"Terminate the Channel permanently causing events to subside. Eventually, \n"
 			"resources being held by the Tranist will be released.\n"
 			"[Effects]\n"
 			"/(&Channel)`Return`/\n"
-			"\tThe transit being terminated.\n"
+			"\tThe channel being terminated.\n"
 		)
 	},
 
@@ -1927,7 +1927,7 @@ transit_methods[] = {
 };
 
 static PyMemberDef
-transit_members[] = {
+channel_members[] = {
 	{"array",
 		T_OBJECT, offsetof(struct Channel, array), READONLY,
 		PyDoc_STR(
@@ -1956,7 +1956,7 @@ transit_members[] = {
 	*/
 	#if FV_INJECTIONS()
 		{"_state", T_UBYTE, offsetof(struct Channel, state), READONLY,
-			PyDoc_STR("bit map defining the internal and external state of the transit")},
+			PyDoc_STR("bit map defining the internal and external state of the channel")},
 		{"_delta", T_UBYTE, offsetof(struct Channel, delta), READONLY,
 			PyDoc_STR("bit map defining the internal state changes")},
 		{"_event", T_UBYTE, offsetof(struct Channel, events), READONLY,
@@ -1967,7 +1967,7 @@ transit_members[] = {
 };
 
 static void
-transit_dealloc(PyObj self)
+channel_dealloc(PyObj self)
 {
 	Channel t = (Channel) self;
 
@@ -1991,7 +1991,7 @@ transit_dealloc(PyObj self)
 }
 
 static PyObj
-transit_get_polarity(PyObj self, void *_)
+channel_get_polarity(PyObj self, void *_)
 {
 	Channel t = (Channel) self;
 	PyObj rob;
@@ -2007,7 +2007,7 @@ transit_get_polarity(PyObj self, void *_)
 }
 
 static PyObj
-transit_get_terminated(PyObj self, void *_)
+channel_get_terminated(PyObj self, void *_)
 {
 	Channel t = (Channel) self;
 	PyObj rob;
@@ -2022,7 +2022,7 @@ transit_get_terminated(PyObj self, void *_)
 }
 
 static PyObj
-transit_get_exhausted(PyObj self, void *_)
+channel_get_exhausted(PyObj self, void *_)
 {
 	Channel t = (Channel) self;
 
@@ -2043,7 +2043,7 @@ transit_get_exhausted(PyObj self, void *_)
 	{
 		/*
 			# This needs to error out as the traffic flow may be using the
-			# transit's resource at this particular moment.
+			# channel's resource at this particular moment.
 		*/
 		Py_INCREF(Py_False);
 		return(Py_False);
@@ -2054,7 +2054,7 @@ transit_get_exhausted(PyObj self, void *_)
 }
 
 static PyObj
-transit_get_resource(PyObj self, void *_)
+channel_get_resource(PyObj self, void *_)
 {
 	Channel t = (Channel) self;
 	PyObj r;
@@ -2069,7 +2069,7 @@ transit_get_resource(PyObj self, void *_)
 
 #if FV_INJECTIONS()
 	static PyObj
-	transit_get_xtransfer(PyObj self, void *_)
+	channel_get_xtransfer(PyObj self, void *_)
 	{
 		Channel t = (Channel) self;
 		PyObj rob;
@@ -2084,7 +2084,7 @@ transit_get_resource(PyObj self, void *_)
 	}
 
 	static PyObj
-	transit_get_itransfer(PyObj self, void *_)
+	channel_get_itransfer(PyObj self, void *_)
 	{
 		Channel t = (Channel) self;
 		PyObj rob;
@@ -2099,7 +2099,7 @@ transit_get_resource(PyObj self, void *_)
 	}
 
 	static int
-	transit_set_xtransfer(PyObj self, PyObj val, void *_)
+	channel_set_xtransfer(PyObj self, PyObj val, void *_)
 	{
 		Channel t = (Channel) self;
 
@@ -2112,7 +2112,7 @@ transit_get_resource(PyObj self, void *_)
 	}
 
 	static int
-	transit_set_itransfer(PyObj self, PyObj val, void *_)
+	channel_set_itransfer(PyObj self, PyObj val, void *_)
 	{
 		Channel t = (Channel) self;
 
@@ -2125,55 +2125,55 @@ transit_get_resource(PyObj self, void *_)
 	}
 #endif
 
-static PyGetSetDef transit_getset[] = {
+static PyGetSetDef channel_getset[] = {
 	/*
 		# Event introspection.
 	*/
-	{"polarity", transit_get_polarity, NULL,
-		PyDoc_STR("`1` if the transit receives, `-1` if it sends.")
+	{"polarity", channel_get_polarity, NULL,
+		PyDoc_STR("`1` if the channel receives, `-1` if it sends.")
 	},
 
-	{"terminated", transit_get_terminated, NULL,
-		PyDoc_STR("Whether the transit is capable of transferring at all.")
+	{"terminated", channel_get_terminated, NULL,
+		PyDoc_STR("Whether the channel is capable of transferring at all.")
 	},
 
-	{"exhausted", transit_get_exhausted, NULL,
-		PyDoc_STR("Whether the transit has a resource capable of performing transfers.")
+	{"exhausted", channel_get_exhausted, NULL,
+		PyDoc_STR("Whether the channel has a resource capable of performing transfers.")
 	},
 
-	{"resource", transit_get_resource, NULL,
+	{"resource", channel_get_resource, NULL,
 		PyDoc_STR("The object whose buffer was acquired, &Octets.acquire, "
 			"as the Channel's transfer resource.\n\n&None if there is no resource.")
 	},
 
 	#if FV_INJECTIONS()
 		{"_xtransfer",
-			transit_get_xtransfer, transit_set_xtransfer,
+			channel_get_xtransfer, channel_set_xtransfer,
 			PyDoc_STR("Whether the exoresource is currently known to be capable of transfers.")
 		},
 
 		{"_itransfer",
-			transit_get_itransfer, transit_set_xtransfer,
-			PyDoc_STR("Whether the transit is currently known to be capable of transfers.")
+			channel_get_itransfer, channel_set_xtransfer,
+			PyDoc_STR("Whether the channel is currently known to be capable of transfers.")
 		},
 	#endif
 
 	{NULL,},
 };
 
-PyDoc_STRVAR(transit_doc,
+PyDoc_STRVAR(channel_doc,
 	"The base Channel type, &.abstract.Channel, created and used by &.kernel.\n"
 );
 
 /**
-	# Base type for the transit implementations.
+	# Base type for the channel implementations.
 */
 ChannelPyTypeObject ChannelType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Channel"),   /* tp_name */
 	sizeof(struct Channel),   /* tp_basicsize */
 	0,                        /* tp_itemsize */
-	transit_dealloc,          /* tp_dealloc */
+	channel_dealloc,          /* tp_dealloc */
 	NULL,                     /* tp_print */
 	NULL,                     /* tp_getattr */
 	NULL,                     /* tp_setattr */
@@ -2190,16 +2190,16 @@ ChannelPyTypeObject ChannelType = {{
 	NULL,                     /* tp_as_buffer */
 	Py_TPFLAGS_BASETYPE|
 	Py_TPFLAGS_DEFAULT,       /* tp_flags */
-	transit_doc,              /* tp_doc */
+	channel_doc,              /* tp_doc */
 	NULL,                     /* tp_traverse */
 	NULL,                     /* tp_clear */
 	NULL,                     /* tp_richcompare */
 	0,                        /* tp_weaklistoffset */
 	NULL,                     /* tp_iter */
 	NULL,                     /* tp_iternext */
-	transit_methods,          /* tp_methods */
-	transit_members,          /* tp_members */
-	transit_getset,           /* tp_getset */
+	channel_methods,          /* tp_methods */
+	channel_members,          /* tp_members */
+	channel_getset,           /* tp_getset */
 	NULL,                     /* tp_base */
 	NULL,                     /* tp_dict */
 	NULL,                     /* tp_descr_get */
@@ -2332,7 +2332,7 @@ allocio(PyObj isubtype, PyObj osubtype, Port *out)
 	if (rob == NULL)
 		return(NULL);
 
-	/* transit_dealloc expects port to be non-null.  */
+	/* channel_dealloc expects port to be non-null.  */
 	/* This means ports must be allocated first.     */
 	port = alloc_port();
 	if (port == NULL)
@@ -2705,7 +2705,7 @@ static PyMethodDef sockets_methods[] = {
 	{NULL,}
 };
 
-PyDoc_STRVAR(Sockets_doc, "transit transferring file descriptors accepted by accept(2)");
+PyDoc_STRVAR(Sockets_doc, "channel transferring file descriptors accepted by accept(2)");
 
 ChannelPyTypeObject SocketsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -3402,7 +3402,7 @@ datagrams_transfer(PyObj self)
 static PyMethodDef datagrams_methods[] = {
 	{"rallocate",
 		(PyCFunction) datagrams_rallocate, METH_VARARGS,
-		PyDoc_STR("Allocate a DatagramArray for use with the Datagrams transit.")
+		PyDoc_STR("Allocate a DatagramArray for use with the Datagrams channel.")
 	},
 
 	{"transfer",
@@ -3429,7 +3429,7 @@ DatagramsTIF = {
 	# to identify whether or not the kpoint can be closed.
 */
 
-PyDoc_STRVAR(datagrams_doc, "transit transferring DatagramArray's");
+PyDoc_STRVAR(datagrams_doc, "channel transferring DatagramArray's");
 ChannelPyTypeObject DatagramsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Datagrams"),  /* tp_name */
@@ -3510,7 +3510,7 @@ array_resize_exoresource(PyObj self, PyObj args)
 }
 
 /*
-	# Relay to the generated transit alloc functions.
+	# Relay to the generated channel alloc functions.
 	# See the preproc blackmagic at the bottom of the file.
 */
 static PyObj _jra_map = NULL; /* module init */
@@ -3566,7 +3566,7 @@ array_acquire(PyObj self, PyObj ob)
 
 	if (!PyObject_IsInstance(ob, (PyObj) &ChannelType))
 	{
-		PyErr_SetString(PyExc_TypeError, "cannot attach objects that are not transits");
+		PyErr_SetString(PyExc_TypeError, "cannot attach objects that are not channels");
 		return(NULL);
 	}
 
@@ -3584,7 +3584,7 @@ array_acquire(PyObj self, PyObj ob)
 			/* Given Channel is Terminated */
 			/*
 				# Terminating check performed after the NULL check because
-				# if the given transit is already acquired by the Array,
+				# if the given channel is already acquired by the Array,
 				# it shouldn't complain due to it already being acquired.
 
 				# Additionally, it's desired that ResourceError is consistently
@@ -3597,7 +3597,7 @@ array_acquire(PyObj self, PyObj ob)
 		/* Control bit signals needs to connect. (kfilter) */
 		Channel_DControl(t, ctl_connect);
 
-		Py_INCREF(J); /* Newly acquired transit's reference to Array.     */
+		Py_INCREF(J); /* Newly acquired channel's reference to Array.     */
 		Py_INCREF(t); /* Array's reference to the newly acquired Channel. */
 
 		Channel_SetArray(t, J);
@@ -3761,7 +3761,7 @@ array_kevent_collect(Array J, int waiting)
 		for (int i = 0; i < nkevents; ++i)
 		{
 			pkevent(&(kevs[i]));
-			ptransit((Channel) kevs->udata);
+			pchannel((Channel) kevs->udata);
 		}
 	#endif
 }
@@ -3799,7 +3799,7 @@ array_transfer_delta(Array J)
 	/*
 		# Scans the ring behind the Array.
 		# Process Events are queued up by moving the Channel behind the Array after
-		# applying flags to transit->delta.
+		# applying flags to channel->delta.
 	*/
 	for (t = J->prev; Channel_GetDelta(t) != 0; t = t->prev)
 	{
@@ -3859,7 +3859,7 @@ array_apply_delta(Array J)
 		{
 			/*
 				# iff xterminate hasn't occurred.
-				# Happens with transits that are terminated at creation due to syscall failure.
+				# Happens with channels that are terminated at creation due to syscall failure.
 			*/
 			if (Channel_PortError(t) || !Channel_PortLatched(t))
 			{
@@ -3911,11 +3911,11 @@ array_apply_delta(Array J)
 		else
 		{
 			/*
-				# Incomplete qualifications, remove transit from list.
+				# Incomplete qualifications, remove channel from list.
 			*/
 
 			/*
-				# Current `prev` is valid, so set the next to this transit's next.
+				# Current `prev` is valid, so set the next to this channel's next.
 				# Afterwards, this Tranit's next pointer to NULL to signal that
 				# it is not participating in a Transfer.
 			*/
@@ -4026,8 +4026,8 @@ array_kevent_transform(Array J)
 		if (kev->filter == EVFILT_WRITE && kev->flags & EV_EOF)
 		{
 			/*
-				# Only xterminate when it's an Output transit.
-				# io_terminate will handle termination on Input transits
+				# Only xterminate when it's an Output channel.
+				# io_terminate will handle termination on Input channels
 				# in order to make sure that all data has been transferred into the process.
 			*/
 			Channel_XQualify(t, teq_terminate);
@@ -4049,7 +4049,7 @@ array_kevent_transform(Array J)
 			Channel_XQualify(t, teq_transfer);
 
 			/*
-				# Kernel can transfer, if the transit can too, then queue it up.
+				# Kernel can transfer, if the channel can too, then queue it up.
 			*/
 			if (Channel_IQualified(t, teq_transfer))
 				Array_AddTransfer(J, t);
@@ -4118,7 +4118,7 @@ _array_terminate(Channel J)
 	for (t = J->next; t != J; t = t->next)
 	{
 		/*
-			# Enqueue is necessary here because ALL transits will
+			# Enqueue is necessary here because ALL channels will
 			# have a terminate action.
 		*/
 		Channel_DQualify(t, teq_terminate);
@@ -4152,7 +4152,7 @@ _array_flow(Array J)
 	if (Channel_Terminating(J))
 	{
 		/*
-			# terminate all transits
+			# terminate all channels
 		*/
 		_array_terminate((Channel) J);
 	}
@@ -4168,7 +4168,7 @@ _array_flow(Array J)
 	Channel_ClearDelta(J);
 
 	/*
-		# Enqueue changed transits to lltransfer.
+		# Enqueue changed channels to lltransfer.
 		# *REQUIRES GIL*
 	*/
 	array_transfer_delta(J);
@@ -4239,7 +4239,7 @@ _array_flow(Array J)
 	Array_ResetWindow(J);
 
 	/*
-		# Iterate over all the transits in the transfer list and process their events.
+		# Iterate over all the channels in the transfer list and process their events.
 		# Sort the list into the I/O list.
 	*/
 	for (t = Channel_GetNextTransfer(J); t != (Channel) J; t = Channel_GetNextTransfer(t))
@@ -4247,7 +4247,7 @@ _array_flow(Array J)
 		int polarity = !Channel_GetControl(t, ctl_polarity);
 
 		#if F_TRACE(transfers)
-			ptransit(t);
+			pchannel(t);
 		#endif
 
 		Array_IncrementTransferCount(J);
@@ -4295,7 +4295,7 @@ _array_flow(Array J)
 			Channel_NoteEvent(t, tev_transfer);
 
 			/*
-				# Adjust by the transit's window.
+				# Adjust by the channel's window.
 			*/
 			buf += (intptr_t) pos;
 
@@ -4308,7 +4308,7 @@ _array_flow(Array J)
 			#if F_TRACE(transfers)
 				#define trace(...) errpf(__VA_ARGS__)
 				trace("\n\nReSIZE: %d; REQUEST: %d\n", rsize, request);
-				ptransit(t);
+				pchannel(t);
 			#else
 				#define trace(...)
 			#endif
@@ -4360,7 +4360,7 @@ _array_flow(Array J)
 
 			#if F_TRACE(transfers)
 				trace("transform: ");
-				ptransit(t);
+				pchannel(t);
 				trace("\n ////// \n");
 			#endif
 			#undef trace
@@ -4371,7 +4371,7 @@ _array_flow(Array J)
 				# No event. Filter.
 			*/
 			#if F_TRACE(no_events)
-				ptransit(t);
+				pchannel(t);
 			#endif
 		}
 	}
@@ -4388,7 +4388,7 @@ _array_flow(Array J)
 struct ChannelInterface
 ArrayTIF = {
 	{NULL, NULL},
-	f_transits, 1,
+	f_channels, 1,
 };
 
 /**
@@ -4445,7 +4445,7 @@ _array_flush(Array J)
 		if (Channel_HasEvent(t, tev_terminate))
 		{
 			/*
-				# Release any resources owned by the transit.
+				# Release any resources owned by the channel.
 
 				# In the case where the resource was acquired in the cycle,
 				# we're not doing anything with the resource anyways, so get rid of it.
@@ -4458,14 +4458,14 @@ _array_flush(Array J)
 			Array_DecrementChannelCount(J);
 
 			/*
-				# Emitted termination? Release traffic's reference to the transit.
+				# Emitted termination? Release traffic's reference to the channel.
 			*/
 			Py_DECREF(t);
 		}
 		else
 		{
 			/*
-				# If the delta qualification exists, the user transit.acquire()'d during
+				# If the delta qualification exists, the user channel.acquire()'d during
 				# the cycle, so don't release the new resource.
 			*/
 			int exhausted = !Channel_DQualified(t, teq_transfer)
@@ -4627,7 +4627,7 @@ array_methods[] = {
 			"Acquires the Channel so that it may participate in &Array cycles.\n"
 
 			"[Parameters]\n"
-			"/transit/\n"
+			"/channel/\n"
 			"\tThe &Channel that will be managed by this Array.\n"
 		)
 	},
@@ -4635,7 +4635,7 @@ array_methods[] = {
 	{"void",
 		(PyCFunction) array_void, METH_NOARGS,
 		PyDoc_STR(
-			"Void all attached transits in an unfriendly manner.\n"
+			"Void all attached channels in an unfriendly manner.\n"
 			"Terminate events will not be generated, the current cycle, if any, will be exited.\n\n"
 			"! NOTE:\n"
 			"\tNormally, this function should be only be used by child processes destroying the parent's state."
@@ -4655,7 +4655,7 @@ array_methods[] = {
 	{"transfer",
 		(PyCFunction) array_transfer, METH_NOARGS,
 		PyDoc_STR(
-			"Returns an iterable producing the transits that have events.\n"
+			"Returns an iterable producing the channels that have events.\n"
 		)
 	},
 
@@ -4672,20 +4672,20 @@ array_methods[] = {
 
 	{"__enter__",
 		(PyCFunction) array_enter, METH_NOARGS,
-		PyDoc_STR("Enter a Array cycle allowing transition state to be examined.")
+		PyDoc_STR("Enter a Array cycle allowing channelion state to be examined.")
 	},
 
 	{"__exit__",
 		(PyCFunction) array_exit, METH_VARARGS,
-		PyDoc_STR("Exit the Array cycle destroying the transition state.")
+		PyDoc_STR("Exit the Array cycle destroying the channelion state.")
 	},
 
 	{NULL,},
 };
 
 static PyMemberDef array_members[] = {
-	{"volume", T_PYSSIZET, offsetof(struct Array, choice.array.ntransits), READONLY,
-		PyDoc_STR("The number of transits being managed by the Array instance.")},
+	{"volume", T_PYSSIZET, offsetof(struct Array, choice.array.nchannels), READONLY,
+		PyDoc_STR("The number of channels being managed by the Array instance.")},
 	{NULL,},
 };
 
@@ -4728,7 +4728,7 @@ array_dealloc(PyObj self)
 {
 	Array J = (Array) self;
 	PyMem_Free(Array_GetKEvents(J));
-	transit_dealloc(self);
+	channel_dealloc(self);
 }
 
 static PyObj
@@ -4869,7 +4869,7 @@ _init_intarray(void)
 }
 
 /**
-	# The initial parameter designates the allocation type to support the new transits.
+	# The initial parameter designates the allocation type to support the new channels.
 	# The second parameter defines the freight type and the Python type used.
 	# The third parameter is the domain/address family.
 	# The fourth parameter is the "protocol".
@@ -4953,7 +4953,7 @@ _init_intarray(void)
 #define _LOCAL_PARAMS PF_LOCAL, SOCK_STREAM, 0
 
 /*
-	# These defines are for the nasty X-macro generated transit allocation functions used
+	# These defines are for the nasty X-macro generated channel allocation functions used
 	# by Array.rallocate(). There are a number of combinations, so grouping the
 	# the similar operations helps to save some redundant code.
 

@@ -55,7 +55,7 @@ def test_idle_array_terminates(test):
 		ix._getj() # kicks off the array's thread
 
 		# we use j.force to rapidly trip the countdown.
-		# there are no transits, so we should be able to trigger it quickly
+		# there are no channels, so we should be able to trigger it quickly
 		ix.force()
 		while loops < 128:
 			# encourage switch
@@ -95,7 +95,7 @@ def test_active_array_continues(test):
 			r, w = st('octets://spawn/unidirectional')
 
 		# we use j.force to rapidly trip the countdown.
-		# there are transits, so we should never break;
+		# there are channels, so we should never break;
 		# rather the loop condition should fail.
 		ix.force()
 		while loops < 256:
@@ -149,7 +149,7 @@ def test_interchange_transfer(test):
 		ix.terminate()
 
 def test_alloc_single_interchange(test):
-	# single transit allocations have a distinct branch
+	# single channel allocations have a distinct branch
 	import time
 	l, a = new()
 	ix = lib.Interchange(a)
@@ -171,7 +171,7 @@ def test_interchange_overflow(test):
 	# test the effect of the limit attribute
 	l, a = new()
 	ix = lib.Interchange(a)
-	ix.transits_per_array = 0
+	ix.channels_per_array = 0
 	try:
 		with ix.xact() as alloc:
 			for i in range(20):

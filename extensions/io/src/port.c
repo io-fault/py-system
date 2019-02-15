@@ -862,7 +862,7 @@ port_unlatch(Port p, int8_t times)
 	const uint8_t hi = lo << 4;
 	unsigned int attempts = 0;
 
-	/* Counts for sending transits are stored at 1 << 4, reading at 0 << 0 */
+	/* Counts for sending channels are stored at 1 << 4, reading at 0 << 0 */
 	if (times == 0)
 	{
 		/* Skip shutdown process. */

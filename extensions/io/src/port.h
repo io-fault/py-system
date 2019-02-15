@@ -162,7 +162,7 @@ typedef struct sockaddr * if_addr_ref_t;
 */
 typedef enum freight {
 	f_void = 0,   /* 'v' */
-	f_transits,   /* 't' */
+	f_channels,   /* 't' */
 	f_octets,     /* 'o' */
 	f_datagrams,  /* 'G' */
 	f_sockets,    /* 'S' */
@@ -172,7 +172,7 @@ typedef enum freight {
 
 /**
 	local identifiers for the particular types of file descriptors.
-	Primarily used in cases where the transit supports multiple kinds.
+	Primarily used in cases where the channel supports multiple kinds.
 */
 typedef enum ktype {
 	kt_unknown = 0,

@@ -73,15 +73,15 @@ def test_delta(test):
 def test_anonymous_endpoints_socketpair(test):
 	J = kernel.Array()
 	try:
-		transits = J.rallocate('octets://spawn/bidirectional')
+		channels = J.rallocate('octets://spawn/bidirectional')
 		try:
-			s = list(set([x.endpoint() for x in transits]))
+			s = list(set([x.endpoint() for x in channels]))
 			test/len(s) == 1
 			test.isinstance(s[0], tuple)
 			test.isinstance(s[0][0], int)
 			test.isinstance(s[0][1], int)
 		finally:
-			for x in transits:
+			for x in channels:
 				x.terminate()
 	finally:
 		J.terminate()
@@ -90,12 +90,12 @@ def test_anonymous_endpoints_socketpair(test):
 def test_anonymous_endpoints_pipe(test):
 	J = kernel.Array()
 	try:
-		transits = J.rallocate('octets://spawn/unidirectional')
+		channels = J.rallocate('octets://spawn/unidirectional')
 		try:
-			for eps in [x.endpoint() for x in transits]:
+			for eps in [x.endpoint() for x in channels]:
 				test/eps == None
 		finally:
-			for x in transits:
+			for x in channels:
 				x.terminate()
 	finally:
 		J.terminate()
@@ -112,7 +112,7 @@ def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')
 
 		with jam.manage(r), jam.manage(w):
 			# setup_read doesn't take buffers
-			r.transits[0].acquire(view)
+			r.channels[0].acquire(view)
 
 			w.setup_write(b'foobar!')
 			for x in jam.delta():
@@ -122,32 +122,32 @@ def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')
 				if r.data == b'foobar!':
 					break
 
-		# make sure the transit is writing into the proper offset
+		# make sure the channel is writing into the proper offset
 		test/ba[0:len('foobar!')] != b'foobar!'
 		test/ba[256:256+len('foobar!')] == b'foobar!'
 	test/jam.array.terminated == True
 
-def test_transit_force(test):
+def test_channel_force(test):
 	# Array.force() causes the user filter to be triggered
 	# in order to interrupt any waiting kevent() call.
 
 	# Channel.force() causes an empty transfer to occur on the
-	# transit given that the transit's resource is not exhausted.
+	# channel given that the channel's resource is not exhausted.
 	j = kernel.Array()
 	try:
-		transits = j.rallocate(('octets', 'spawn', 'bidirectional'))
-		for x in transits:
+		channels = j.rallocate(('octets', 'spawn', 'bidirectional'))
+		for x in channels:
 			j.acquire(x)
-		transits[0].acquire(transits[0].rallocate(1))
+		channels[0].acquire(channels[0].rallocate(1))
 		with j:
 			test/list(j.transfer()) == []
 			pass
 
-		transits[0].force()
+		channels[0].force()
 		with j:
-			test/list(j.transfer()) == [transits[0]]
-			test/transits[0].slice() == slice(0,0)
-			test/transits[0].exhausted == False
+			test/list(j.transfer()) == [channels[0]]
+			test/channels[0].slice() == slice(0,0)
+			test/channels[0].exhausted == False
 	finally:
 		j.terminate()
 		with j:
@@ -160,8 +160,8 @@ def test_full_buffer_forced_write(test):
 	jam = common.ArrayActionManager()
 	with jam.thread():
 		r, w = map(common.Events,jam.array.rallocate(('octets', 'spawn', 'unidirectional')))
-		r.transits[0].resize_exoresource(64)
-		w.transits[0].resize_exoresource(64)
+		r.channels[0].resize_exoresource(64)
+		w.channels[0].resize_exoresource(64)
 
 		with jam.manage(r), jam.manage(w):
 			w.setup_write(b'bytes' * (1024 * 100))
@@ -174,13 +174,13 @@ def test_full_buffer_forced_write(test):
 				break
 			w.clear()
 
-			w.transits[0].force()
+			w.channels[0].force()
 			for x in jam.delta():
 				if w.events:
 					break
 			test/bytes(w.events[0].transferred) == b''
-			test/w.transits[0].terminated == False
-			test/w.transits[0].exhausted == False
+			test/w.channels[0].terminated == False
+			test/w.channels[0].exhausted == False
 
 def test_multiarray(test, number_to_check = 128):
 	'Validate that multiple arrays can exist.'
@@ -210,21 +210,21 @@ def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 			with jam.manage(server), jam.manage(client):
 				exchange(test, jam, client, server)
 
-			test/server.transits[0].terminated == True
-			test/server.transits[1].terminated == True
-			test/client.transits[0].terminated == True
-			test/client.transits[1].terminated == True
+			test/server.channels[0].terminated == True
+			test/server.channels[1].terminated == True
+			test/client.channels[0].terminated == True
+			test/client.channels[1].terminated == True
 
 			if None:
-				test/server.transits[0].transfer() == None
-				test/server.transits[1].transfer() == None
-				test/client.transits[0].transfer() == None
-				test/client.transits[1].transfer() == None
+				test/server.channels[0].transfer() == None
+				test/server.channels[1].transfer() == None
+				test/client.channels[0].transfer() == None
+				test/client.channels[1].transfer() == None
 
-			test/server.transits[0].exhausted == False
-			test/server.transits[1].exhausted == False
-			test/client.transits[0].exhausted == False
-			test/client.transits[1].exhausted == False
+			test/server.channels[0].exhausted == False
+			test/server.channels[1].exhausted == False
+			test/client.channels[0].exhausted == False
+			test/client.channels[1].exhausted == False
 
 def test_void(test):
 	j = kernel.Array()
@@ -355,14 +355,14 @@ def test_terminating_exhaust(test):
 
 def array_termination(test, J):
 	J.terminate()
-	# array termination cascades to transits
+	# array termination cascades to channels
 	with J:
-		transits = set(J.transfer())
-		ports = [x.port for x in transits]
+		channels = set(J.transfer())
+		ports = [x.port for x in channels]
 	test/J.terminated == True
-	for x in transits:
+	for x in channels:
 		test/x.terminated == True
-	return transits
+	return channels
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

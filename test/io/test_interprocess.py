@@ -3,15 +3,15 @@ from .. import kernel
 from .. import library as lib
 from . import common
 
-def fork_and_circulate(test, jam, transits):
+def fork_and_circulate(test, jam, channels):
 	# fork before jam.manage() for ease.
 	pid = os.fork()
 	if pid == 0:
 		try:
-			objects = common.Objects(transits[2:])
+			objects = common.Objects(channels[2:])
 			jam.array.void()
 			with jam.thread(), jam.manage(objects):
-				transits[0].port.shatter()
+				channels[0].port.shatter()
 				common.child_echo(jam, objects)
 		except:
 			import traceback
@@ -20,7 +20,7 @@ def fork_and_circulate(test, jam, transits):
 		finally:
 			os._exit(0)
 	else:
-		parent = common.Objects(transits[:2])
+		parent = common.Objects(channels[:2])
 		echos = [
 			2,
 			3,
@@ -31,12 +31,12 @@ def fork_and_circulate(test, jam, transits):
 		]
 
 		with jam.thread(), jam.manage(parent):
-			transits[2].port.shatter()
+			channels[2].port.shatter()
 
 			for echo in echos:
 				parent.send(echo)
 				for x in jam.delta():
-					if parent.read_transit.terminated:
+					if parent.read_channel.terminated:
 						_pid, code = os.waitpid(pid, 0)
 						test/os.WEXITSTATUS(code) == 0
 						test/"child exited" == "too early"
@@ -50,25 +50,25 @@ def fork_and_circulate(test, jam, transits):
 				jam.array.force()
 				_pid, code = os.waitpid(pid, 0)
 				test/os.WEXITSTATUS(code) == 0
-		test/parent.transits[0].terminated == True
-		test/parent.transits[1].terminated == True
+		test/parent.channels[0].terminated == True
+		test/parent.channels[1].terminated == True
 		if None:
-			test/parent.transits[0].transfer() == None
-			test/parent.transits[1].transfer() == None
+			test/parent.channels[0].transfer() == None
+			test/parent.channels[1].transfer() == None
 
 def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 	'Check for IPC via bidirectional spawns'
 	jam = common.ArrayActionManager()
-	transits = jam.array.rallocate(req)
-	fork_and_circulate(test, jam, transits)
+	channels = jam.array.rallocate(req)
+	fork_and_circulate(test, jam, channels)
 
 def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 	'Check for IPC via unidirectional spawns'
 	jam = common.ArrayActionManager()
 	r, w = jam.array.rallocate(req)
 	rr, ww = jam.array.rallocate(req)
-	transits = (r, ww, rr, w)
-	fork_and_circulate(test, jam, transits)
+	channels = (r, ww, rr, w)
+	fork_and_circulate(test, jam, channels)
 
 def test_ports_files(test):
 	import tempfile
@@ -126,15 +126,15 @@ def test_ports_sockets(test):
 	"""
 	jam = common.ArrayActionManager()
 
-	transits = jam.array.rallocate('ports://spawn/bidirectional')
+	channels = jam.array.rallocate('ports://spawn/bidirectional')
 
 	pid = os.fork()
 	if pid == 0:
 		try:
 			jam.array.void()
-			child = common.Endpoint(transits[2:])
-			transits[0].port.shatter()
-			del transits
+			child = common.Endpoint(channels[2:])
+			channels[0].port.shatter()
+			del channels
 
 			with jam.thread(), jam.manage(child):
 				# read a descriptor from the parent
@@ -153,8 +153,8 @@ def test_ports_sockets(test):
 				listen = common.Events(sockets)
 				listen.setup_read(1)
 				with jam.manage(listen):
-					transits = jam.array.rallocate('octets://ip4', sockets.endpoint())
-					client = common.Endpoint(transits)
+					channels = jam.array.rallocate('octets://ip4', sockets.endpoint())
+					client = common.Endpoint(channels)
 					with jam.manage(client):
 						for x in jam.delta():
 							if listen.sockets:
@@ -166,14 +166,14 @@ def test_ports_sockets(test):
 		finally:
 			os._exit(0)
 	else:
-		parent = common.Endpoint(transits[:2])
-		transits[2].port.shatter() # child's copy
-		del transits
+		parent = common.Endpoint(channels[:2])
+		channels[2].port.shatter() # child's copy
+		del channels
 
 		with jam.thread(), jam.manage(parent):
 			sockets = jam.array.rallocate('sockets://ip4', ('127.0.0.1', 0))
 
-			r = parent.write_transit.rallocate(1)
+			r = parent.write_channel.rallocate(1)
 			r[0] = sockets.port.id
 			parent.setup_write(r)
 
@@ -191,7 +191,7 @@ def test_ports_spawned_octets(test):
 	# It's as if the EV_CLEAR flag was ignored for a socket sent over the socketpair().
 	jam = common.ArrayActionManager()
 
-	transits = jam.array.rallocate('ports://spawn/bidirectional')
+	channels = jam.array.rallocate('ports://spawn/bidirectional')
 
 	# fork
 	# spawn descriptors
@@ -207,9 +207,9 @@ def test_ports_spawned_octets(test):
 	if pid == 0:
 		try:
 			jam.array.void()
-			child = common.Endpoint(transits[2:])
-			transits[0].port.shatter()
-			del transits
+			child = common.Endpoint(channels[2:])
+			channels[0].port.shatter()
+			del channels
 
 			with jam.thread(), jam.manage(child):
 				# read a descriptor from the parent
@@ -221,10 +221,10 @@ def test_ports_spawned_octets(test):
 
 				sock = child.read_payload_int[0]
 				ours = os.dup(sock)
-				transits = jam.array.rallocate('octets://acquire/socket', ours)
+				channels = jam.array.rallocate('octets://acquire/socket', ours)
 				# echo everything they send us.
-				transits[0].port.raised()
-				objects = common.Objects(transits)
+				channels[0].port.raised()
+				objects = common.Objects(channels)
 				with jam.manage(objects):
 					common.child_echo(jam, objects)
 		except:
@@ -234,9 +234,9 @@ def test_ports_spawned_octets(test):
 		finally:
 			os._exit(0)
 	else:
-		parent = common.Endpoint(transits[:2])
-		transits[2].port.shatter() # child's copy
-		del transits
+		parent = common.Endpoint(channels[:2])
+		channels[2].port.shatter() # child's copy
+		del channels
 
 		echos = [
 			2, 3,
@@ -246,13 +246,13 @@ def test_ports_spawned_octets(test):
 		]
 
 		with jam.thread(), jam.manage(parent):
-			comtransits = jam.array.rallocate('octets://spawn/bidirectional')
+			comchannels = jam.array.rallocate('octets://spawn/bidirectional')
 
-			ours = comtransits[:2]
-			theirs = comtransits[2:]
+			ours = comchannels[:2]
+			theirs = comchannels[2:]
 			objects = common.Objects(ours)
 
-			r = parent.write_transit.rallocate(1)
+			r = parent.write_channel.rallocate(1)
 			r[0] = theirs[0].port.id
 			parent.setup_write(r)
 			theirs[0].port.leak()
@@ -272,7 +272,7 @@ def test_ports_spawned_octets(test):
 				objects.send(echo)
 
 				for x in jam.delta():
-					if objects.read_transit.terminated:
+					if objects.read_channel.terminated:
 						_pid, code = os.waitpid(pid, 0)
 						test/os.WEXITSTATUS(code) == 0
 					if objects.received_objects:
