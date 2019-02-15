@@ -1037,7 +1037,7 @@ struct Datagrams {
 	int pf; /* Necessary for resource allocation (ip4 vs ip6) */
 };
 
-#define INIT_TRANSIT(t, J) do { \
+#define INIT_CHANNEL(t, J) do { \
 	Channel_SetArray(t, J); \
 	Channel_SetNextTransfer(t, NULL); \
 	Channel_SetResource(t, NULL); \
@@ -1048,13 +1048,13 @@ struct Datagrams {
 	Channel_SetEvents(t, 0); \
 } while(0)
 
-#define INIT_INPUT_TRANSIT(t, J) do { \
-	INIT_TRANSIT(t, J); \
+#define INIT_INPUT_CHANNEL(t, J) do { \
+	INIT_CHANNEL(t, J); \
 	Channel_SetControl(t, ctl_polarity); \
 } while(0)
 
-#define INIT_OUTPUT_TRANSIT(t, J) do { \
-	INIT_TRANSIT(t, J); \
+#define INIT_OUTPUT_CHANNEL(t, J) do { \
+	INIT_CHANNEL(t, J); \
 	Channel_NulControl(t, ctl_polarity); \
 } while(0)
 
@@ -1070,7 +1070,7 @@ static int array_fall(Array, int);
 #define Channel_EnqueueDelta(t) do { \
 	Array J = (Channel_GetArray(t)); \
 	if (Channel_GetDelta(t) != 0 && ((Array)(t)) != J) { \
-		TRANSIT_RELOCATE_SEGMENT_BEFORE(J, (t), (t)); \
+		CHANNEL_RELOCATE_SEGMENT_BEFORE(J, (t), (t)); \
 		array_fall(J, 0); \
 	} \
 } while(0)
@@ -1097,7 +1097,7 @@ static int array_fall(Array, int);
 	# Array only holds one reference to channels no matter
 	# how often they're referenced.
 */
-#define TRANSIT_JOIN(PREV, NEXT) \
+#define CHANNEL_JOIN(PREV, NEXT) \
 	do { \
 		PREV->next = (Channel) NEXT; \
 		NEXT->prev = (Channel) PREV; \
@@ -1106,7 +1106,7 @@ static int array_fall(Array, int);
 /**
 	# Extends ring from behind. (Relative to TARGET, usually a Array instance)
 */
-#define TRANSIT_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
+#define CHANNEL_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
 	Channel T_prev = TARGET->prev; \
 	FIRST->prev = T_prev; \
 	LAST->next = (Channel) TARGET; \
@@ -1117,40 +1117,40 @@ static int array_fall(Array, int);
 /**
 	# Extends ring from front.
 */
-#define TRANSIT_ATTACH_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
+#define CHANNEL_ATTACH_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
 	FIRST->prev = (Channel) TARGET; \
 	LAST->next = (Channel) TARGET->next; \
 	TARGET->next->prev = (Channel) LAST; \
 	TARGET->next = (Channel) FIRST; \
 } while (0)
 
-#define TRANSIT_RELOCATE_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
-	TRANSIT_DETACH_SEGMENT(FIRST, LAST); \
-	TRANSIT_ATTACH_SEGMENT_AFTER(TARGET, FIRST, LAST); \
+#define CHANNEL_RELOCATE_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
+	CHANNEL_DETACH_SEGMENT(FIRST, LAST); \
+	CHANNEL_ATTACH_SEGMENT_AFTER(TARGET, FIRST, LAST); \
 } while (0)
 
-#define TRANSIT_DETACH_SEGMENT(FIRST, LAST) do { \
+#define CHANNEL_DETACH_SEGMENT(FIRST, LAST) do { \
 	Channel f_prev = FIRST->prev, l_next = LAST->next; \
 	f_prev->next = (Channel) l_next; \
 	l_next->prev = (Channel) f_prev; \
 } while(0)
 
-#define TRANSIT_RELOCATE_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
-	TRANSIT_DETACH_SEGMENT(FIRST, LAST); \
-	TRANSIT_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST); \
+#define CHANNEL_RELOCATE_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
+	CHANNEL_DETACH_SEGMENT(FIRST, LAST); \
+	CHANNEL_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST); \
 } while (0)
 
-#define TRANSIT_DETACH(TRANSIT) do { \
-	TRANSIT_DETACH_SEGMENT(TRANSIT, TRANSIT); \
-	TRANSIT->prev = NULL; TRANSIT->next = NULL; \
+#define CHANNEL_DETACH(CHANNEL) do { \
+	CHANNEL_DETACH_SEGMENT(CHANNEL, CHANNEL); \
+	CHANNEL->prev = NULL; CHANNEL->next = NULL; \
 } while(0)
 
-#define TRANSIT_ATTACH_BEFORE(TARGET, TRANSIT) \
-	TRANSIT_ATTACH_SEGMENT_BEFORE(TARGET, TRANSIT, TRANSIT)
-#define TRANSIT_ATTACH_AFTER(TARGET, TRANSIT) \
-	TRANSIT_ATTACH_SEGMENT_AFTER(TARGET, TRANSIT, TRANSIT)
-#define TRANSIT_ATTACH(TRANSIT) \
-	TRANSIT_ATTACH_BEFORE(Channel_GetArray(TRANSIT), TRANSIT)
+#define CHANNEL_ATTACH_BEFORE(TARGET, CHANNEL) \
+	CHANNEL_ATTACH_SEGMENT_BEFORE(TARGET, CHANNEL, CHANNEL)
+#define CHANNEL_ATTACH_AFTER(TARGET, CHANNEL) \
+	CHANNEL_ATTACH_SEGMENT_AFTER(TARGET, CHANNEL, CHANNEL)
+#define CHANNEL_ATTACH(CHANNEL) \
+	CHANNEL_ATTACH_BEFORE(Channel_GetArray(CHANNEL), CHANNEL)
 
 #define Channel_GetResourceArray(TYP, T) ((TYP *)(Channel_GetResourceBuffer(T) + (Channel_GetWindowStop(T) * sizeof(TYP))))
 #define Channel_GetRemainder(TYP, T) ((Channel_GetResourceSize(T) / sizeof(TYP)) - Channel_GetWindowStop(T))
@@ -2280,7 +2280,7 @@ alloci(PyObj isubtype, PyObj osubtype, Port *out)
 	}
 	t = (Channel) rob;
 
-	INIT_INPUT_TRANSIT(t, NULL);
+	INIT_INPUT_CHANNEL(t, NULL);
 	Channel_SetPort(t, p);
 	p->latches = 1;
 
@@ -2310,7 +2310,7 @@ alloco(PyObj isubtype, PyObj osubtype, Port *out)
 
 	t = (Channel) rob;
 
-	INIT_OUTPUT_TRANSIT(t, NULL);
+	INIT_OUTPUT_CHANNEL(t, NULL);
 	Channel_SetPort(t, p);
 	p->latches = 1 << 4;
 	*out = p;
@@ -2353,8 +2353,8 @@ allocio(PyObj isubtype, PyObj osubtype, Port *out)
 	Channel_SetPort(o, port);
 	PyTuple_SET_ITEM(rob, 1, (PyObj) o);
 
-	INIT_INPUT_TRANSIT(i, NULL);
-	INIT_OUTPUT_TRANSIT(o, NULL);
+	INIT_INPUT_CHANNEL(i, NULL);
+	INIT_OUTPUT_CHANNEL(o, NULL);
 
 	port->latches = (1 << 4) | 1;
 	*out = port;
@@ -2432,28 +2432,28 @@ allocioio(PyObj isubtype, PyObj osubtype, Port p[])
 	PYTHON_RECEPTACLE("alloc_isubtype1", &r1, PyAllocate, isubtype);
 	if (r1 == NULL)
 		goto error;
-	INIT_INPUT_TRANSIT(r1, NULL);
+	INIT_INPUT_CHANNEL(r1, NULL);
 	Channel_SetPort(r1, porta);
 	Py_INCREF(porta);
 
 	PYTHON_RECEPTACLE("alloc_osubtype1", &w1, PyAllocate, osubtype);
 	if (w1 == NULL)
 		goto error;
-	INIT_OUTPUT_TRANSIT(w1, NULL);
+	INIT_OUTPUT_CHANNEL(w1, NULL);
 	Channel_SetPort(w1, porta);
 	Py_INCREF(porta);
 
 	PYTHON_RECEPTACLE("alloc_isubtype2", &r2, PyAllocate, isubtype);
 	if (r2 == NULL)
 		goto error;
-	INIT_INPUT_TRANSIT(r2, NULL);
+	INIT_INPUT_CHANNEL(r2, NULL);
 	Channel_SetPort(r2, portb);
 	Py_INCREF(portb);
 
 	PYTHON_RECEPTACLE("alloc_osubtype2", &w2, PyAllocate, osubtype);
 	if (w2 == NULL)
 		goto error;
-	INIT_OUTPUT_TRANSIT(w2, NULL);
+	INIT_OUTPUT_CHANNEL(w2, NULL);
 	Channel_SetPort(w2, portb);
 	Py_INCREF(portb);
 
@@ -3601,7 +3601,7 @@ array_acquire(PyObj self, PyObj ob)
 		Py_INCREF(t); /* Array's reference to the newly acquired Channel. */
 
 		Channel_SetArray(t, J);
-		TRANSIT_ATTACH(t);
+		CHANNEL_ATTACH(t);
 
 		Array_IncrementChannelCount(J);
 	}
@@ -4454,7 +4454,7 @@ _array_flush(Array J)
 			Channel_ReleaseLink(t);
 			port_unlatch(Channel_GetPort(t), Channel_Polarity(t));
 
-			TRANSIT_DETACH(t);
+			CHANNEL_DETACH(t);
 			Array_DecrementChannelCount(J);
 
 			/*
@@ -5270,7 +5270,7 @@ INIT(PyDoc_STR("Kernel based Traffic implementation.\n"))
 			goto error; \
 		if (PyModule_AddObject(mod, #NAME, (PyObj) &( NAME##Type )) < 0) \
 			goto error;
-		TRANSIT_TYPES()
+		CHANNEL_TYPES()
 		PY_TYPES()
 	#undef ID
 

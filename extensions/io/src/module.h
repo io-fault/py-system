@@ -10,7 +10,7 @@
 #define porttype      ((PyObject *) &PortType)
 #define endpointtype  ((PyObject *) &EndpointType)
 
-#define TRANSIT_TYPES() \
+#define CHANNEL_TYPES() \
 	ID(Channel, void) \
 	ID(Array, channels) \
 	ID(Octets, octets) \
