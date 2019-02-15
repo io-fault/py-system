@@ -53,12 +53,12 @@ def test_array_rallocate(test):
 	with J:
 		pass
 
-def file_test(test, jam, path, apath):
+def file_test(test, am, path, apath):
 	count = 0
 	wrote_data = []
 	thedata = b'\xF1'*128
 
-	wr = jam.array.rallocate(('octets', 'file', 'append'), apath)
+	wr = am.array.rallocate(('octets', 'file', 'append'), apath)
 	wr.port.raised()
 
 	writer = common.Events(wr)
@@ -66,8 +66,8 @@ def file_test(test, jam, path, apath):
 	test/wr.resource == thedata
 
 	i = 0
-	with jam.manage(writer):
-		for x in jam.delta():
+	with am.manage(writer):
+		for x in am.delta():
 			test/writer.terminated == False
 			if writer.exhaustions:
 				writer.clear()
@@ -76,7 +76,7 @@ def file_test(test, jam, path, apath):
 					writer.terminate()
 					break
 				writer.setup_write(thedata)
-				jam.force()
+				am.force()
 	os.chmod(apath, 0o700)
 
 	# validate expectations
@@ -87,15 +87,15 @@ def file_test(test, jam, path, apath):
 	data_size = len(thedata) * i
 
 	# now read it back in.
-	rd = jam.array.rallocate(('octets', 'file', 'read'), apath)
+	rd = am.array.rallocate(('octets', 'file', 'read'), apath)
 	rd.port.raised() # check exception
 
 	out = []
 	reader = common.Events(rd)
 	reader.setup_read(37)
 	xfer_len = 0
-	with jam.manage(reader):
-		for x in jam.delta():
+	with am.manage(reader):
+		for x in am.delta():
 
 			if reader.events:
 				xfer = reader.data
@@ -105,7 +105,7 @@ def file_test(test, jam, path, apath):
 				if reader.exhaustions:
 					reader.clear()
 					reader.setup_read(93)
-					jam.force()
+					am.force()
 			if reader.terminated or xfer_len >= data_size:
 				out.append(reader.data)
 				reader.raised()
@@ -116,14 +116,14 @@ def file_test(test, jam, path, apath):
 
 	somedata = b'0' * 256
 
-	wr = jam.array.rallocate(('octets', 'file', 'overwrite'), apath)
+	wr = am.array.rallocate(('octets', 'file', 'overwrite'), apath)
 	wr.port.raised()
 	writer = common.Events(wr)
 	writer.setup_write(somedata)
 	test/wr.resource == somedata
 	i = 0
-	with jam.manage(writer):
-		for x in jam.delta():
+	with am.manage(writer):
+		for x in am.delta():
 			if writer.exhaustions:
 				writer.clear()
 				i += 1
@@ -131,7 +131,7 @@ def file_test(test, jam, path, apath):
 					writer.terminate()
 					break
 				writer.setup_write(somedata)
-				jam.force()
+				am.force()
 
 	expected = (i * somedata)
 	with open(path, 'rb') as f:
@@ -141,12 +141,12 @@ def file_test(test, jam, path, apath):
 	# now read it back in.
 	data_size = len(expected)
 	xfer_len = 0
-	rd = jam.array.rallocate(('octets', 'file', 'read'), apath)
+	rd = am.array.rallocate(('octets', 'file', 'read'), apath)
 	out = []
 	reader = common.Events(rd)
 	reader.setup_read(17)
-	with jam.manage(reader):
-		for x in jam.delta():
+	with am.manage(reader):
+		for x in am.delta():
 			if reader.events:
 				xfer = reader.data
 				out.append(xfer)
@@ -155,7 +155,7 @@ def file_test(test, jam, path, apath):
 				if reader.exhaustions:
 					reader.clear()
 					reader.setup_read(73)
-					jam.force()
+					am.force()
 			if reader.terminated or xfer_len >= data_size:
 				out.append(reader.data)
 				reader.raised()
@@ -164,10 +164,10 @@ def file_test(test, jam, path, apath):
 	test/(bytearray(0).join(out)) == expected
 
 def test_file(test):
-	jam = common.ArrayActionManager()
-	with jam.thread(), tempfile.TemporaryDirectory() as d:
+	am = common.ArrayActionManager()
+	with am.thread(), tempfile.TemporaryDirectory() as d:
 		path = os.path.join(d, "wfile")
-		file_test(test, jam, path, path)
+		file_test(test, am, path, path)
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

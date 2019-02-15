@@ -13,18 +13,18 @@ def test_invalid_address(test):
 
 # two pipe() created by os.pipe(), but passed into octets/descriptor/input|output
 def test_pipe(test, req = ('octets', 'acquire')):
-	jam = common.ArrayActionManager()
+	am = common.ArrayActionManager()
 
-	with jam.thread():
+	with am.thread():
 		# constructors
 		for exchange in common.transfer_cases:
 			p1 = os.pipe()
 			p2 = os.pipe()
 
-			cr = jam.array.rallocate(req + ('input',), p1[0])
-			sr = jam.array.rallocate(req + ('input',), p2[0])
-			sw = jam.array.rallocate(req + ('output',), p1[1])
-			cw = jam.array.rallocate(req + ('output',), p2[1])
+			cr = am.array.rallocate(req + ('input',), p1[0])
+			sr = am.array.rallocate(req + ('input',), p2[0])
+			sw = am.array.rallocate(req + ('output',), p1[1])
+			cw = am.array.rallocate(req + ('output',), p2[1])
 
 			server = common.Endpoint((sr, sw))
 			test/server.write_channel.polarity == lib.polarity.output
@@ -34,8 +34,8 @@ def test_pipe(test, req = ('octets', 'acquire')):
 			test/client.write_channel.polarity == lib.polarity.output
 			test/client.read_channel.polarity == lib.polarity.input
 
-			with jam.manage(server), jam.manage(client):
-				exchange(test, jam, client, server)
+			with am.manage(server), am.manage(client):
+				exchange(test, am, client, server)
 
 			test/server.channels[0].terminated == True
 			test/server.channels[1].terminated == True
@@ -52,16 +52,16 @@ def test_pipe(test, req = ('octets', 'acquire')):
 			test/server.channels[1].exhausted != True
 			test/client.channels[0].exhausted != True
 			test/client.channels[1].exhausted != True
-	test/jam.array.terminated == True
+	test/am.array.terminated == True
 
 # two pipe()'s
 def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
-	jam = common.ArrayActionManager()
+	am = common.ArrayActionManager()
 
-	with jam.thread():
+	with am.thread():
 		for exchange in common.transfer_cases:
-			cr, sw = jam.array.rallocate(req)
-			sr, cw = jam.array.rallocate(req)
+			cr, sw = am.array.rallocate(req)
+			sr, cw = am.array.rallocate(req)
 			server = common.Endpoint((sr, sw))
 			test/server.write_channel.polarity == lib.polarity.output
 			test/server.read_channel.polarity == lib.polarity.input
@@ -70,8 +70,8 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 			test/client.write_channel.polarity == lib.polarity.output
 			test/client.read_channel.polarity == lib.polarity.input
 
-			with jam.manage(server), jam.manage(client):
-				exchange(test, jam, client, server)
+			with am.manage(server), am.manage(client):
+				exchange(test, am, client, server)
 
 			test/server.channels[0].terminated == True
 			test/server.channels[1].terminated == True
@@ -88,15 +88,15 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 			test/server.channels[1].exhausted != True
 			test/client.channels[0].exhausted != True
 			test/client.channels[1].exhausted != True
-	test/jam.array.terminated == True
+	test/am.array.terminated == True
 
 # one socketpair()'s
 def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
-	jam = common.ArrayActionManager()
+	am = common.ArrayActionManager()
 
-	with jam.thread():
+	with am.thread():
 		for exchange in common.transfer_cases:
-			cxn = jam.array.rallocate(req)
+			cxn = am.array.rallocate(req)
 			server = common.Endpoint(cxn[:2])
 			test/server.write_channel.polarity == lib.polarity.output
 			test/server.read_channel.polarity == lib.polarity.input
@@ -105,8 +105,8 @@ def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 			test/client.write_channel.polarity == lib.polarity.output
 			test/client.read_channel.polarity == lib.polarity.input
 
-			with jam.manage(server), jam.manage(client):
-				exchange(test, jam, client, server)
+			with am.manage(server), am.manage(client):
+				exchange(test, am, client, server)
 
 			test/server.channels[0].terminated == True
 			test/server.channels[1].terminated == True

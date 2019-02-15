@@ -382,11 +382,11 @@ class Objects(object):
 		d = pickle.dumps(obj)
 		self.write_channel.acquire(d)
 
-def child_echo(jam, objects):
+def child_echo(am, objects):
 	"""
 	# Echos objects received back at the sender.
 	"""
-	for x in jam.delta():
+	for x in am.delta():
 		# continually echo the received objects until termination
 		if objects.read_channel.terminated:
 			# expecting to be killed by receiving a None object.
@@ -399,33 +399,33 @@ def child_echo(jam, objects):
 				if ob is None:
 					break
 				objects.send(ob)
-				jam.array.force()
+				am.array.force()
 
-def exchange_nothing(test, jam, client, server):
+def exchange_nothing(test, am, client, server):
 	pass
 
-def exchange_few_bytes(test, jam, client, server):
+def exchange_few_bytes(test, am, client, server):
 	client.setup_write(b'')
 	client.setup_read(0)
-	for x in jam.delta():
+	for x in am.delta():
 		if client.write_exhaustions:
 			break
 	test/client.write_exhaustions >= 1
 
 	server.setup_write(b'11')
-	for x in jam.delta():
+	for x in am.delta():
 		if client.read_exhaustions:
 			break
 	test/client.read_exhaustions >= 1
 
-	for x in jam.delta():
+	for x in am.delta():
 		if server.write_exhaustions:
 			break
 	test/server.units_written == 2
 	test/server.write_exhaustions >= 1
 
 	server.setup_read(1)
-	for x in jam.delta():
+	for x in am.delta():
 		if client.units_read == 2:
 			break
 
@@ -436,14 +436,14 @@ def exchange_few_bytes(test, jam, client, server):
 	server.read_channel.force()
 	client.read_channel.force()
 
-	for x in jam.delta():
+	for x in am.delta():
 		if server.read_events and client.read_events:
 			break
 	# inspect the channel directly, read_data
 	test/bytes(server.read_events[-1].transferred) == b''
 	test/bytes(client.read_events[-1].transferred) == b''
 
-def exchange_many_bytes(test, jam, client, server):
+def exchange_many_bytes(test, am, client, server):
 	client_sends = b'This is a string for the server to receive.'
 	server_sends = b'This is a string for the client to receive.'
 
@@ -453,7 +453,7 @@ def exchange_many_bytes(test, jam, client, server):
 	# there are resources, so force a zero transfer
 	server.read_channel.force()
 	client.read_channel.force()
-	for x in jam.delta():
+	for x in am.delta():
 		if server.read_events and client.read_events:
 			break
 	# inspect the channel directly, read_data
@@ -462,26 +462,26 @@ def exchange_many_bytes(test, jam, client, server):
 
 	client.setup_write(client_sends)
 	server.setup_write(server_sends)
-	for x in jam.delta():
+	for x in am.delta():
 		if server.read_exhaustions:
 			break
 
-	for x in jam.delta():
+	for x in am.delta():
 		if client.read_exhaustions:
 			break
 
-	for x in jam.delta():
+	for x in am.delta():
 		if server.write_exhaustions:
 			break
 
-	for x in jam.delta():
+	for x in am.delta():
 		if client.write_exhaustions:
 			break
 
 	test/client.read_payload == server_sends
 	test/server.read_payload == client_sends
 
-def exchange_many_bytes_many_times(test, jam, client, server):
+def exchange_many_bytes_many_times(test, am, client, server):
 	'excercise reuse'
 	server.setup_read(0)
 	client.setup_read(0)
@@ -493,20 +493,20 @@ def exchange_many_bytes_many_times(test, jam, client, server):
 		client.setup_write(client_sends)
 		server.setup_write(server_sends)
 
-		for x in jam.delta():
+		for x in am.delta():
 			if server.write_exhaustions:
 				break
 
-		for x in jam.delta():
+		for x in am.delta():
 			if client.write_exhaustions:
 				break
 
-		for x in jam.delta():
+		for x in am.delta():
 			if client.read_length == len(server_sends):
 				break;
 		test/client.read_payload == server_sends
 
-		for x in jam.delta():
+		for x in am.delta():
 			if server.read_length == len(client_sends):
 				break
 		test/server.read_payload == client_sends
@@ -514,18 +514,18 @@ def exchange_many_bytes_many_times(test, jam, client, server):
 		client.clear()
 		server.clear()
 
-def exchange_kilobytes(test, jam, client, server):
+def exchange_kilobytes(test, am, client, server):
 	server.setup_read(0)
 	client.setup_read(0)
 
 	send = b'All work and no play....makes jack a dull boy...'
 	total_size = (1024 * len(send))
 	client.setup_write(send * 1024)
-	for x in jam.delta():
+	for x in am.delta():
 		if client.write_exhaustions:
 			client.clear()
 			break
-	for x in jam.delta():
+	for x in am.delta():
 		if server.read_length == total_size:
 			break
 
@@ -537,7 +537,7 @@ transfer_cases = [
 	exchange_kilobytes,
 ]
 
-def echo_objects(test, jam, client, server):
+def echo_objects(test, am, client, server):
 	echos = [
 		[1,2,3],
 		"UNICODE",
@@ -547,12 +547,12 @@ def echo_objects(test, jam, client, server):
 
 	for obj in echos:
 		server.send(obj)
-		for x in jam.delta():
+		for x in am.delta():
 			if client.received_objects:
 				break
 		client.send(client.received_objects[0])
 		client.clear()
-		for x in jam.delta():
+		for x in am.delta():
 			if server.received_objects:
 				break
 
@@ -564,8 +564,8 @@ object_transfer_cases = [
 ]
 
 def stream_listening_connection(test, version, address, port = None):
-	jam = ArrayActionManager()
-	s = jam.array.rallocate(('sockets', version), address)
+	am = ArrayActionManager()
+	s = am.array.rallocate(('sockets', version), address)
 	# check for initial failures
 	s.port.raised()
 	with test/TypeError:
@@ -591,10 +591,10 @@ def stream_listening_connection(test, version, address, port = None):
 	else:
 		test/s_endpoint.pair == (s_endpoint.interface, s_endpoint.port)
 
-	with jam.thread(), jam.manage(listen):
+	with am.thread(), am.manage(listen):
 
 		for exchange in transfer_cases:
-			client_channels = jam.array.rallocate(('octets', version), full_address)
+			client_channels = am.array.rallocate(('octets', version), full_address)
 			client_channels[0].port.raised()
 			client_channels[0].resize_exoresource(1024 * 32)
 			client_channels[1].resize_exoresource(1024 * 32)
@@ -603,21 +603,21 @@ def stream_listening_connection(test, version, address, port = None):
 			test.isinstance(client_channels[0].port.freight, str)
 			test.isinstance(client_channels[1].port.freight, str)
 
-			with jam.manage(client):
+			with am.manage(client):
 				c_endpoint = client.write_channel.endpoint()
 				r_endpoint = client.read_channel.endpoint()
 
 				listen.setup_read(1)
-				for x in jam.delta():
+				for x in am.delta():
 					if listen.sockets:
 						break
 				test/listen.exhaustions > 0
 				fd = listen.sockets[0]
 				listen.clear()
 
-				server_channels = jam.array.rallocate(('octets', 'acquire', 'socket'), fd)
+				server_channels = am.array.rallocate(('octets', 'acquire', 'socket'), fd)
 				server = Endpoint(server_channels)
-				with jam.manage(server):
+				with am.manage(server):
 					sr_endpoint = server.read_channel.endpoint()
 					sw_endpoint = server.write_channel.endpoint()
 
@@ -631,12 +631,12 @@ def stream_listening_connection(test, version, address, port = None):
 						# should be None for endpoints without ports.
 						test/sw_endpoint.port == r_endpoint.port
 
-					exchange(test, jam, client, server)
+					exchange(test, am, client, server)
 				test/server.channels[0].terminated == True
 				test/server.channels[1].terminated == True
 				test/server.channels[0].exhausted == False
 				test/server.channels[1].exhausted == False
-				for x in jam.delta():
+				for x in am.delta():
 					break
 				test/server.channels[0].endpoint() == None
 				test/server.channels[1].endpoint() == None
@@ -646,11 +646,11 @@ def stream_listening_connection(test, version, address, port = None):
 			test/client.channels[1].terminated == True
 			test/client.channels[0].exhausted == False
 			test/client.channels[1].exhausted == False
-			for x in jam.delta():
+			for x in am.delta():
 				break
 			test/client.channels[0].endpoint() == None
 			test/client.channels[1].endpoint() == None
 			del client
 
 	test/listen.channels[0].terminated == True
-	test/jam.array.terminated == True
+	test/am.array.terminated == True

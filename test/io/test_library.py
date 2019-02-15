@@ -102,30 +102,30 @@ def test_anonymous_endpoints_pipe(test):
 		common.cycle(J)
 
 def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')):
-	jam = common.ArrayActionManager()
-	with jam.thread():
+	am = common.ArrayActionManager()
+	with am.thread():
 		# constructors
-		r, w = map(common.Events, jam.array.rallocate(req))
+		r, w = map(common.Events, am.array.rallocate(req))
 		ba = bytearray(512)
 		ba[:len('foobar!')] = b'\x00' * len('foobar!')
 		view = memoryview(ba)[256:]
 
-		with jam.manage(r), jam.manage(w):
+		with am.manage(r), am.manage(w):
 			# setup_read doesn't take buffers
 			r.channels[0].acquire(view)
 
 			w.setup_write(b'foobar!')
-			for x in jam.delta():
+			for x in am.delta():
 				if w.exhaustions:
 					break
-			for x in jam.delta():
+			for x in am.delta():
 				if r.data == b'foobar!':
 					break
 
 		# make sure the channel is writing into the proper offset
 		test/ba[0:len('foobar!')] != b'foobar!'
 		test/ba[256:256+len('foobar!')] == b'foobar!'
-	test/jam.array.terminated == True
+	test/am.array.terminated == True
 
 def test_channel_force(test):
 	# Array.force() causes the user filter to be triggered
@@ -157,25 +157,25 @@ def test_full_buffer_forced_write(test):
 	"""
 	# Test the force method on lose-octets with a full write buffer.
 	"""
-	jam = common.ArrayActionManager()
-	with jam.thread():
-		r, w = map(common.Events,jam.array.rallocate(('octets', 'spawn', 'unidirectional')))
+	am = common.ArrayActionManager()
+	with am.thread():
+		r, w = map(common.Events,am.array.rallocate(('octets', 'spawn', 'unidirectional')))
 		r.channels[0].resize_exoresource(64)
 		w.channels[0].resize_exoresource(64)
 
-		with jam.manage(r), jam.manage(w):
+		with am.manage(r), am.manage(w):
 			w.setup_write(b'bytes' * (1024 * 100))
-			for x in jam.delta():
+			for x in am.delta():
 				if w.events:
 					break
 
 			# let one cycle pass to pickup any events, then clear.
-			for x in jam.delta():
+			for x in am.delta():
 				break
 			w.clear()
 
 			w.channels[0].force()
-			for x in jam.delta():
+			for x in am.delta():
 				if w.events:
 					break
 			test/bytes(w.events[0].transferred) == b''
@@ -199,16 +199,16 @@ def test_multiarray(test, number_to_check = 128):
 
 def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 	'common.Objects sanity'
-	jam = common.ArrayActionManager()
+	am = common.ArrayActionManager()
 
-	with jam.thread():
+	with am.thread():
 		for exchange in common.object_transfer_cases:
-			cxn = jam.array.rallocate(req)
+			cxn = am.array.rallocate(req)
 			server = common.Objects(cxn[:2])
 			client = common.Objects(cxn[2:])
 
-			with jam.manage(server), jam.manage(client):
-				exchange(test, jam, client, server)
+			with am.manage(server), am.manage(client):
+				exchange(test, am, client, server)
 
 			test/server.channels[0].terminated == True
 			test/server.channels[1].terminated == True

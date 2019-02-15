@@ -76,19 +76,19 @@ def test_array_rallocate(test):
 			pass
 
 def test_octets_datagram(test):
-	jam = common.ArrayActionManager()
-	with jam.thread():
-		rw = jam.array.rallocate(('octets', 'ip4', 'udp'), (localhost[0], 1))
+	am = common.ArrayActionManager()
+	with am.thread():
+		rw = am.array.rallocate(('octets', 'ip4', 'udp'), (localhost[0], 1))
 		client = common.Endpoint(rw)
-		with jam.manage(client):
+		with am.manage(client):
 			pass
 
 def test_unreachable(test):
 	return
-	jam = common.ArrayActionManager()
-	with jam.thread():
+	am = common.ArrayActionManager()
+	with am.thread():
 		try:
-			rw = jam.array.rallocate('octets://ip4', ('126.4.4.247', 1))
+			rw = am.array.rallocate('octets://ip4', ('126.4.4.247', 1))
 			test/rw[0].port.error_code != 0
 			test/rw[1].port.error_code != 0
 		finally:
