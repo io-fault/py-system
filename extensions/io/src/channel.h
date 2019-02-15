@@ -44,9 +44,9 @@ ChannelPyTypeObject
 #define Channel_HEAD \
 	PyObject_HEAD \
 	Port port;          /* Port for Kernel communication */ \
-	Array array;  /* channel controller */ \
+	Array array;        /* channel controller */ \
 	PyObj link;         /* User storage usually used by callbacks. */ \
-	Channel prev, next; /* channel ring; all channel in traffic */ \
+	Channel prev, next; /* channel ring */ \
 	Channel lltransfer; /* linked list pointer to next evented Channel */ \
 	\
 	transfer_window_t window; /* The area of the resource that was transferred. */ \

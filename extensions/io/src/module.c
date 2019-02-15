@@ -1,6 +1,6 @@
 /**
-	# Kernel based traffic implementation using kqueue and epoll.
-	# See &.documentation.mechanics for more information.
+	# IO implementation using kqueue or epoll.
+	# See &.documentation.io.mechanics for more information.
 */
 #include <errno.h>
 #include <unistd.h>
@@ -212,7 +212,7 @@ sockaddr_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
 }
 
 /**
-	# [Parameters]
+	# [ Parameters ]
 	# /ss/
 		# Source address structure.
 	# /dst/
@@ -221,7 +221,7 @@ sockaddr_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
 	# /dstlen/
 		# Length of &dst string.
 
-	# [Return]
+	# [ Return ]
 	# The &ss parameter is the destination of the interface
 	# described in &dst.
 */
@@ -524,7 +524,7 @@ port_get_posix_description(PyObj self, void *_)
 static PyGetSetDef port_getset[] = {
 	{"call", port_get_call, NULL,
 		PyDoc_STR(
-			"The system library call or traffic.kernel call performed that caused the error associated with the Port.\n"
+			"The system library call or system.io call performed that caused the error associated with the Port.\n"
 	)},
 
 	{"error_name", port_get_error_name, NULL,
@@ -1528,7 +1528,7 @@ channel_can_acquire(Channel t)
 	if (Channel_IQualified(t, teq_transfer))
 	{
 		/*
-			# This needs to error out as the traffic flow may be using the
+			# This needs to error out as the flow may be using the
 			# channel's resource at this particular moment.
 		*/
 		PyErr_SetChannelResourceError(t);
@@ -2042,7 +2042,7 @@ channel_get_exhausted(PyObj self, void *_)
 	if (Channel_IQualified(t, teq_transfer) || Channel_DQualified(t, teq_transfer))
 	{
 		/*
-			# This needs to error out as the traffic flow may be using the
+			# This needs to error out as the flow may be using the
 			# channel's resource at this particular moment.
 		*/
 		Py_INCREF(Py_False);
@@ -4137,7 +4137,7 @@ _array_terminate(Channel J)
 }
 
 /**
-	# Collect and process traffic events.
+	# Collect and process events.
 */
 static void
 _array_flow(Array J)
@@ -4458,7 +4458,7 @@ _array_flush(Array J)
 			Array_DecrementChannelCount(J);
 
 			/*
-				# Emitted termination? Release traffic's reference to the channel.
+				# Emitted termination? Release reference to the channel.
 			*/
 			Py_DECREF(t);
 		}
@@ -4645,7 +4645,7 @@ array_methods[] = {
 	{"force",
 		(PyCFunction) array_force, METH_NOARGS,
 		PyDoc_STR(
-			"Causes the next traffic cycle not *wait* for events. If a cycle has been started\n"
+			"Causes the next cycle to not wait for events. If a cycle has been started\n"
 			"and is currently waiting for events, force will cause it to stop waiting for events.\n"
 			"\n"
 			"Returns the Array instance being forced for method chaining.\n"
