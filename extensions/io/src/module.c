@@ -81,8 +81,8 @@ freight_charcode(freight_t f)
 			return 'w';
 		case f_void:
 			return 'v';
-		case f_channels:
-			return 't'; /* Array */
+		case f_events:
+			return 'e'; /* Array */
 		case f_octets:
 			return 'o';
 		case f_datagrams:
@@ -104,8 +104,8 @@ freight_identifier(freight_t f)
 			return "wolves";
 		case f_void:
 			return "void";
-		case f_channels:
-			return "channels";
+		case f_events:
+			return "events";
 		case f_octets:
 			return "octets";
 		case f_datagrams:
@@ -4388,7 +4388,7 @@ _array_flow(Array J)
 struct ChannelInterface
 ArrayTIF = {
 	{NULL, NULL},
-	f_channels, 1,
+	f_events, 1,
 };
 
 /**
