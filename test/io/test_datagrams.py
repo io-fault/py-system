@@ -1,5 +1,5 @@
 from . import common
-from .. import kernel
+from .. import io
 
 def error_cases(test, dg, idx):
 	with test/IndexError:
@@ -9,19 +9,19 @@ def error_cases(test, dg, idx):
 		dg.endpoint(idx)
 
 	with test/IndexError:
-		dg.set_endpoint(idx, kernel.Endpoint("ip4", ('127.0.0.1', 123)))
+		dg.set_endpoint(idx, io.Endpoint("ip4", ('127.0.0.1', 123)))
 
 	with test/IndexError:
 		dg.payload(idx)
 
 def test_DatagramArray_errors(test):
-	empty = kernel.DatagramArray("ip4", 0, 0)
-	one = kernel.DatagramArray("ip4", 0, 1)
+	empty = io.DatagramArray("ip4", 0, 0)
+	one = io.DatagramArray("ip4", 0, 1)
 	error_cases(test, empty, 0)
 	error_cases(test, empty, 1)
 
 	with test/TypeError:
-		kernel.DatagramArray(123)
+		io.DatagramArray(123)
 
 	with test/TypeError:
 		empty.payload("foo")
@@ -33,7 +33,7 @@ def test_DatagramArray_errors(test):
 		empty.set_endpoint("foo")
 
 	with test/TypeError:
-		one.set_endpoint(0, kernel.Endpoint("ip6", ("::1", 0)))
+		one.set_endpoint(0, io.Endpoint("ip6", ("::1", 0)))
 
 	with test/TypeError:
 		one[::2]
@@ -42,17 +42,17 @@ def test_DatagramArray_errors(test):
 		one[::-1]
 
 	with test/TypeError:
-		kernel.DatagramArray("local", 0, 0)
+		io.DatagramArray("local", 0, 0)
 
 def test_DatagramArray(test):
-	empty = kernel.DatagramArray("ip4", 0, 0)
+	empty = io.DatagramArray("ip4", 0, 0)
 	test/len(empty) == 0
 	test/len(memoryview(empty)) == 0
 	# slice of empty is empty
 	test/(empty is empty[0:]) == True
 	test/list(empty) == []
 
-	dga = kernel.DatagramArray("ip4", 16, 3)
+	dga = io.DatagramArray("ip4", 16, 3)
 
 	test/len(dga[0:0]) == 0
 	test/len(dga[1:1]) == 0
@@ -61,18 +61,18 @@ def test_DatagramArray(test):
 	test/len(dga[500:1000]) == 0
 	test/len(dga[3:1000]) == 0
 
-	test.isinstance(dga[0:0], kernel.DatagramArray)
-	test.isinstance(dga[1:1], kernel.DatagramArray)
-	test.isinstance(dga[2:2], kernel.DatagramArray)
-	test.isinstance(dga[2:1], kernel.DatagramArray)
-	test.isinstance(dga[500:1000], kernel.DatagramArray)
-	test.isinstance(dga[3:1000], kernel.DatagramArray)
+	test.isinstance(dga[0:0], io.DatagramArray)
+	test.isinstance(dga[1:1], io.DatagramArray)
+	test.isinstance(dga[2:2], io.DatagramArray)
+	test.isinstance(dga[2:1], io.DatagramArray)
+	test.isinstance(dga[500:1000], io.DatagramArray)
+	test.isinstance(dga[3:1000], io.DatagramArray)
 
-	dga.set_endpoint(0, kernel.Endpoint("ip4", ('127.0.0.2', 2323)))
+	dga.set_endpoint(0, io.Endpoint("ip4", ('127.0.0.2', 2323)))
 	dga.set_endpoint(1, ('127.0.0.9', 3232))
 
-	test/dga.endpoint(0) == kernel.Endpoint("ip4", ('127.0.0.2', 2323))
-	test/dga.endpoint(1) == kernel.Endpoint("ip4", ('127.0.0.9', 3232))
+	test/dga.endpoint(0) == io.Endpoint("ip4", ('127.0.0.2', 2323))
+	test/dga.endpoint(1) == io.Endpoint("ip4", ('127.0.0.9', 3232))
 
 	mv = dga.payload(0)
 	test/len(mv) == 16
@@ -92,12 +92,12 @@ def test_DatagramArray(test):
 
 	first = dga[:1]
 	test/len(first) == 1
-	test/first.endpoint(0) == kernel.Endpoint("ip4", ('127.0.0.2', 2323))
+	test/first.endpoint(0) == io.Endpoint("ip4", ('127.0.0.2', 2323))
 	test/first.payload(0) == dga.payload(0)
 
 	second = dga[1:]
 	test/len(second) == 2
-	test/second.endpoint(0) == kernel.Endpoint("ip4", ('127.0.0.9', 3232))
+	test/second.endpoint(0) == io.Endpoint("ip4", ('127.0.0.9', 3232))
 	test/second.payload(0) == dga.payload(1)
 
 	# subarray slices
@@ -109,13 +109,13 @@ def test_DatagramArray(test):
 	test/len(empty) == len(second[1:1])
 	test/len(empty) == len(second[2:2])
 
-	empty = kernel.DatagramArray("ip6", 0, 0)
+	empty = io.DatagramArray("ip6", 0, 0)
 	test/len(empty) == 0
 	test/len(memoryview(empty)) == 0
 
 	# subarrays use the same space.
-	five = kernel.DatagramArray("ip4", 64, 5)
-	endpoints = [kernel.Endpoint("ip4", ("127.0.0.1", 7777 + i)) for i in range(5)]
+	five = io.DatagramArray("ip4", 64, 5)
+	endpoints = [io.Endpoint("ip4", ("127.0.0.1", 7777 + i)) for i in range(5)]
 
 	for x, e in zip(range(5), endpoints):
 		five[x:x+1].set_endpoint(0, e)
@@ -124,25 +124,25 @@ def test_DatagramArray(test):
 		test/five.endpoint(x) == e
 
 def test_rallocate(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		test/r.transfer() == None
 		test/w.transfer() == None
-		test.isinstance(r, kernel.Datagrams)
-		test.isinstance(w, kernel.Datagrams)
-		test.isinstance(r.rallocate(2, 512), kernel.DatagramArray)
-		test.isinstance(w.rallocate(2, 512), kernel.DatagramArray)
+		test.isinstance(r, io.Datagrams)
+		test.isinstance(w, io.Datagrams)
+		test.isinstance(r.rallocate(2, 512), io.DatagramArray)
+		test.isinstance(w.rallocate(2, 512), io.DatagramArray)
 		with test/TypeError:
 			r.rallocate("n")
-		test/len(memoryview(r.rallocate(2, 512))) == len(memoryview(kernel.DatagramArray("ip4", 512, 2)))
+		test/len(memoryview(r.rallocate(2, 512))) == len(memoryview(io.DatagramArray("ip4", 512, 2)))
 		r.terminate()
 		w.terminate()
 	finally:
 		J.void()
 
 def test_Datagrams_transfer_one(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)
@@ -164,7 +164,7 @@ def test_Datagrams_transfer_one(test):
 		J.void()
 
 def test_Datagrams_transfer_one_of_two(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)
@@ -190,7 +190,7 @@ def test_Datagrams_transfer_one_of_two(test):
 		J.void()
 
 def test_Datagrams_transfer_two_of_one(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)
@@ -234,7 +234,7 @@ def test_Datagrams_transfer_two_of_one(test):
 		J.void()
 
 def test_Datagrams_invalid(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
 		J.acquire(r)

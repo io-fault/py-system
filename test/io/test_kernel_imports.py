@@ -3,7 +3,7 @@
 def test_no_array(test):
 	import sys
 
-	kpath = '.'.join(__name__.split('.')[:-2]) + '.kernel'
+	kpath = '.'.join(__name__.split('.')[:-2]) + '.io'
 	test.skip(kpath in sys.modules)
 
 	import array
@@ -14,7 +14,7 @@ def test_no_array(test):
 		sys.modules['array'] = t
 
 		try:
-			from .. import kernel
+			from .. import io
 			test.fail("import did not raise expected error")
 		except (ImportError, AttributeError):
 			pass
@@ -24,7 +24,7 @@ def test_no_array(test):
 		t.array = err
 
 		try:
-			from .. import kernel
+			from .. import io
 			test.fail("import did not raise expected error")
 		except Exception as exc:
 			test/str(exc) == "nothin"
@@ -32,7 +32,7 @@ def test_no_array(test):
 		sys.modules['array'] = array
 
 	with test.trap():
-		from .. import kernel
+		from .. import io
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

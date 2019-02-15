@@ -1,5 +1,5 @@
 from .. import core
-from .. import kernel
+from .. import io
 from .. import library as lib
 
 def new():
@@ -16,7 +16,7 @@ def test_interchange_repr(test):
 def test_interchange_empty(test):
 	l, a = new()
 	ix = lib.Interchange(a)
-	'kernel' in test/ix.routes
+	'io' in test/ix.routes
 	test/len(ix.arrays) == 0
 
 def test_interchange_routes(test):
@@ -41,7 +41,7 @@ def test_idle_array_terminates(test):
 	def incloops(x):
 		nonlocal loops
 		loops += 1
-		#test/isinstance(x, kernel.Array) == True
+		#test/isinstance(x, io.Array) == True
 		test/list(x.transfer()) == []
 		x.force()
 
@@ -80,7 +80,7 @@ def test_active_array_continues(test):
 	def incloops(x):
 		nonlocal loops
 		loops += 1
-		#test/isinstance(x, kernel.Array) == True
+		#test/isinstance(x, io.Array) == True
 		x.force()
 
 	def testevents(events):

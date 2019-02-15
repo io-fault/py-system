@@ -2,13 +2,13 @@ import os
 import os.path
 import tempfile
 import sys
-from .. import kernel
+from .. import io
 from .. import library as lib
 from . import common
 
 def test_invalid_address(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		with test/TypeError as exc:
 			J.rallocate('octets://file/read', 123)
 		with test/TypeError as exc:
@@ -17,11 +17,11 @@ def test_invalid_address(test):
 		J.void()
 
 def test_endpoints(test):
-	ep = kernel.Endpoint('file', '/')
+	ep = io.Endpoint('file', '/')
 	test/str(ep) == '/'
 	test/ep.port == None
 
-	ep = kernel.Endpoint('file', '/foo')
+	ep = io.Endpoint('file', '/foo')
 	test/str(ep) == '/foo'
 	test/ep.interface == '/foo'
 
@@ -37,13 +37,13 @@ def test_array_rallocate(test):
 
 	# be sure to hit the root path here
 	# as file addressing always uses O_CREAT
-	J = kernel.Array()
+	J = io.Array()
 	for x in requests:
 		t = J.rallocate(x, '/')
 		test/t.port.error_name == 'EISDIR'
 		J.acquire(t)
 
-	ep = kernel.Endpoint('file', '/')
+	ep = io.Endpoint('file', '/')
 	for x in requests:
 		t = J.rallocate(x, ep)
 		test/t.port.error_name == 'EISDIR'

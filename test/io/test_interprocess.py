@@ -1,5 +1,5 @@
 import os
-from .. import kernel
+from .. import io
 from .. import library as lib
 from . import common
 
@@ -72,7 +72,7 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 
 def test_ports_files(test):
 	import tempfile
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		pairs = J.rallocate('ports://spawn/bidirectional')
 		parent, child = pairs[:2], pairs[2:]

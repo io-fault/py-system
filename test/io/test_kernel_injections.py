@@ -1,10 +1,10 @@
 import sys
 import os
 import errno
-from .. import kernel
+from .. import io
 
 def __test__(test):
-	test.skip(not '__ERRNO_RECEPTACLE__' in dir(kernel))
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 
 def nomem(x):
 	raise MemoryError(x)
@@ -31,25 +31,25 @@ def errno_retry_callback(ctx):
 def test_cannot_allocate_array(test):
 	test.skip(sys.platform == 'linux')
 	try:
-		kernel.__ERRNO_RECEPTACLE__['port_kqueue'] = errno_retry_callback
-		j = kernel.Array()
+		io.__ERRNO_RECEPTACLE__['port_kqueue'] = errno_retry_callback
+		j = io.Array()
 		test/j.port.error_code == errno.EINTR
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 
 def test_array_force_eintr(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g = kernel.__ERRNO_RECEPTACLE__['port_kevent'] = error(256, errno.EINTR)
+		g = io.__ERRNO_RECEPTACLE__['port_kevent'] = error(256, errno.EINTR)
 		J.force()
 		test/J.port.error_code == errno.EINTR
 		test/J.port.call == 'kevent'
 		test/g(0) == (errno.EINTR,)
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -58,7 +58,7 @@ def test_array_retry_fail(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
 		# exercise change's unlimited retry
 
@@ -66,19 +66,19 @@ def test_array_retry_fail(test):
 		J.acquire(r)
 		J.acquire(w)
 
-		g = kernel.__ERRNO_RECEPTACLE__['port_kevent'] = error(256, errno.EINTR)
+		g = io.__ERRNO_RECEPTACLE__['port_kevent'] = error(256, errno.EINTR)
 		with J:
 			pass
 		test/J.port.error_code == 0
 		test/J.port.call == None
 		test/g(0) == False
 
-		del kernel.__ERRNO_RECEPTACLE__['port_kevent']
+		del io.__ERRNO_RECEPTACLE__['port_kevent']
 
 		J.force()
 
 		# limited retry on kevent collection success
-		g = kernel.__ERRNO_RECEPTACLE__['port_kevent'] = error(8, errno.EINTR)
+		g = io.__ERRNO_RECEPTACLE__['port_kevent'] = error(8, errno.EINTR)
 
 		with J:
 			pass
@@ -87,10 +87,10 @@ def test_array_retry_fail(test):
 		test/g(0) == False
 
 		# limited retry on kevent collection gave up
-		del kernel.__ERRNO_RECEPTACLE__['port_kevent']
+		del io.__ERRNO_RECEPTACLE__['port_kevent']
 		J.force()
 
-		g = kernel.__ERRNO_RECEPTACLE__['port_kevent'] = error(512, errno.EINTR)
+		g = io.__ERRNO_RECEPTACLE__['port_kevent'] = error(512, errno.EINTR)
 
 		with J:
 			pass
@@ -99,31 +99,31 @@ def test_array_retry_fail(test):
 		test/g(0) == (errno.EINTR,)
 
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_sockets_retry_fail(test):
 	# Should trigger the limit.
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		s = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		s.port.leak()
 		sock = s.port.id
 		s.terminate()
 
-		kernel.__ERRNO_RECEPTACLE__['port_listen'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_bind'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_socket'] = \
+		io.__ERRNO_RECEPTACLE__['port_listen'] = \
+		io.__ERRNO_RECEPTACLE__['port_bind'] = \
+		io.__ERRNO_RECEPTACLE__['port_noblocking'] = \
+		io.__ERRNO_RECEPTACLE__['port_socket'] = \
 			errno_retry_callback
 
 		s = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'socket'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_socket']
+		del io.__ERRNO_RECEPTACLE__['port_socket']
 		s = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
@@ -132,19 +132,19 @@ def test_sockets_retry_fail(test):
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_noblocking']
+		del io.__ERRNO_RECEPTACLE__['port_noblocking']
 		s = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'bind'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_bind']
+		del io.__ERRNO_RECEPTACLE__['port_bind']
 		s = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'listen'
 
 	finally:
 		os.close(sock)
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -152,11 +152,11 @@ def test_sockets_retry_fail(test):
 def test_datagrams_retry_fail(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__ERRNO_RECEPTACLE__['port_bind'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_socket'] = \
+		io.__ERRNO_RECEPTACLE__['port_bind'] = \
+		io.__ERRNO_RECEPTACLE__['port_noblocking'] = \
+		io.__ERRNO_RECEPTACLE__['port_socket'] = \
 			errno_retry_callback
 
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
@@ -167,7 +167,7 @@ def test_datagrams_retry_fail(test):
 		r.terminate()
 		w.terminate()
 
-		del kernel.__ERRNO_RECEPTACLE__['port_socket']
+		del io.__ERRNO_RECEPTACLE__['port_socket']
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
 		test/r.port.error_code == errno.EINTR
 		test/w.port.call == 'fcntl'
@@ -176,7 +176,7 @@ def test_datagrams_retry_fail(test):
 		r.terminate()
 		w.terminate()
 
-		del kernel.__ERRNO_RECEPTACLE__['port_noblocking']
+		del io.__ERRNO_RECEPTACLE__['port_noblocking']
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
 		test/r.port.error_code == errno.EINTR
 		test/w.port.call == 'bind'
@@ -185,18 +185,18 @@ def test_datagrams_retry_fail(test):
 		r.terminate()
 		w.terminate()
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_octets_tcpip_retry_fail(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
-		kernel.__ERRNO_RECEPTACLE__['port_connect'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_bind'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_socket'] = \
+		io.__ERRNO_RECEPTACLE__['port_connect'] = \
+		io.__ERRNO_RECEPTACLE__['port_bind'] = \
+		io.__ERRNO_RECEPTACLE__['port_noblocking'] = \
+		io.__ERRNO_RECEPTACLE__['port_socket'] = \
 			errno_retry_callback
 
 		s, _ = J.rallocate('octets://ip4', ('127.0.0.1', 100))
@@ -206,7 +206,7 @@ def test_octets_tcpip_retry_fail(test):
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'socket'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_socket']
+		del io.__ERRNO_RECEPTACLE__['port_socket']
 		s, _ = J.rallocate('octets://ip4', ('127.0.0.1', 100))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
@@ -214,13 +214,13 @@ def test_octets_tcpip_retry_fail(test):
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_noblocking']
+		del io.__ERRNO_RECEPTACLE__['port_noblocking']
 
 		s, _ = J.rallocate(('octets', 'ip4', 'tcp', 'bind'), (('127.0.0.1', 100), ('127.0.0.1', 0)))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'bind'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_bind']
+		del io.__ERRNO_RECEPTACLE__['port_bind']
 
 		s, _ = J.rallocate('octets://ip4', ('127.0.0.1', 100))
 		test/s.port.error_code == errno.EINTR
@@ -229,35 +229,35 @@ def test_octets_tcpip_retry_fail(test):
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'connect'
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_octets_udpip_retry_fail(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
-		kernel.__ERRNO_RECEPTACLE__['port_connect'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_socket'] = \
+		io.__ERRNO_RECEPTACLE__['port_connect'] = \
+		io.__ERRNO_RECEPTACLE__['port_noblocking'] = \
+		io.__ERRNO_RECEPTACLE__['port_socket'] = \
 			errno_retry_callback
 
 		s, _ = J.rallocate('octets://ip4:udp', ('127.0.0.1', 200))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'socket'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_socket']
+		del io.__ERRNO_RECEPTACLE__['port_socket']
 		s, _ = J.rallocate('octets://ip4:udp', ('127.0.0.1', 200))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_noblocking']
+		del io.__ERRNO_RECEPTACLE__['port_noblocking']
 		s, _ = J.rallocate('octets://ip4:udp', ('127.0.0.1', 200))
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'connect'
 
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -265,23 +265,23 @@ def test_octets_udpip_retry_fail(test):
 def test_octets_pipe_retry_fail(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__ERRNO_RECEPTACLE__['port_pipe'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = \
+		io.__ERRNO_RECEPTACLE__['port_pipe'] = \
+		io.__ERRNO_RECEPTACLE__['port_noblocking'] = \
 			errno_retry_callback
 
 		s, _ = J.rallocate('octets://spawn/unidirectional')
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'pipe'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_pipe']
+		del io.__ERRNO_RECEPTACLE__['port_pipe']
 		s, _ = J.rallocate('octets://spawn/unidirectional')
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
 
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -289,10 +289,10 @@ def test_octets_pipe_retry_fail(test):
 def test_octets_socketpair_retry_fail(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__ERRNO_RECEPTACLE__['port_socketpair'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = \
+		io.__ERRNO_RECEPTACLE__['port_socketpair'] = \
+		io.__ERRNO_RECEPTACLE__['port_noblocking'] = \
 			errno_retry_callback
 
 		s, _, s2, _2 = J.rallocate('octets://spawn/bidirectional')
@@ -301,7 +301,7 @@ def test_octets_socketpair_retry_fail(test):
 		test/s2.port.error_code == errno.EINTR
 		test/s2.port.call == 'socketpair'
 
-		del kernel.__ERRNO_RECEPTACLE__['port_socketpair']
+		del io.__ERRNO_RECEPTACLE__['port_socketpair']
 		s, _, s2, _2 = J.rallocate('octets://spawn/bidirectional')
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fcntl'
@@ -309,7 +309,7 @@ def test_octets_socketpair_retry_fail(test):
 		test/s2.port.call == 'fcntl'
 
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -318,8 +318,8 @@ def test_acquire_retry_fail(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
-		kernel.__ERRNO_RECEPTACLE__['port_identify_type'] = errno_retry_callback
+		J = io.Array()
+		io.__ERRNO_RECEPTACLE__['port_identify_type'] = errno_retry_callback
 
 		for typ in ['octets://acquire/output', 'octets://acquire/input', 'sockets://acquire']:
 			s = J.rallocate(typ, -14)
@@ -332,7 +332,7 @@ def test_acquire_retry_fail(test):
 			for x in J.transfer():
 				test/x.terminated == True
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -341,10 +341,10 @@ def test_octets_file_retry_fail(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__ERRNO_RECEPTACLE__['port_open'] = \
-		kernel.__ERRNO_RECEPTACLE__['port_identify_type'] = \
+		io.__ERRNO_RECEPTACLE__['port_open'] = \
+		io.__ERRNO_RECEPTACLE__['port_identify_type'] = \
 			errno_retry_callback
 
 		s = J.rallocate('octets://file/overwrite', '/dev/null')
@@ -352,7 +352,7 @@ def test_octets_file_retry_fail(test):
 		test/s.port.call == 'open'
 		J.acquire(s)
 
-		del kernel.__ERRNO_RECEPTACLE__['port_open']
+		del io.__ERRNO_RECEPTACLE__['port_open']
 		s = J.rallocate('octets://file/overwrite', '/dev/null')
 		test/s.port.error_code == errno.EINTR
 		test/s.port.call == 'fstat'
@@ -363,7 +363,7 @@ def test_octets_file_retry_fail(test):
 			for x in J.transfer():
 				test/x.terminated == True
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -375,12 +375,12 @@ def test_octets_file_retry_fail(test):
 def test_sockets_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_listen'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_bind'] = error(12)
-		g3 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
-		g4 = kernel.__ERRNO_RECEPTACLE__['port_socket'] = error(14)
+		g1 = io.__ERRNO_RECEPTACLE__['port_listen'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_bind'] = error(12)
+		g3 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
+		g4 = io.__ERRNO_RECEPTACLE__['port_socket'] = error(14)
 
 		s = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		test/s.port.error_code == 0
@@ -392,7 +392,7 @@ def test_sockets_retry(test):
 		test/g2(0) == False
 		test/g3(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -400,11 +400,11 @@ def test_sockets_retry(test):
 def test_octets_tcpip_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_connect'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
-		g3 = kernel.__ERRNO_RECEPTACLE__['port_socket'] = error(14)
+		g1 = io.__ERRNO_RECEPTACLE__['port_connect'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
+		g3 = io.__ERRNO_RECEPTACLE__['port_socket'] = error(14)
 
 		s, s_ = J.rallocate('octets://ip4', ('127.0.0.1', 100))
 		test/s.port.error_code == 0
@@ -416,7 +416,7 @@ def test_octets_tcpip_retry(test):
 		test/g2(0) == False
 		test/g3(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -424,11 +424,11 @@ def test_octets_tcpip_retry(test):
 def test_octets_udpip_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_connect'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
-		g3 = kernel.__ERRNO_RECEPTACLE__['port_socket'] = error(14)
+		g1 = io.__ERRNO_RECEPTACLE__['port_connect'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
+		g3 = io.__ERRNO_RECEPTACLE__['port_socket'] = error(14)
 
 		s, s_ = J.rallocate('octets://ip4:udp', ('127.0.0.1', 100))
 		test/s.port.error_code == 0
@@ -440,7 +440,7 @@ def test_octets_udpip_retry(test):
 		test/g2(0) == False
 		test/g3(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -448,11 +448,11 @@ def test_octets_udpip_retry(test):
 def test_datagrams_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_bind'] = error(16)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(24)
-		g3 = kernel.__ERRNO_RECEPTACLE__['port_socket'] = error(2)
+		g1 = io.__ERRNO_RECEPTACLE__['port_bind'] = error(16)
+		g2 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(24)
+		g3 = io.__ERRNO_RECEPTACLE__['port_socket'] = error(2)
 
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
 		J.acquire(r)
@@ -460,16 +460,16 @@ def test_datagrams_retry(test):
 		test/r.port.error_code == 0
 		test/r.port.call == None
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.void()
 
 def test_octets_file_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_open'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_identify_type'] = error(6)
+		g1 = io.__ERRNO_RECEPTACLE__['port_open'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_identify_type'] = error(6)
 
 		s = J.rallocate('octets://file/read', '/dev/null')
 		test/s.port.error_code == 0
@@ -479,7 +479,7 @@ def test_octets_file_retry(test):
 		test/g1(0) == False
 		test/g2(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -487,10 +487,10 @@ def test_octets_file_retry(test):
 def test_octets_spawn_u_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_pipe'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
+		g1 = io.__ERRNO_RECEPTACLE__['port_pipe'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
 
 		r, w = J.rallocate('octets://spawn/unidirectional')
 		test/r.port.error_code == 0
@@ -503,7 +503,7 @@ def test_octets_spawn_u_retry(test):
 		test/g1(0) == False
 		test/g2(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -511,10 +511,10 @@ def test_octets_spawn_u_retry(test):
 def test_octets_spawn_b_retry(test):
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_socketpair'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
+		g1 = io.__ERRNO_RECEPTACLE__['port_socketpair'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(6)
 
 		r, w, r1, w1 = J.rallocate('octets://spawn/bidirectional')
 		test/r.port.error_code == 0
@@ -535,7 +535,7 @@ def test_octets_spawn_b_retry(test):
 		test/g1(0) == False
 		test/g2(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -543,10 +543,10 @@ def test_octets_spawn_b_retry(test):
 def test_octets_io_retry(test):
 	# Should *not* trigger the limit with EINTR
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_octets'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_octets'] = error(6)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_octets'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_octets'] = error(6)
 
 		r, w = J.rallocate('octets://spawn/unidirectional')
 		J.acquire(r)
@@ -563,8 +563,8 @@ def test_octets_io_retry(test):
 		test/g2(0) == False
 
 		# octets io doesn't give up. should it?
-		e1 = kernel.__ERRNO_RECEPTACLE__['port_input_octets'] = error(128)
-		e2 = kernel.__ERRNO_RECEPTACLE__['port_output_octets'] = error(128)
+		e1 = io.__ERRNO_RECEPTACLE__['port_input_octets'] = error(128)
+		e2 = io.__ERRNO_RECEPTACLE__['port_output_octets'] = error(128)
 
 		r.acquire(r.rallocate(100))
 		w.acquire(b'x' * 100)
@@ -572,7 +572,7 @@ def test_octets_io_retry(test):
 			with J:
 				pass
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -580,10 +580,10 @@ def test_octets_io_retry(test):
 def test_octets_io_nomem_retry(test):
 	# Should trigger the limit with ENOMEM
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_octets'] = error(12, errno.ENOMEM)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_octets'] = error(6, errno.ENOMEM)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_octets'] = error(12, errno.ENOMEM)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_octets'] = error(6, errno.ENOMEM)
 
 		r, w = J.rallocate('octets://spawn/unidirectional')
 		J.acquire(r)
@@ -600,8 +600,8 @@ def test_octets_io_nomem_retry(test):
 		test/g2(0) == False
 
 		# trigger limited retry
-		e1 = kernel.__ERRNO_RECEPTACLE__['port_input_octets'] = error(256, errno.ENOMEM)
-		e2 = kernel.__ERRNO_RECEPTACLE__['port_output_octets'] = error(256, errno.ENOMEM)
+		e1 = io.__ERRNO_RECEPTACLE__['port_input_octets'] = error(256, errno.ENOMEM)
+		e2 = io.__ERRNO_RECEPTACLE__['port_output_octets'] = error(256, errno.ENOMEM)
 
 		r.acquire(r.rallocate(100))
 		w.acquire(b'x' * 100)
@@ -611,17 +611,17 @@ def test_octets_io_nomem_retry(test):
 		test/e1(0) == (errno.ENOMEM,)
 		test/e2(0) == (errno.ENOMEM,)
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_datagrams_io_retry(test):
 	# Should *not* trigger the limit with EINTR
-	J = kernel.Array()
+	J = io.Array()
 	try:
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(8)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(6)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(8)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(6)
 
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
 		J.acquire(r)
@@ -640,8 +640,8 @@ def test_datagrams_io_retry(test):
 		test/g2(0) == False
 
 		# doesn't give up
-		e1 = kernel.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(128)
-		e2 = kernel.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(128)
+		e1 = io.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(128)
+		e2 = io.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(128)
 
 		r.acquire(r.rallocate(1))
 		dga = w.rallocate(1)
@@ -652,17 +652,17 @@ def test_datagrams_io_retry(test):
 			with J:
 				pass
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_datagrams_io_nomem_retry(test):
 	# Should *not* trigger the limit with EINTR
-	J = kernel.Array()
+	J = io.Array()
 	try:
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(8, errno.ENOMEM)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(6, errno.ENOMEM)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(8, errno.ENOMEM)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(6, errno.ENOMEM)
 
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
 		J.acquire(r)
@@ -681,8 +681,8 @@ def test_datagrams_io_nomem_retry(test):
 		test/g2(0) == False
 
 		# gives up
-		e1 = kernel.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(256, errno.ENOMEM)
-		e2 = kernel.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(256, errno.ENOMEM)
+		e1 = io.__ERRNO_RECEPTACLE__['port_input_datagrams'] = error(256, errno.ENOMEM)
+		e2 = io.__ERRNO_RECEPTACLE__['port_output_datagrams'] = error(256, errno.ENOMEM)
 
 		r.acquire(r.rallocate(1))
 		dga = w.rallocate(1)
@@ -693,14 +693,14 @@ def test_datagrams_io_nomem_retry(test):
 			with J:
 				pass
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_datagrams_io_again(test):
 	'trigger EAGAIN on datagrams output'
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		# send one and then trigger EAGAIN
 		def eagain(errno = errno.EAGAIN):
@@ -710,7 +710,7 @@ def test_datagrams_io_again(test):
 				yield (errno,)
 		g = eagain()
 		next(g)
-		kernel.__ERRNO_RECEPTACLE__['port_output_datagrams'] = g.send
+		io.__ERRNO_RECEPTACLE__['port_output_datagrams'] = g.send
 
 		r, w = J.rallocate('datagrams://ip4', ('127.0.0.1', 0))
 		J.acquire(r)
@@ -734,7 +734,7 @@ def test_datagrams_io_again(test):
 		test/rdga.endpoint(0) == r.endpoint()
 		test/rdga.payload(0)[:6] == b'foobar'
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -743,9 +743,9 @@ def test_sockets_io_retry(test):
 	test.skip(sys.platform == 'linux')
 	# Should *not* trigger the limit with EINTR
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_sockets'] = error(256)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_sockets'] = error(256)
 
 		r = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		r.acquire(r.rallocate(100))
@@ -759,7 +759,7 @@ def test_sockets_io_retry(test):
 
 		test/g1(0) == False
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -767,9 +767,9 @@ def test_sockets_io_retry(test):
 def test_sockets_io_nomem(test):
 	# ENOMEM retry in accept()
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_sockets'] = error(256, errno.ENOMEM)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_sockets'] = error(256, errno.ENOMEM)
 
 		r = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		J.acquire(r)
@@ -792,7 +792,7 @@ def test_sockets_io_nomem(test):
 			pass
 
 		# same deal, but success this time.
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_sockets'] = error(6, errno.ENOMEM)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_sockets'] = error(6, errno.ENOMEM)
 
 		r = J.rallocate('sockets://ip4', ('127.0.0.1', 0))
 		J.acquire(r)
@@ -815,13 +815,13 @@ def test_sockets_io_nomem(test):
 			pass
 
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.void()
 
 def test_octets_resize_error(test):
 	try:
-		J = kernel.Array()
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(8, errno.EINTR)
+		J = io.Array()
+		g1 = io.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(8, errno.EINTR)
 		r, w, r1, w1 = J.rallocate('octets://spawn/bidirectional')
 		J.acquire(r)
 		J.acquire(w)
@@ -830,25 +830,25 @@ def test_octets_resize_error(test):
 		r.resize_exoresource(1024)
 		test/g1(0) == False
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(256, errno.EINTR)
+		g1 = io.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(256, errno.EINTR)
 		r.resize_exoresource(1024)
 		# setsockopt gave up, *but* we don't mark an error
 		test/g1(0) == (errno.EINTR,)
 		test/r.port.error_code == 0
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(1, errno.EINVAL)
+		g1 = io.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(1, errno.EINVAL)
 		r.resize_exoresource(1024)
 		# setsockopt gave up, *but* we don't mark an error
 		test/g1(0) == False
 		test/r.port.error_code == errno.EINVAL
 		test/r.port.call == 'setsockopt'
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.void()
 
 def test_ports_io_nomem(test):
 	# This is a repeat of test_ports.test_io with one difference: error injection.
-	J = kernel.Array()
+	J = io.Array()
 	files = []
 	try:
 		files = [
@@ -870,8 +870,8 @@ def test_ports_io_nomem(test):
 		parent[1].acquire(buf)
 
 		# doesn't give up
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_ports'] = error(512)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_ports'] = error(512)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_ports'] = error(512)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_ports'] = error(512)
 
 		# cover the exhaustion case
 		cbuf = child[0].rallocate(32)
@@ -887,7 +887,7 @@ def test_ports_io_nomem(test):
 		test/set(cbuf) != set((-1,))
 
 		# doesn't give up for such low occurrences of memory errors
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_ports'] = error(8, errno.ENOMEM)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_ports'] = error(8, errno.ENOMEM)
 
 		# consume the parent's buffer
 		cbuf = child[0].rallocate(64)
@@ -902,7 +902,7 @@ def test_ports_io_nomem(test):
 		test/g1(0) == False
 		test/set(cbuf) != set((-1,))
 
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_ports'] = error(16, errno.ENOMEM)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_ports'] = error(16, errno.ENOMEM)
 		one = parent[1].rallocate(1)
 		one[0] = files[127]
 		parent[1].acquire(one)
@@ -913,8 +913,8 @@ def test_ports_io_nomem(test):
 		test/g2(0) == False
 
 		# and now failure from MEM errors
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_input_ports'] = error(512, errno.ENOMEM)
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_ports'] = error(512, errno.ENOMEM)
+		g1 = io.__ERRNO_RECEPTACLE__['port_input_ports'] = error(512, errno.ENOMEM)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_ports'] = error(512, errno.ENOMEM)
 
 		# send in the other direction as well
 		buf = child[1].rallocate(64)
@@ -936,7 +936,7 @@ def test_ports_io_nomem(test):
 def test_ports_io_again(test):
 	# This is a repeat of test_ports.test_io with one difference: error injection.
 	test.skip(sys.platform == 'linux')
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		channels = J.rallocate('ports://spawn/bidirectional')
 		for x in channels:
@@ -949,7 +949,7 @@ def test_ports_io_again(test):
 		parent[1].acquire(buf)
 
 		# gives up immediately
-		g2 = kernel.__ERRNO_RECEPTACLE__['port_output_ports'] = error(2, errno.EAGAIN)
+		g2 = io.__ERRNO_RECEPTACLE__['port_output_ports'] = error(2, errno.EAGAIN)
 		with J:
 			# an empty transfer
 			test/J.sizeof_transfer() == 1
@@ -961,9 +961,9 @@ def test_ports_io_again(test):
 
 def test_array_alloc_port_memory_errors(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__PYTHON_RECEPTACLE__['alloc_port'] = nomem
+		io.__PYTHON_RECEPTACLE__['alloc_port'] = nomem
 
 		with test/MemoryError as exc:
 			J.rallocate('octets://ip4', ('127.0.1.45', 34))
@@ -995,15 +995,15 @@ def test_array_alloc_port_memory_errors(test):
 		with test/MemoryError as exc:
 			J.rallocate('ports://acquire/socket', 8)
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
 def test_array_alloc_i_o_memory_errors(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__PYTHON_RECEPTACLE__['alloci'] = nomem
-		kernel.__PYTHON_RECEPTACLE__['alloco'] = nomem
+		io.__PYTHON_RECEPTACLE__['alloci'] = nomem
+		io.__PYTHON_RECEPTACLE__['alloco'] = nomem
 
 		with test/MemoryError as exc:
 			J.rallocate('octets://acquire/input', 8)
@@ -1017,19 +1017,19 @@ def test_array_alloc_i_o_memory_errors(test):
 		with test/MemoryError as exc:
 			J.rallocate('octets://spawn/unidirectional')
 
-		del kernel.__PYTHON_RECEPTACLE__['alloci']
+		del io.__PYTHON_RECEPTACLE__['alloci']
 		with test/MemoryError as exc:
 			J.rallocate('octets://spawn/unidirectional')
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
 def test_array_allocio_memory_errors(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__PYTHON_RECEPTACLE__['allocio.alloc_pair'] = nomem
-		kernel.__PYTHON_RECEPTACLE__['allociopair.alloc_pair'] = nomem
+		io.__PYTHON_RECEPTACLE__['allocio.alloc_pair'] = nomem
+		io.__PYTHON_RECEPTACLE__['allociopair.alloc_pair'] = nomem
 
 		with test/MemoryError as exc:
 			J.rallocate('octets://spawn/unidirectional')
@@ -1052,12 +1052,12 @@ def test_array_allocio_memory_errors(test):
 		with test/MemoryError as exc:
 			J.rallocate('octets://ip4', ('127.0.0.1', 123))
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
 def test_array_allocioio_memory_errors(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		# identifiers used inside allocioio.
 		seq = [
 			'alloc_quad',
@@ -1070,22 +1070,22 @@ def test_array_allocioio_memory_errors(test):
 		]
 
 		for x in seq:
-			kernel.__PYTHON_RECEPTACLE__['allocioio.'+x] = nomem
+			io.__PYTHON_RECEPTACLE__['allocioio.'+x] = nomem
 
 		for x in seq:
 			with test/MemoryError as exc:
 				J.rallocate('octets://spawn/bidirectional')
-			del kernel.__PYTHON_RECEPTACLE__['allocioio.'+x]
+			del io.__PYTHON_RECEPTACLE__['allocioio.'+x]
 
-		test/bool(kernel.__PYTHON_RECEPTACLE__) == False
+		test/bool(io.__PYTHON_RECEPTACLE__) == False
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 		J.void()
 
 def test_nosigpipe(test):
-	test.skip(not getattr(kernel, 'F_SETNOSIGPIPE', None))
+	test.skip(not getattr(io, 'F_SETNOSIGPIPE', None))
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
 		cases = [
 			('octets://ip4', ('127.0.1.45', 0)),
@@ -1098,7 +1098,7 @@ def test_nosigpipe(test):
 			('octets://spawn/unidirectional',),
 		]
 
-		kernel.__ERRNO_RECEPTACLE__['port_nosigpipe'] = lambda x: (errno.EINTR,)
+		io.__ERRNO_RECEPTACLE__['port_nosigpipe'] = lambda x: (errno.EINTR,)
 
 		r, w = os.pipe()
 		o = J.rallocate('octets://acquire/output', w)
@@ -1126,14 +1126,14 @@ def test_nosigpipe(test):
 			for y in channels:
 				y.terminate()
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.void()
 
 def test_close_retry(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		kernel.__ERRNO_RECEPTACLE__['port_unlatch'] = lambda x: (errno.EINTR,)
+		io.__ERRNO_RECEPTACLE__['port_unlatch'] = lambda x: (errno.EINTR,)
 		i, o = J.rallocate('octets://spawn/unidirectional')
 
 		# close gives up, so validate that the fd is still good.
@@ -1146,21 +1146,21 @@ def test_close_retry(test):
 		os.close(i.port.id)
 
 		# close eventually succeeds. validate that the fd is closed
-		kernel.__ERRNO_RECEPTACLE__['port_unlatch'] = error(16)
+		io.__ERRNO_RECEPTACLE__['port_unlatch'] = error(16)
 		o.terminate()
 		with test/OSError:
 			os.fstat(o.port.id)
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.void()
 
 def test_octets_acquire_retry(test):
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
-		J = kernel.Array()
+		J = io.Array()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_identify_type'] = error(8)
+		g1 = io.__ERRNO_RECEPTACLE__['port_identify_type'] = error(8)
 
 		s = J.rallocate('octets://acquire/input', -14)
 		test/g1(0) == False
@@ -1168,7 +1168,7 @@ def test_octets_acquire_retry(test):
 		test/s.port.call == 'fstat'
 		J.acquire(s)
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_identify_type'] = error(14)
+		g1 = io.__ERRNO_RECEPTACLE__['port_identify_type'] = error(14)
 
 		s = J.rallocate('octets://acquire/output', -14)
 		test/g1(0) == False
@@ -1181,7 +1181,7 @@ def test_octets_acquire_retry(test):
 			for x in J.transfer():
 				test/x.terminated == True
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
@@ -1189,10 +1189,10 @@ def test_octets_acquire_retry(test):
 def test_octets_acquire_mustblock(test):
 	test.skip(sys.platform == 'linux')
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		r, w = os.pipe()
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(256)
+		g1 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(256)
 
 		s = J.rallocate('octets://acquire/input', r)
 		test/g1(0) == (errno.EINTR,)
@@ -1200,7 +1200,7 @@ def test_octets_acquire_mustblock(test):
 		test/s.port.call == 'fcntl'
 		J.acquire(s)
 
-		g1 = kernel.__ERRNO_RECEPTACLE__['port_noblocking'] = error(256)
+		g1 = io.__ERRNO_RECEPTACLE__['port_noblocking'] = error(256)
 
 		s = J.rallocate('octets://acquire/output', w)
 		test/g1(0) == (errno.EINTR,)
@@ -1219,69 +1219,69 @@ def test_octets_acquire_mustblock(test):
 			for x in J.transfer():
 				test/x.terminated == True
 	finally:
-		kernel.__ERRNO_RECEPTACLE__.clear()
+		io.__ERRNO_RECEPTACLE__.clear()
 		J.terminate()
 		with J:
 			pass
 
 def test_endpoint_nomem(test):
 	try:
-		s = kernel.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
+		s = io.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
 		try:
-			kernel.__PYTHON_RECEPTACLE__['endpoint_create'] = nomem
+			io.__PYTHON_RECEPTACLE__['endpoint_create'] = nomem
 
 			with test/MemoryError as exc:
 				s.endpoint()
 		finally:
 			s.terminate()
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 
 def test_datagramarray_nomem(test):
 	try:
-		kernel.__PYTHON_RECEPTACLE__['allocdga.tp_alloc'] = nomem
-		kernel.__PYTHON_RECEPTACLE__['allocdga.new_ba'] = nomem
-		kernel.__PYTHON_RECEPTACLE__['slicedga'] = nomem
+		io.__PYTHON_RECEPTACLE__['allocdga.tp_alloc'] = nomem
+		io.__PYTHON_RECEPTACLE__['allocdga.new_ba'] = nomem
+		io.__PYTHON_RECEPTACLE__['slicedga'] = nomem
 
 		with test/MemoryError as exc:
-			kernel.DatagramArray("ip4", 128, 1)
+			io.DatagramArray("ip4", 128, 1)
 
-		del kernel.__PYTHON_RECEPTACLE__['allocdga.tp_alloc']
+		del io.__PYTHON_RECEPTACLE__['allocdga.tp_alloc']
 		with test/MemoryError as exc:
-			kernel.DatagramArray("ip4", 128, 1)
+			io.DatagramArray("ip4", 128, 1)
 
-		del kernel.__PYTHON_RECEPTACLE__['allocdga.new_ba']
+		del io.__PYTHON_RECEPTACLE__['allocdga.new_ba']
 
-		dga = kernel.DatagramArray("ip4", 128, 2)
+		dga = io.DatagramArray("ip4", 128, 2)
 		with test/MemoryError as exc:
 			x = dga[:1]
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 
 def test_datagramarray_index_nomem(test):
 	try:
-		kernel.__PYTHON_RECEPTACLE__['datagramarray_getitem.new_tuple'] = nomem
-		kernel.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_endpoint'] = nomem
-		kernel.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_memory'] = nomem
+		io.__PYTHON_RECEPTACLE__['datagramarray_getitem.new_tuple'] = nomem
+		io.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_endpoint'] = nomem
+		io.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_memory'] = nomem
 
-		dga = kernel.DatagramArray("ip4", 128, 1)
+		dga = io.DatagramArray("ip4", 128, 1)
 
 		with test/MemoryError as exc:
 			x = dga[0]
 
-		del kernel.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_endpoint']
+		del io.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_endpoint']
 		with test/MemoryError as exc:
 			x = dga[0]
 
-		del kernel.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_memory']
+		del io.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_memory']
 		with test/MemoryError as exc:
 			x = dga[0]
 
-		del kernel.__PYTHON_RECEPTACLE__['datagramarray_getitem.new_tuple']
+		del io.__PYTHON_RECEPTACLE__['datagramarray_getitem.new_tuple']
 		with test.trap():
 			x = dga[0]
 	finally:
-		kernel.__PYTHON_RECEPTACLE__.clear()
+		io.__PYTHON_RECEPTACLE__.clear()
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

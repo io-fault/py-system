@@ -1,6 +1,6 @@
 import os
 import errno
-from .. import kernel
+from .. import io
 from .. import library as lib
 from . import common
 
@@ -8,7 +8,7 @@ localhost = ('::1', 0)
 
 def test_invalid_address(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		with test/SystemError as exc:
 			J.rallocate('octets://ip6', 123)
 		with test/TypeError as exc:
@@ -25,25 +25,25 @@ def test_invalid_address(test):
 		J.void()
 
 def test_pton_error(test):
-	test.skip('EOVERRIDE' not in dir(kernel))
+	test.skip('EOVERRIDE' not in dir(io))
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		with test/OSError as exc:
 			try:
-				kernel.EOVERRIDE['ip6_from_object'] = lambda x: (1,)
+				io.EOVERRIDE['ip6_from_object'] = lambda x: (1,)
 				J.rallocate('octets://ip6', ('::1', 123))
 			finally:
-				kernel.EOVERRIDE.clear()
+				io.EOVERRIDE.clear()
 		test/exc().errno == 1
 	finally:
 		J.void()
 
 def test_endpoints(test):
-	ep = kernel.Endpoint('ip6', ('::1', 100))
+	ep = io.Endpoint('ip6', ('::1', 100))
 	test/ep.port == 100
 	test/ep.interface == '::1'
 
-	ep = kernel.Endpoint('ip6', ('0::0', -1))
+	ep = io.Endpoint('ip6', ('0::0', -1))
 	test/ep.port == 0xFFFF
 	test/ep.interface == '::'
 
@@ -61,7 +61,7 @@ def test_array_rallocate(test):
 		'sockets://ip6',
 	]
 
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		for x in pairs:
 			t = J.rallocate(x, (localhost[0], 1))
@@ -96,7 +96,7 @@ def test_unreachable(test):
 			test/rw[1].terminate()
 
 def test_failure_on_bind(test, tri = 'sockets://ip6'):
-	J = kernel.Array()
+	J = io.Array()
 	sf = J.rallocate(tri, (localhost[0], 0))
 	J.acquire(sf)
 

@@ -1,11 +1,11 @@
 import os
 from .. import library as lib
 from . import common
-from .. import kernel
+from .. import io
 
 def test_invalid_address(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		with test/TypeError as exc:
 			J.rallocate('octets://acquire/socket', "foobar")
 	finally:

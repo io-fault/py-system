@@ -2,7 +2,7 @@ import time
 import os
 import os.path
 from .. import core
-from .. import kernel
+from .. import io
 from .. import library as lib
 from . import common
 
@@ -71,7 +71,7 @@ def test_delta(test):
 	test/d.endpoint == None
 
 def test_anonymous_endpoints_socketpair(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		channels = J.rallocate('octets://spawn/bidirectional')
 		try:
@@ -88,7 +88,7 @@ def test_anonymous_endpoints_socketpair(test):
 		common.cycle(J)
 
 def test_anonymous_endpoints_pipe(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		channels = J.rallocate('octets://spawn/unidirectional')
 		try:
@@ -133,7 +133,7 @@ def test_channel_force(test):
 
 	# Channel.force() causes an empty transfer to occur on the
 	# channel given that the channel's resource is not exhausted.
-	j = kernel.Array()
+	j = io.Array()
 	try:
 		channels = j.rallocate(('octets', 'spawn', 'bidirectional'))
 		for x in channels:
@@ -187,7 +187,7 @@ def test_multiarray(test, number_to_check = 128):
 	arrays = []
 	try:
 		for x in range(number_to_check):
-			arrays.append(kernel.Array())
+			arrays.append(io.Array())
 	finally:
 		for x in arrays:
 			test/x.terminated == False
@@ -227,12 +227,12 @@ def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 			test/client.channels[1].exhausted == False
 
 def test_void(test):
-	j = kernel.Array()
+	j = io.Array()
 	test/j.terminated == False
 	j.void()
 
 	# now inside a cycle
-	j = kernel.Array()
+	j = io.Array()
 	j.force()
 	with j:
 		j.void()
@@ -258,12 +258,12 @@ def test_void(test):
 	test/j.terminated == False
 	j.terminate()
 	test/j.terminated == True
-	with test/kernel.TransitionViolation as exc:
+	with test/io.TransitionViolation as exc:
 		with j:
 			pass
 
 def test_acquire_after_terminate(test):
-	j = kernel.Array()
+	j = io.Array()
 	test/j.sizeof_transfer() == 0
 	r, w = j.rallocate('octets://spawn/unidirectional')
 	test/r.transfer() == None
@@ -281,7 +281,7 @@ def test_acquire_after_terminate(test):
 
 def test_array_flush_release(test):
 	"Validates the Channel's resource is released on flush"
-	J = kernel.Array()
+	J = io.Array()
 	r, w = J.rallocate('octets://spawn/unidirectional')
 	J.acquire(r)
 	J.acquire(w)
@@ -316,7 +316,7 @@ def test_array_flush_release(test):
 	test/w.resource == None
 
 def test_octets_resource_error(test):
-	j = kernel.Array()
+	j = io.Array()
 	r, w = j.rallocate('octets://spawn/unidirectional')
 
 	# needs mutable buffer
@@ -325,7 +325,7 @@ def test_octets_resource_error(test):
 
 	# already acquired, writer
 	w.acquire(b'')
-	with test/kernel.TransitionViolation as exc:
+	with test/io.TransitionViolation as exc:
 		w.acquire(b'')
 
 	# already acquired, reader
@@ -333,7 +333,7 @@ def test_octets_resource_error(test):
 	r.acquire(r.rallocate(0))
 
 	test/r.exhausted == False
-	with test/kernel.TransitionViolation as exc:
+	with test/io.TransitionViolation as exc:
 		r.acquire(r.rallocate(0))
 
 	r.terminate()
@@ -343,7 +343,7 @@ def test_octets_resource_error(test):
 		pass
 
 def test_terminating_exhaust(test):
-	j = kernel.Array()
+	j = io.Array()
 	r, w = j.rallocate('octets://spawn/unidirectional')
 	r.terminate()
 	w.terminate()

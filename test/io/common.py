@@ -6,7 +6,7 @@
 import pickle
 import threading
 import contextlib
-from .. import kernel
+from .. import io
 from .. import library as lib
 
 class Terminated(Exception):
@@ -69,7 +69,7 @@ def loop(deliver, array, cycle = cycle, snapshot = snapshot):
 			deliver(snapshot(array))
 	try:
 		deliver(cycle(array))
-	except kernel.TransitionViolation:
+	except io.TransitionViolation:
 		pass
 
 class ArrayActionManager(object):
@@ -78,7 +78,7 @@ class ArrayActionManager(object):
 	# of event collection.
 	"""
 	def __init__(self):
-		self.array = kernel.Array()
+		self.array = io.Array()
 		self.cycled = threading.Event() # set everytime a cycle is completed
 		self.cycled.set()
 		self.effects = {}
@@ -621,12 +621,12 @@ def stream_listening_connection(test, version, address, port = None):
 					sr_endpoint = server.read_channel.endpoint()
 					sw_endpoint = server.write_channel.endpoint()
 
-					if isinstance(sr_endpoint, kernel.Endpoint) and isinstance(c_endpoint, kernel.Endpoint):
+					if isinstance(sr_endpoint, io.Endpoint) and isinstance(c_endpoint, io.Endpoint):
 						test/sr_endpoint.interface == c_endpoint.interface
 						# should be None for endpoints without ports.
 						test/sr_endpoint.port == c_endpoint.port
 
-					if isinstance(sw_endpoint, kernel.Endpoint) and isinstance(r_endpoint, kernel.Endpoint):
+					if isinstance(sw_endpoint, io.Endpoint) and isinstance(r_endpoint, io.Endpoint):
 						test/sw_endpoint.interface == r_endpoint.interface
 						# should be None for endpoints without ports.
 						test/sw_endpoint.port == r_endpoint.port

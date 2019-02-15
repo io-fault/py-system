@@ -1,4 +1,4 @@
-# This file *should* contain traffic.kernel *specific* tests.
+# This file *should* contain traffic.io *specific* tests.
 # Primarily, invasive tests that rely on implementation specific functionality.
 
 # Arguably, there's quite a bit of redundancy in this file.
@@ -10,19 +10,19 @@ import socket
 import struct
 import errno
 import sys
-from .. import kernel
+from .. import io
 from .. import core
 
 def test_array_rtypes(test):
-	test/list(kernel.Array.rtypes()) != []
+	test/list(io.Array.rtypes()) != []
 
 def test_channel_already_acquired(test):
 	try:
-		J1 = kernel.Array()
-		J2 = kernel.Array()
+		J1 = io.Array()
+		J2 = io.Array()
 		r = J1.rallocate('octets://file/read', '/dev/null')
 		J1.acquire(r)
-		with test/kernel.TransitionViolation as exc:
+		with test/io.TransitionViolation as exc:
 			J2.acquire(r)
 	finally:
 		J1.void()
@@ -30,7 +30,7 @@ def test_channel_already_acquired(test):
 
 def test_array_termination(test):
 	'termination sequence with no channels'
-	J = kernel.Array()
+	J = io.Array()
 	test/J.terminated == False
 
 	J.terminate()
@@ -39,7 +39,7 @@ def test_array_termination(test):
 		pass
 	# one cycle in..
 	test/J.terminated == True
-	with test/kernel.TransitionViolation:
+	with test/io.TransitionViolation:
 		with J: pass
 	# validate no-op case
 	J.terminate()
@@ -47,7 +47,7 @@ def test_array_termination(test):
 
 def test_array_exceptions(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		with test/TypeError:
 			J.resize_exoresource("foobar") # need an unsigned integer
 		with test/TypeError:
@@ -59,32 +59,32 @@ def test_array_exceptions(test):
 		J.acquire(w)
 		with J:
 			pass
-		with test/kernel.TransitionViolation:
+		with test/io.TransitionViolation:
 			J.acquire(r)
-		with test/kernel.TransitionViolation:
+		with test/io.TransitionViolation:
 			J.acquire(w)
 	finally:
 		J.void()
 
 def test_array_terminated(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		J.terminate()
 		f = J.rallocate('octets://file/read', '/dev/null')
 		with J:
 			pass
 
-		with test/kernel.TransitionViolation:
+		with test/io.TransitionViolation:
 			with J: pass
 
-		with test/kernel.TransitionViolation:
+		with test/io.TransitionViolation:
 			J.acquire(f)
 		f.terminate()
 	finally:
 		J.void()
 
 def test_array_force(test):
-	J = kernel.Array()
+	J = io.Array()
 	# once per second
 	# this gives J a kevent
 	J.force()
@@ -100,7 +100,7 @@ def test_array_force(test):
 
 def test_array_in_cycle(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		J.force()
 		test/J.port.exception() == None
 		with J:
@@ -114,7 +114,7 @@ def test_array_in_cycle(test):
 def test_array_out_of_cycle(test):
 	'context manager to terminate on exit'
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		test/J.sizeof_transfer() == 0
 		test/len(J.transfer()) == 0
 		test/J.port.exception() == None
@@ -134,7 +134,7 @@ def test_array_out_of_cycle(test):
 			pass
 
 def test_array_resize_exoresource(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		J.force()
 		with test/RuntimeError as exc, J:
@@ -147,14 +147,14 @@ def test_array_resize_exoresource(test):
 def test_array_rallocate_octets(test):
 	channels = set()
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		connection = J.rallocate(('octets', 'spawn', 'bidirectional'))
 		three_four = J.rallocate(('octets', 'spawn', 'unidirectional'))
 		channels.update(connection)
 		channels.update(three_four)
 
 		for x in connection + three_four:
-			test.isinstance(x, kernel.Octets)
+			test.isinstance(x, io.Octets)
 	finally:
 		# don't leak
 		for x in channels:
@@ -163,18 +163,18 @@ def test_array_rallocate_octets(test):
 
 def test_array_new_failure(test):
 	test.skip(sys.platform == 'linux')
-	test.skip(not 'EOVERRIDE' in dir(kernel))
+	test.skip(not 'EOVERRIDE' in dir(io))
 	try:
-		kernel.EOVERRIDE['port_kqueue'] = lambda x: (errno.EINTR,)
-		J = kernel.Array()
+		io.EOVERRIDE['port_kqueue'] = lambda x: (errno.EINTR,)
+		J = io.Array()
 		test/J.port.error_code == errno.EINTR
 		test/J.port.id == -1
 	finally:
-		kernel.EOVERRIDE.clear()
+		io.EOVERRIDE.clear()
 
 def test_array_resize_exoresource(test):
 	try:
-		J = kernel.Array()
+		J = io.Array()
 		J.resize_exoresource(1)
 		J.resize_exoresource(10)
 		J.resize_exoresource(0)
@@ -183,26 +183,26 @@ def test_array_resize_exoresource(test):
 		J.void()
 
 def test_module_protocol(test):
-	"Port" in test/dir(kernel)
-	"Endpoint" in test/dir(kernel)
+	"Port" in test/dir(io)
+	"Endpoint" in test/dir(io)
 
-	"Channel" in test/dir(kernel)
-	"Octets" in test/dir(kernel)
-	"Sockets" in test/dir(kernel)
-	"Ports" in test/dir(kernel)
-	"Array" in test/dir(kernel)
+	"Channel" in test/dir(io)
+	"Octets" in test/dir(io)
+	"Sockets" in test/dir(io)
+	"Ports" in test/dir(io)
+	"Array" in test/dir(io)
 
-	test.issubclass(kernel.Octets, kernel.Channel)
-	test.issubclass(kernel.Sockets, kernel.Channel)
-	test.issubclass(kernel.Ports, kernel.Channel)
-	test.issubclass(kernel.Array, kernel.Channel)
+	test.issubclass(io.Octets, io.Channel)
+	test.issubclass(io.Sockets, io.Channel)
+	test.issubclass(io.Ports, io.Channel)
+	test.issubclass(io.Array, io.Channel)
 
 def test_no_subtyping(test):
 	types = (
-		kernel.Array,
-		kernel.Octets,
-		kernel.Sockets,
-		kernel.Ports,
+		io.Array,
+		io.Octets,
+		io.Sockets,
+		io.Ports,
 	)
 
 	for x in types:
@@ -214,7 +214,7 @@ def test_no_subtyping(test):
 				pass
 
 def test_port(test):
-	f = kernel.Port(
+	f = io.Port(
 		call = "kevent", error_code = 10, id = -1,
 	)
 	test/f.id == -1
@@ -222,22 +222,22 @@ def test_port(test):
 	test/f.error_name == "ECHILD"
 	test/f.call == "kevent"
 
-	f = kernel.Port(
+	f = io.Port(
 		call = "read", error_code = 100, id = 100,
 	)
 	test/f.id == 100
 	test/f.error_code == 100
 	test/f.call == "read"
 
-	f = kernel.Port(
+	f = io.Port(
 		call = "x", error_code = 1000, id = 1000,
 	)
 	test/f.id == 1000
 	test/f.error_code == 1000
 	test/f.call == 'INVALID'
 	with test/TypeError as exc:
-		kernel.Port(id = "nonanumber")
-	f = kernel.Port(
+		io.Port(id = "nonanumber")
+	f = io.Port(
 		call = "read", error_code = 10, id = 1000,
 	)
 	with test/OSError as exc:
@@ -249,10 +249,10 @@ def test_port(test):
 	f.shatter()
 
 def test_sockets_rallocate(test):
-	# leveraging knowledge of kernel.Sockets.rallocate
+	# leveraging knowledge of io.Sockets.rallocate
 	# in real code, rallocate against the Sockets *instance*
-	test/list(kernel.Sockets.rallocate(10)) == [-1] * 10
-	sb = kernel.Sockets.rallocate(16)
+	test/list(io.Sockets.rallocate(10)) == [-1] * 10
+	sb = io.Sockets.rallocate(16)
 	mv = memoryview(sb)
 
 	test/sb[0] != 1 # should be -1, but anything aside from 1 is okay.
@@ -261,10 +261,10 @@ def test_sockets_rallocate(test):
 	test/sb[0] == 1
 
 def test_ports_rallocate(test):
-	# leveraging knowledge of kernel.Sockets.rallocate
+	# leveraging knowledge of io.Sockets.rallocate
 	# in real code, rallocate against the Sockets *instance*
-	test/list(kernel.Ports.rallocate(10)) == [-1] * 10
-	sb = kernel.Ports.rallocate(16)
+	test/list(io.Ports.rallocate(10)) == [-1] * 10
+	sb = io.Ports.rallocate(16)
 	mv = memoryview(sb)
 
 	test/sb[0] != 1 # should be -1, but anything aside from 1 is okay.
@@ -273,8 +273,8 @@ def test_ports_rallocate(test):
 	test/sb[0] == 1
 
 def test_octets_rallocate(test):
-	test/list(bytes(kernel.Octets.rallocate(20))) == list(b'\x00' * 20)
-	mb = kernel.Octets.rallocate(20)
+	test/list(bytes(io.Octets.rallocate(20))) == list(b'\x00' * 20)
+	mb = io.Octets.rallocate(20)
 	mb[0:5] = b'fffff'
 	test/memoryview(mb).tobytes() == b'fffff' + (b'\x00' * (20 - 5))
 	mv = memoryview(mb)
@@ -282,7 +282,7 @@ def test_octets_rallocate(test):
 	mb[10:15] = b'fffff'
 
 def test_array_rallocate_errors(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		with test/LookupError as exc:
 			J.rallocate("")
@@ -292,7 +292,7 @@ def test_array_rallocate_errors(test):
 		J.void()
 
 def test_array_collection_countdown(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		J.resize_exoresource(2)
 		data = b'SOME DATA'
@@ -324,7 +324,7 @@ def test_array_collection_countdown(test):
 			pass
 
 def test_sockets_accept_filter(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		s = J.rallocate("sockets://ip4", ('127.0.0.1', 0))
 		J.acquire(s)
@@ -340,7 +340,7 @@ def test_sockets_accept_filter(test):
 
 def test_octets_acquire_badfd_detect(test):
 	r, w = os.pipe()
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		xr = J.rallocate('octets://acquire/input', w)
 		xr.port.error_code in test/(errno.EBADF, 0)
@@ -363,8 +363,8 @@ def test_octets_acquire_badfd_detect(test):
 		J.void()
 
 def test_octets_bind(test):
-	s = kernel.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
-	r, w = kernel.Array.rallocate(('octets', 'ip4', 'tcp', 'bind'), (s.endpoint(), ('127.0.0.1', 0)))
+	s = io.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
+	r, w = io.Array.rallocate(('octets', 'ip4', 'tcp', 'bind'), (s.endpoint(), ('127.0.0.1', 0)))
 	try:
 		test/r.port.error_code == 0
 		test/w.endpoint() == s.endpoint()

@@ -1,13 +1,13 @@
 """
-# Referring to the Channel, traffic.kernel.Ports.
+# Referring to the Channel, traffic.io.Ports.
 
 # Test the Transfer of Ports, file descriptors.
 """
 import os
-from .. import kernel
+from .. import io
 
 def test_io(test):
-	J = kernel.Array()
+	J = io.Array()
 	files = []
 	try:
 		files = [

@@ -2,11 +2,11 @@ import errno
 import os.path
 import tempfile
 from .. import library as lib
-from .. import kernel
+from .. import io
 from . import common
 
 def test_invalid_address(test):
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		with test/SystemError as exc: # XXX: should probably should this one
 			J.rallocate('octets://local', 123)
@@ -18,17 +18,17 @@ def test_invalid_address(test):
 		J.void()
 
 def test_endpoints(test):
-	ep = kernel.Endpoint('local', ('/some/dir/', 'sock'))
+	ep = io.Endpoint('local', ('/some/dir/', 'sock'))
 	test/ep.port == 'sock'
 	test/ep.interface == '/some/dir/'
 
-	ep = kernel.Endpoint('local', ('/', 's'))
+	ep = io.Endpoint('local', ('/', 's'))
 	test/ep.port == 's'
 	test/ep.interface == '/'
 
 	# XXX: currently silent trunc; throw error.
 	dir = '/some/dir' * 70
-	ep = kernel.Endpoint('local', (dir, 'sock'))
+	ep = io.Endpoint('local', (dir, 'sock'))
 	test/ep.interface != dir
 	test/ep.port != 'sock'
 
@@ -42,7 +42,7 @@ def test_array_rallocate(test):
 		'sockets://local',
 	]
 
-	J = kernel.Array()
+	J = io.Array()
 	try:
 		for x in pairs:
 			t = J.rallocate(x, '/')
@@ -60,7 +60,7 @@ def test_array_rallocate(test):
 
 def test_failure_on_bind(test, tri = 'sockets://local'):
 	with tempfile.TemporaryDirectory() as d:
-		J = kernel.Array()
+		J = io.Array()
 		sf = J.rallocate(tri, (d, 'port'))
 		J.acquire(sf)
 		fail = J.rallocate(tri, (d, 'port'))
