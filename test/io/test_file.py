@@ -3,7 +3,6 @@ import os.path
 import tempfile
 import sys
 from ... import io
-from ... import library as lib
 from . import common
 
 def test_invalid_address(test):

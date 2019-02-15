@@ -1,74 +1,9 @@
 import time
 import os
 import os.path
-from ... import core
+
 from ... import io
-from ... import library as lib
 from . import common
-
-def test_adapter_properties(test):
-	a = lib.Adapter.create("endpoint", "transformer")
-	test/a.endpoint == "endpoint"
-	test/a.transformer == "transformer"
-
-def test_delta(test):
-	d = lib.Delta.construct()
-	test/d.endpoint == None
-	test/d.terminal == False
-	test/d.demand == None
-	test/d.payload == None
-	test.isinstance(repr(d), str)
-	test.isinstance(str(d), str)
-
-	class Channel(object):
-		def __init__(self):
-			self.polarity = 1
-			self.terminated = False
-			self.resource = None
-			self.mslice = None
-			self.exhausted = False
-			self.port = None
-			self.mendpoint = None
-
-		def slice(self):
-			return self.mslice
-
-		def transfer(self):
-			return self.resource[self.mslice]
-
-		def sizeof_transfer(self):
-			return self.mslice.stop - self.mslice.start
-
-		def acquire(self, res):
-			self.resource = res
-			return self
-
-		def endpoint(self):
-			return self.mendpoint
-
-	T = Channel()
-	T.mendpoint = "END"
-	T.terminated = True
-	T.acquire(b'foo')
-	T.mslice = slice(0,3)
-	d = lib.Delta.snapshot(T)
-	test/d.terminal == True
-	test/d.payload == b'foo'
-	test/d.demand == None
-	test.isinstance(str(d), str)
-	test/d.endpoint == "END"
-
-	T = Channel()
-	T.polarity = -1
-	T.acquire(b'bar')
-	T.exhausted = True
-	T.mslice = slice(0,3)
-	d = lib.Delta.snapshot(T)
-	test/d.terminal == False
-	test/d.payload == b'bar'
-	test/d.demand == T.acquire
-	test.isinstance(str(d), str)
-	test/d.endpoint == None
 
 def test_anonymous_endpoints_socketpair(test):
 	J = io.Array()
@@ -280,7 +215,6 @@ def test_acquire_after_terminate(test):
 	test/w.acquire(w.rallocate(0)) == None
 
 def test_array_flush_release(test):
-	"Validates the Channel's resource is released on flush"
 	J = io.Array()
 	r, w = J.rallocate('octets://spawn/unidirectional')
 	J.acquire(r)

@@ -1,5 +1,4 @@
 import os
-from ... import library as lib
 from . import common
 from ... import io
 
@@ -27,12 +26,12 @@ def test_pipe(test, req = ('octets', 'acquire')):
 			cw = am.array.rallocate(req + ('output',), p2[1])
 
 			server = common.Endpoint((sr, sw))
-			test/server.write_channel.polarity == lib.polarity.output
-			test/server.read_channel.polarity == lib.polarity.input
+			test/server.write_channel.polarity == -1
+			test/server.read_channel.polarity == 1
 
 			client = common.Endpoint((cr, cw))
-			test/client.write_channel.polarity == lib.polarity.output
-			test/client.read_channel.polarity == lib.polarity.input
+			test/client.write_channel.polarity == -1
+			test/client.read_channel.polarity == 1
 
 			with am.manage(server), am.manage(client):
 				exchange(test, am, client, server)
@@ -63,12 +62,12 @@ def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
 			cr, sw = am.array.rallocate(req)
 			sr, cw = am.array.rallocate(req)
 			server = common.Endpoint((sr, sw))
-			test/server.write_channel.polarity == lib.polarity.output
-			test/server.read_channel.polarity == lib.polarity.input
+			test/server.write_channel.polarity == -1
+			test/server.read_channel.polarity == 1
 
 			client = common.Endpoint((cr, cw))
-			test/client.write_channel.polarity == lib.polarity.output
-			test/client.read_channel.polarity == lib.polarity.input
+			test/client.write_channel.polarity == -1
+			test/client.read_channel.polarity == 1
 
 			with am.manage(server), am.manage(client):
 				exchange(test, am, client, server)
@@ -98,12 +97,12 @@ def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
 		for exchange in common.transfer_cases:
 			cxn = am.array.rallocate(req)
 			server = common.Endpoint(cxn[:2])
-			test/server.write_channel.polarity == lib.polarity.output
-			test/server.read_channel.polarity == lib.polarity.input
+			test/server.write_channel.polarity == -1
+			test/server.read_channel.polarity == 1
 
 			client = common.Endpoint(cxn[2:])
-			test/client.write_channel.polarity == lib.polarity.output
-			test/client.read_channel.polarity == lib.polarity.input
+			test/client.write_channel.polarity == -1
+			test/client.read_channel.polarity == 1
 
 			with am.manage(server), am.manage(client):
 				exchange(test, am, client, server)

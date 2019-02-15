@@ -1,7 +1,6 @@
 import errno
 import os.path
 import tempfile
-from ... import library as lib
 from ... import io
 from . import common
 

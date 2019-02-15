@@ -1,6 +1,5 @@
 import os
 from ... import io
-from ... import library as lib
 from . import common
 
 def fork_and_circulate(test, am, channels):

@@ -7,7 +7,6 @@ import pickle
 import threading
 import contextlib
 from ... import io
-from ... import library as lib
 
 class Terminated(Exception):
 	pass
@@ -56,7 +55,7 @@ class Delta(tuple):
 
 def snapshot(array, list = list, map = map, construct = Delta.construct):
 	# list() is invoked here as materialization of the
-	# snapshot is needed in cases where the cycle exits. (like lib.cycle)
+	# snapshot is needed in cases where the cycle exits.
 	return list(map(construct, array.transfer()))
 
 def cycle(array):

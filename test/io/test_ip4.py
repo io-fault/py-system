@@ -1,7 +1,6 @@
 import os
 import errno
 from ... import io
-from ... import library as lib
 from . import common
 
 localhost = ('127.0.0.1', 0)

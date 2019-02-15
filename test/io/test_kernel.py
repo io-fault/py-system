@@ -14,7 +14,6 @@ import errno
 import sys
 
 from ... import io
-from ... import core
 
 def test_array_rtypes(test):
 	test/list(io.Array.rtypes()) != []
