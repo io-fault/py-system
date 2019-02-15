@@ -3,7 +3,21 @@
 # Test the Transfer of Ports, file descriptors.
 """
 import os
+import struct
+
 from ... import io
+
+def test_ports_rallocate(test):
+	# leveraging knowledge of io.Sockets.rallocate
+	# in real code, rallocate against the Sockets *instance*
+	test/list(io.Ports.rallocate(10)) == [-1] * 10
+	sb = io.Ports.rallocate(16)
+	mv = memoryview(sb)
+
+	test/sb[0] != 1 # should be -1, but anything aside from 1 is okay.
+	# itemsize is 4, so use pack_into.
+	struct.pack_into("i", mv, 0, 1)
+	test/sb[0] == 1
 
 def test_io(test):
 	J = io.Array()

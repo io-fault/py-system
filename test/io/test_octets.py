@@ -1,9 +1,22 @@
+"""
+# Check io.Octets interfaces.
+"""
 import time
 import os
 import os.path
+import errno
 
 from ... import io
 from . import common
+
+def test_rallocate(test):
+	test/list(bytes(io.Octets.rallocate(20))) == list(b'\x00' * 20)
+	mb = io.Octets.rallocate(20)
+	mb[0:5] = b'fffff'
+	test/memoryview(mb).tobytes() == b'fffff' + (b'\x00' * (20 - 5))
+	mv = memoryview(mb)
+	b = bytes(mv[11])
+	mb[10:15] = b'fffff'
 
 def test_anonymous_endpoints_socketpair(test):
 	J = io.Array()
@@ -117,8 +130,7 @@ def test_full_buffer_forced_write(test):
 			test/w.channels[0].terminated == False
 			test/w.channels[0].exhausted == False
 
-def test_multiarray(test, number_to_check = 128):
-	'Validate that multiple arrays can exist.'
+def test_multiple_arrays(test, number_to_check = 128):
 	arrays = []
 	try:
 		for x in range(number_to_check):
@@ -133,7 +145,6 @@ def test_multiarray(test, number_to_check = 128):
 			test/x.terminated == True
 
 def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
-	'common.Objects sanity'
 	am = common.ArrayActionManager()
 
 	with am.thread():
@@ -161,7 +172,7 @@ def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
 			test/client.channels[0].exhausted == False
 			test/client.channels[1].exhausted == False
 
-def test_void(test):
+def test_array_void(test):
 	j = io.Array()
 	test/j.terminated == False
 	j.void()
@@ -197,7 +208,7 @@ def test_void(test):
 		with j:
 			pass
 
-def test_acquire_after_terminate(test):
+def test_octets_acquire_after_terminate(test):
 	j = io.Array()
 	test/j.sizeof_transfer() == 0
 	r, w = j.rallocate('octets://spawn/unidirectional')
@@ -297,6 +308,41 @@ def array_termination(test, J):
 	for x in channels:
 		test/x.terminated == True
 	return channels
+
+def test_octets_acquire_badfd_detect(test):
+	r, w = os.pipe()
+	J = io.Array()
+	try:
+		xr = J.rallocate('octets://acquire/input', w)
+		xr.port.error_code in test/(errno.EBADF, 0)
+		xr.port.call in test/('read', None)
+
+		xw = J.rallocate('octets://acquire/output', r)
+		xw.port.error_code in test/(errno.EBADF, 0)
+		xw.port.call in test/('write', None)
+
+		xs, xsw = J.rallocate('octets://acquire/socket', r)
+		test/xs.port.error_code == errno.EBADF
+		test/xs.port.call == 'identify' # local call
+
+		xs = J.rallocate('sockets://acquire/socket', w)
+		test/xs.port.error_code == errno.EBADF
+		test/xs.port.call == 'identify' # local call
+	finally:
+		os.close(r)
+		os.close(w)
+		J.void()
+
+def test_octets_bind(test):
+	s = io.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
+	r, w = io.Array.rallocate(('octets', 'ip4', 'tcp', 'bind'), (s.endpoint(), ('127.0.0.1', 0)))
+	try:
+		test/r.port.error_code == 0
+		test/w.endpoint() == s.endpoint()
+	finally:
+		s.terminate()
+		r.terminate()
+		w.terminate()
 
 if __name__ == '__main__':
 	import sys; from ....test import library as libtest
