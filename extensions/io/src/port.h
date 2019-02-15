@@ -162,12 +162,11 @@ typedef struct sockaddr * if_addr_ref_t;
 */
 typedef enum freight {
 	f_void = 0,   /* 'v' */
-	f_channels,   /* 't' */
+	f_events,     /* 'e' */
 	f_octets,     /* 'o' */
 	f_datagrams,  /* 'G' */
 	f_sockets,    /* 'S' */
 	f_ports,      /* 'P' */
-	f_wolves,     /* 'w' */
 } freight_t;
 
 /**

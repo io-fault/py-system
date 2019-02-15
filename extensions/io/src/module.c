@@ -77,8 +77,6 @@ freight_charcode(freight_t f)
 {
 	switch (f)
 	{
-		case f_wolves:
-			return 'w';
 		case f_void:
 			return 'v';
 		case f_events:
@@ -100,8 +98,6 @@ freight_identifier(freight_t f)
 {
 	switch (f)
 	{
-		case f_wolves:
-			return "wolves";
 		case f_void:
 			return "void";
 		case f_events:
@@ -624,14 +620,14 @@ port_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	p->error = err;
 	p->point = kid;
 	p->cause = kcall_id(kcstr);
-	p->freight = f_wolves;
+	p->freight = f_void;
 	p->latches = 0;
 
 	return(rob);
 }
 
 PyDoc_STRVAR(port_doc,
-"Port(id = -1, error_code = 0, call = 'none', freight = 'wolves')\n\n");
+"Port(id = -1, error_code = 0, call = 'none', freight = 'void')\n\n");
 
 static void
 port_dealloc(PyObj self)
