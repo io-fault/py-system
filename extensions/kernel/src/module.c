@@ -743,8 +743,6 @@ exit_by_signal(PyObj mod, PyObj ob)
 	Py_RETURN_NONE;
 }
 
-#include "python.h"
-
 /*
 	# Retrieve a reference to the process_module module and register
 	# the atfork handlers.
@@ -792,18 +790,7 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		initialize, initialize, METH_O, \
 			"Initialize the after fork callbacks. " \
-			"Called once by &.process. Do not use.") \
-	PYMETHOD( \
-		interrupt, interrupt, METH_VARARGS, \
-			"Interrupt a Python thread with the given exception.") \
-	PYMETHOD( \
-		interject, interject, METH_O, \
-			"Interject the callable in the *main thread* using Py_AddPendingCall. " \
-			"Usually, the called object should dispatch a task.") \
-	PYMETHOD( \
-		trace, trace, METH_VARARGS, \
-			"Apply the trace function to the given thread identifiers. " \
-			"Normally used by Context injections that take over the process for debugging.")
+			"Called once by &.process. Do not use.")
 
 #include <fault/python/module.h>
 INIT(PyDoc_STR("Interfaces for the operating system.\n"))
@@ -830,6 +817,8 @@ INIT(PyDoc_STR("Interfaces for the operating system.\n"))
 	return(mod);
 
 	error:
+	{
 		DROP_MODULE(mod);
 		return(NULL);
+	}
 }
