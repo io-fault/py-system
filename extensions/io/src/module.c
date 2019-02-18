@@ -2927,7 +2927,7 @@ datagramarray_payload(PyObj self, PyObj args)
 	DatagramArray dga = (DatagramArray) self;
 	unsigned long offset;
 
-	if (!PyArg_ParseTuple(args, "L", &offset))
+	if (!PyArg_ParseTuple(args, "k", &offset))
 		return(NULL);
 
 	return(datagramarray_get_memory(dga, offset));
@@ -2939,7 +2939,7 @@ datagramarray_endpoint(PyObj self, PyObj args)
 	DatagramArray dga = (DatagramArray) self;
 	unsigned long offset;
 
-	if (!PyArg_ParseTuple(args, "L", &offset))
+	if (!PyArg_ParseTuple(args, "k", &offset))
 		return(NULL);
 
 	return(datagramarray_get_endpoint(dga, offset));
@@ -2953,7 +2953,7 @@ datagramarray_set_endpoint(PyObj self, PyObj args)
 	PyObj endpoint;
 	unsigned long offset;
 
-	if (!PyArg_ParseTuple(args, "LO", &offset, &endpoint))
+	if (!PyArg_ParseTuple(args, "kO", &offset, &endpoint))
 		return(NULL);
 
 	if (offset >= dga->ngrams)
