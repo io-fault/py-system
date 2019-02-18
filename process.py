@@ -34,6 +34,7 @@ import types
 import builtins
 
 from . import kernel
+from . import runtime
 from . import thread
 
 # Lock held when &control is managing the main thread.
@@ -126,7 +127,7 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 	"""
 	# Trip the main thread by sending the process a SIGUSR2 signal in order to cause any
 	# running system call to exit early. Used in conjunction with
-	# &kernel.interject
+	# &runtime.interject
 	"""
 	global signal
 
@@ -134,7 +135,7 @@ def interject(main_thread_exec, replacement=True, signo=signal.SIGUSR2):
 		# One interjection at a time if replacing.
 		__interject_lock__.acquire()
 
-	kernel.interject(main_thread_exec) # executed in main thread
+	runtime.interject(main_thread_exec) # executed in main thread
 	signal.pthread_kill(main_thread_id, signo)
 
 def clear_atexit_callbacks(pid = None):
@@ -710,7 +711,7 @@ def protect(*init, looptime=8):
 			parent_process_id = newppid
 			os.kill(os.getpid(), signals['context'])
 
-	# Relies on Fork.trip() and kernel.interject to manage the main thread's stack.
+	# Relies on Fork.trip() and runtime.interject to manage the main thread's stack.
 	raise Panic("infinite loop exited")
 
 def control(main, *args, **kw):
