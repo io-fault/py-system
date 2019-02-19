@@ -14,7 +14,7 @@ import types
 import signal
 import _thread
 
-from . import kernel
+from . import runtime
 
 create = _thread.start_new_thread
 amutex = _thread.allocate_lock
@@ -34,7 +34,7 @@ def snapshot(tids:typing.Sequence[int]) -> typing.Sequence[typing.Tuple[int, typ
 	return [(x, frames[x]) for x in tids]
 
 def interrupt(tid, exception=None,
-		setexc=kernel.interrupt,
+		setexc=runtime.interrupt,
 		pthread_kill=signal.pthread_kill
 	):
 	"""
