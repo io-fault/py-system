@@ -4,6 +4,8 @@
 	# The functionality is purposefully incomplete and primarily intended for
 	# use by terminal applications.
 */
+#include <fcntl.h>
+
 #include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
@@ -212,8 +214,46 @@ device_set_cooked(PyObj self)
 	return(self);
 }
 
+static PyObj
+device_open(PyObj subtype, PyObj args)
+{
+	PyObj bytespath = NULL;
+	Device dev;
+	PyObj rob;
+
+	if (!PyArg_ParseTuple(args, "|O&", PyUnicode_FSConverter, &bytespath))
+		return(NULL);
+
+	rob = PyAllocate(subtype);
+	if (rob == NULL)
+	{
+		Py_XDECREF(bytespath);
+		return(NULL);
+	}
+
+	dev = (Device) rob;
+	if (bytespath != NULL)
+	{
+		dev->dev_fd = open(PyBytes_AS_STRING(bytespath), O_CLOEXEC|O_RDWR);
+		Py_DECREF(bytespath);
+	}
+	else
+		dev->dev_fd = open(SYSTEM_TTY_DEVICE_PATH, O_CLOEXEC|O_RDWR);
+
+	if (dev->dev_fd == -1)
+	{
+		Py_DECREF(rob);
+		return(PyErr_SetFromErrno(PyExc_OSError));
+	}
+
+	return(rob);
+}
+
 static PyMethodDef
 device_methods[] = {
+	{"open", (PyCFunction) device_open, METH_VARARGS|METH_CLASS,
+		PyDoc_STR("Create instance by opening the file path with O_CLOEXEC|O_RDWR.")},
+
 	{"set_controlling_process", (PyCFunction) device_set_controlling_process, METH_O,
 		PyDoc_STR("Update the controlling process group.")},
 	{"get_controlling_process", (PyCFunction) device_get_controlling_process, METH_NOARGS,

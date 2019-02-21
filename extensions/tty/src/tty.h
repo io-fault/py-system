@@ -6,6 +6,10 @@
 #include <unistd.h>
 #include <termios.h>
 
+#ifndef SYSTEM_TTY_DEVICE_PATH
+	#define SYSTEM_TTY_DEVICE_PATH "/dev/tty"
+#endif
+
 struct Device {
 	PyObject_HEAD
 
