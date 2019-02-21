@@ -9,7 +9,7 @@
 /abstract/
 	Python Runtime and Operating System Interfaces
 /icon/
-	- (emoji)`🎛`
+	- (emoji)`⚙️`
 
 /versioning/
 	continuous
