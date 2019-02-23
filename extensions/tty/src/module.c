@@ -195,7 +195,7 @@ device_set_raw(PyObj self)
 }
 
 static PyObj
-device_set_cooked(PyObj self)
+device_set_cbreak(PyObj self)
 {
 	Device dev = (Device) self;
 	struct termios ts;
@@ -204,6 +204,43 @@ device_set_cooked(PyObj self)
 		return(PyErr_SetFromErrno(PyExc_OSError));
 
 	ts.c_lflag &= ~(ECHO | ICANON);
+	ts.c_cc[VMIN] = 1;
+	ts.c_cc[VTIME] = 0;
+
+	if (tcsetattr(dev->dev_fd, TCSAFLUSH, &ts))
+		return(PyErr_SetFromErrno(PyExc_OSError));
+
+	Py_INCREF(self);
+	return(self);
+}
+
+static PyObj
+device_set_cooked(PyObj self)
+{
+	Device dev = (Device) self;
+	struct termios ts = {0,};
+
+	/**
+		# Retrieve settings snapshot for existing keybinds in c_cc.
+		# This function is not looking to implement a total
+		# reset as it's not expected to perform that kind of cleanup.
+	*/
+	if (tcgetattr(dev->dev_fd, &ts) == -1)
+		return(PyErr_SetFromErrno(PyExc_OSError));
+
+	#ifndef IMAXBEL
+		#define IMAXBEL 0
+	#endif
+	#ifndef ECHOCTL
+		#define ECHOCTL 0
+	#endif
+
+	ts.c_iflag = (BRKINT| ICRNL| IMAXBEL | IXON | IXANY);
+	ts.c_oflag = (OPOST | ONLCR);
+	ts.c_lflag = (ICANON | ISIG | IEXTEN | ECHO | ECHOE | ECHOKE | ECHOCTL);
+	ts.c_cflag = (CREAD | CS8 | HUPCL);
+	ts.c_ispeed = B9600;
+	ts.c_ospeed = B9600;
 	ts.c_cc[VMIN] = 1;
 	ts.c_cc[VTIME] = 0;
 
@@ -249,15 +286,25 @@ device_open(PyObj subtype, PyObj args)
 	return(rob);
 }
 
+static PyObj
+device_fileno(PyObj self)
+{
+	Device dev = (Device) self;
+	return PyLong_FromLong((long) dev->dev_fd);
+}
+
 static PyMethodDef
 device_methods[] = {
 	{"open", (PyCFunction) device_open, METH_VARARGS|METH_CLASS,
 		PyDoc_STR("Create instance by opening the file path with O_CLOEXEC|O_RDWR.")},
+	{"fileno", (PyCFunction) device_fileno, METH_NOARGS,
+		PyDoc_STR("Get the configured file descriptor.")},
 
 	{"set_controlling_process", (PyCFunction) device_set_controlling_process, METH_O,
 		PyDoc_STR("Update the controlling process group.")},
 	{"get_controlling_process", (PyCFunction) device_get_controlling_process, METH_NOARGS,
 		PyDoc_STR("Get the controlling process group.")},
+
 	{"get_window_dimensions", (PyCFunction) device_get_window_dimensions, METH_NOARGS,
 		PyDoc_STR("Get the cells and rows that the tty is said to be displaying.")},
 	{"get_path", (PyCFunction) device_get_path, METH_NOARGS,
@@ -275,10 +322,13 @@ device_methods[] = {
 
 	{"set_message_limits", (PyCFunction) device_set_message_limits, METH_VARARGS,
 		PyDoc_STR("Update the VMIN and VTIME attributes.")},
+
 	{"set_raw", (PyCFunction) device_set_raw, METH_NOARGS,
 		PyDoc_STR("Adjust the terminal flags to perform in raw mode.")},
+	{"set_cbreak", (PyCFunction) device_set_cbreak, METH_NOARGS,
+		PyDoc_STR("Adjust the terminal flags to perform in cbreak mode.")},
 	{"set_cooked", (PyCFunction) device_set_cooked, METH_NOARGS,
-		PyDoc_STR("Adjust the terminal flags to perform in cooked mode.")},
+		PyDoc_STR("Adjust the terminal flags to perform in sane mode.")},
 	{NULL},
 };
 
