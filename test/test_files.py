@@ -410,3 +410,39 @@ def test_Path_follow_links(test):
 	test/list(map(str, l2.follow_links())) == list(map(str, [l2, l1, t]))
 	test/list(map(str, l1.follow_links())) == list(map(str, [l1, t]))
 	test/list(map(str, t.follow_links())) == list(map(str, [t]))
+
+def test_Endpoint_properties(test):
+	ep = lib.Endpoint.from_absolute_path('/dev')
+	str(ep) == '/dev'
+	str(ep.address) == '/'
+	str(ep.port) == 'dev'
+	test.isinstance(ep.address, lib.Path)
+
+	ep = lib.Endpoint.from_route(lib.Path.from_absolute('/dev'))
+	str(ep) == '/dev'
+	str(ep.address) == '/'
+	str(ep.port) == 'dev'
+	test.isinstance(ep.address, lib.Path)
+
+def test_Endpoint_target(test):
+	"""
+	# - &lib.Endpoint.target
+	"""
+	td = test.exits.enter_context(lib.Path.temporary())
+	t = (td/'target.s')
+	t.init('file')
+	l = (td/'link1')
+	l.link(t)
+
+	ep = lib.Endpoint.from_route(l)
+	test/str(ep.target()) == str(t)
+
+	l2 = (td/'link2')
+	l2.link(l)
+	ep = lib.Endpoint.from_route(l2)
+	test/str(ep.target()) == str(t)
+
+	l3 = (td/'link3')
+	l3.link(l2)
+	ep = lib.Endpoint.from_route(l3)
+	test/str(ep.target()) == str(t)
