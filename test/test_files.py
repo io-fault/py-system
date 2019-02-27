@@ -387,3 +387,26 @@ def test_Path_recursive_since(test):
 		l = d / 'link'
 		l.link(t / 'dir')
 		test/list(t.since(ago10mins.rollback(minute=10)))[0][1] == f
+
+def test_Path_follow_links(test):
+	"""
+	# - &lib.Path.follow_links
+	"""
+	td = test.exits.enter_context(lib.Path.temporary())
+
+	t = (td/'target.s')
+	t.init('file')
+
+	l1 = (td/'link1')
+	l1.link(t)
+
+	l2 = (td/'link2')
+	l2.link(l1)
+
+	l3 = (td/'link3')
+	l3.link(l2)
+
+	test/list(map(str, l3.follow_links())) == list(map(str, [l3, l2, l1, t]))
+	test/list(map(str, l2.follow_links())) == list(map(str, [l2, l1, t]))
+	test/list(map(str, l1.follow_links())) == list(map(str, [l1, t]))
+	test/list(map(str, t.follow_links())) == list(map(str, [t]))

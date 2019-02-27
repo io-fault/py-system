@@ -293,6 +293,28 @@ class Path(core.Route):
 		except FileNotFoundError:
 			return False
 
+	def follow_links(self, readlink=os.readlink) -> typing.Iterator['Path']:
+		"""
+		# Iterate through the links in a chain until a non-symbolic link file is reached.
+
+		# ! NOTE:
+			# The final Path yielded may not actually exist.
+		"""
+		Class = self.__class__
+		r = self
+
+		while r.is_link():
+			yield r
+
+			target = readlink(str(r))
+
+			if target[:1] == '/':
+				r = Class.from_absolute(target)
+			else:
+				r = Class.from_relative(r.container, target)
+
+		yield r
+
 	def subnodes(self, listdir=os.listdir, isdir=os.path.isdir, join=os.path.join):
 		"""
 		# Return a pair of lists, the first being a list of Routes to
