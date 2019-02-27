@@ -529,9 +529,9 @@ class Path(core.Route):
 		# Create a *symbolic* link at &self pointing to &to, the target file.
 
 		# [ Parameters ]
-		# /to
+		# /to/
 			# The target of the symbolic link.
-		# /relative
+		# /relative/
 			# Whether or not to resolve the link as a relative path.
 		"""
 
@@ -634,7 +634,10 @@ class Path(core.Route):
 			#!/pl/python
 				root = fault.system.files.Path.from_absolute('/')
 				with root.cwd() as oldcwd:
-					...
+					assert str(root) == os.getcwd()
+
+				# Restored.
+				assert str(oldcwd) == os.getcwd()
 
 		# The old current working directory is yielded as a &Path instance.
 		"""
