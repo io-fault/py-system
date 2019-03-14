@@ -1,5 +1,5 @@
 /**
-	# Cell usage count for string display.
+	# System text services.
 */
 #include <wchar.h>
 #include <locale.h>
@@ -9,36 +9,78 @@
 #include <fault/python/environ.h>
 
 static PyObj
-cells(PyObj self, PyObj str)
+cells(PyObj self, PyObj parameter)
 {
 	int width;
-	wchar_t *wstr;
-	Py_ssize_t size;
+	Py_ssize_t len, size;
+	PyObj str;
+
+	/**
+		# str(parameter) here in order to allow callers to avoid the composition.
+	*/
+	str = PyObject_Str(parameter);
+	if (str == NULL)
+		return(NULL);
 
 	if (!PyUnicode_Check(str))
 	{
-		PyErr_Format(PyExc_ValueError, "argument must be a builtins.str instance");
-		return(NULL);
+		PyErr_Format(PyExc_ValueError, "parameter was not properly converted to str object");
+		goto error;
 	}
+
+	len = PyUnicode_GET_LENGTH(str);
 
 	/**
 		# Fast path for ascii strings.
-		# Currently inconsistent with wcswidth regarding control characters.
+		# XXX: Currently inconsistent with wcswidth regarding control characters.
 	*/
-	if (PyUnicode_IS_ASCII(str))
+	if (PyUnicode_IS_ASCII(str) || len == 0)
 	{
-		return(PyLong_FromSsize_t(PyUnicode_GET_SIZE(str)));
+		Py_DECREF(str);
+		return(PyLong_FromSsize_t(len));
 	}
 
-	wstr = PyUnicode_AsWideCharString(str, &size);
-	if (wstr == NULL)
+	/**
+		# Presume stack allocation is faster.
+		# If the codepoint is represented with a surrogate pair, wcswidth currently
+		# doesn't handle it anyways.
+	*/
+	if (len == 1)
+	{
+		wchar_t sawc[2];
+
+		size = PyUnicode_AsWideChar(str, sawc, 1);
+		if (size == -1)
+			goto error;
+
+		width = wcwidth(sawc[0]);
+		goto fexit;
+	}
+
+	/*
+		# goto skipped.
+	*/
+	{
+		wchar_t *wstr;
+
+		/*
+			# Switch to heap.
+		*/
+		wstr = PyUnicode_AsWideCharString(str, &size);
+		if (wstr == NULL)
+			goto error;
+
+		width = wcswidth(wstr, (size_t) size);
+		PyMem_Free(wstr);
+	}
+
+	fexit:
+		Py_DECREF(str);
+		return(PyLong_FromLong((long) width));
+
+	error:
+		Py_DECREF(str);
 		return(NULL);
-
-	width = wcswidth(wstr, (size_t) size);
-
-	PyMem_Free(wstr);
-
-	return(PyLong_FromLong((long) width));
 }
 
 static PyObj
@@ -58,12 +100,13 @@ dsetlocale(PyObj self)
 
 #define MODULE_FUNCTIONS() \
 	PYMETHOD(cells, cells, METH_O, \
-		"get the number of cells the given unicode string requires for display.") \
+		"get the number of cells the given unicode string requires " \
+		"for display in a monospaced character matrix.") \
 	PYMETHOD(setlocale, dsetlocale, METH_NOARGS, \
-		"limited setlocale interface providing access to setting the system default locale.")
+		"limited setlocale(2) interface providing access to setting the native environment locale.")
 
 #include <fault/python/module.h>
-INIT("functions for calculating the number of cells used by a unicode string for display")
+INIT("interfaces to system text services: wcswidth and setlocale.")
 {
 	PyObj mod = NULL;
 
