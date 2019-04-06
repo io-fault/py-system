@@ -118,7 +118,6 @@ class Segments(object):
 		# create a &Segments providing a &MemoryMap interface
 		# to the contents.
 		"""
-		global os
 
 		fd = os.open(path, os.O_RDONLY)
 		try:
@@ -137,7 +136,6 @@ class Segments(object):
 		# /memory
 			# The `mmap.mmap` instance defining the total memory region.
 		"""
-		global weakref
 		self.memory = memory
 		self.weaks = weakref.WeakSet()
 
