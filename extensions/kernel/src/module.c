@@ -2,6 +2,7 @@
 #include <spawn.h>
 #include <pthread.h>
 #include <signal.h>
+#include <fcntl.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
@@ -743,6 +744,44 @@ exit_by_signal(PyObj mod, PyObj ob)
 	Py_RETURN_NONE;
 }
 
+/**
+	# Ensure that the kport is preserved across process images.
+	# Used by system to hold on to listening sockets.
+
+	# Generally, most file descriptors created by &.system will have
+	# the CLOEXEC flag set as in only a few cases, preservation is desired.
+*/
+static PyObj
+kport_set_no_cloexec(PyObj mod, PyObj seq)
+{
+	long fd;
+
+	PyLoop_ForEachLong(seq, &fd)
+	{
+		int flag = fcntl((int) fd, F_GETFD, 0);
+
+		if (flag == -1)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			break;
+		}
+
+		flag = fcntl((int) fd, F_SETFD, (flag & (~FD_CLOEXEC)));
+		if (flag == -1)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			break;
+		}
+	}
+	PyLoop_CatchError(seq)
+	{
+		return(NULL);
+	}
+	PyLoop_End(seq)
+
+	Py_RETURN_NONE;
+}
+
 /*
 	# Retrieve a reference to the process_module module and register
 	# the atfork handlers.
@@ -777,6 +816,9 @@ initialize(PyObj mod, PyObj ctx)
 	ID(Invocation)
 
 #define MODULE_FUNCTIONS() \
+	PYMETHOD( \
+		preserve, kport_set_no_cloexec, METH_O, \
+			"Preserve the file descriptors across process image substitutions(exec).") \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \
