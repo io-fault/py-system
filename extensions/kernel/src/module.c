@@ -749,10 +749,10 @@ exit_by_signal(PyObj mod, PyObj ob)
 	# Used by system to hold on to listening sockets.
 
 	# Generally, most file descriptors created by &.system will have
-	# the CLOEXEC flag set as in only a few cases, preservation is desired.
+	# the FD_CLOEXEC flag set as in only a few cases, preservation is desired.
 */
 static PyObj
-kport_set_no_cloexec(PyObj mod, PyObj seq)
+kport_clear_cloexec(PyObj mod, PyObj seq)
 {
 	long fd;
 
@@ -817,8 +817,8 @@ initialize(PyObj mod, PyObj ctx)
 
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
-		preserve, kport_set_no_cloexec, METH_O, \
-			"Preserve the file descriptors across process image substitutions(exec).") \
+		preserve, kport_clear_cloexec, METH_O, \
+			"Preserve the given file descriptors across process image substitutions(exec).") \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \
