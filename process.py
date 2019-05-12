@@ -196,74 +196,14 @@ def _after_fork_child():
 class Exit(SystemExit):
 	"""
 	# Extension of SystemExit for use with interjections.
-
-	# [ Properties ]
-
-	# /exiting_with_information/
-		# Exit code indicating the type of information presented on standard error.
-		# Indicates that the standard error contains help output.
-
-	# /exiting_for_termination/
-		# Exit code indicating that the daemon was signalled to shutdown
-		# by an administrative function.
-
-	# /exiting_for_restart/
-		# Code used to communicate to the parent that it should be restarted.
-		# Primarily used by forking daemons to signal the effect of its exit
-		# without maintaining specific context.
-
-		# Parent processes should, naturally, restart the process when this
-		# code is used; usually it is used for automatic process cycling.
-
-	# /exiting_for_reduction/
-		# Exit code used to signal a parent process that the child exited
-		# in response to a command to reduce the number of worker processes.
-
-	# /exiting_by_exception/
-		# Exit code used to communicate that the process exited due to an exception.
-		# Details *may* be written standard error.
-		# Essentially, this is a runtime coredump.
-
-	# /exiting_by_signal_status/
-		# &Invocation exit status code used to indicate that the
-		# process will exit using a signal during &atexit(2).
-		# The calling process will *not* see this code. Internal indicator.
-
-	# /exiting_by_default_status/
-		# &Invocation exit status code used to indicate that the
-		# the process failed to explicitly note status.
 	"""
 
-	# Help menu of some sort communicated to user.
+	# Default status for applications that did not specify an exit code.
+	unspecified_status_code = 255
+
 	# Proper exit code for --help invocations.
-	exiting_with_information = 200
-
-	# Daemon control exit codes.
-	exiting_for_completion = os.EX_OK
-	exiting_for_termination = 240
-	exiting_for_restart = 241
-	exiting_for_reduction = 242
-
-	# Used internally.
-	exiting_by_exception = 253
-	exiting_by_signal_status = 254
-	exiting_by_default_status = 255
-
-	exiting_from_success = os.EX_OK
-
-	exiting_from_bad_usage = os.EX_USAGE
-	exiting_from_bad_config = os.EX_CONFIG
-	exiting_from_bad_input = os.EX_DATAERR
-	exiting_from_bad_protocol = os.EX_PROTOCOL
-
-	exiting_from_io_error = os.EX_IOERR
-	exiting_from_os_error = os.EX_OSERR
-	exiting_from_input_inaccessible = os.EX_NOINPUT
-	exiting_from_output_inaccessible = os.EX_CANTCREAT
-
-	exiting_from_unauthorized = os.EX_NOPERM
-	exiting_from_no_user = os.EX_NOUSER
-	exiting_from_no_host = os.EX_NOHOST
+	# Used to explicitly declare that only usage information was emitted.
+	usage_query_code = 200
 
 	def raised(self):
 		raise self
@@ -712,7 +652,7 @@ def protect(*init, looptime=8):
 			os.kill(os.getpid(), signals['context'])
 
 	# Relies on Fork.trip() and runtime.interject to manage the main thread's stack.
-	raise Panic("infinite loop exited")
+	raise Panic("infinite loop exited") # interject should be used to raise process.Exit()
 
 def control(main, *args, **kw):
 	"""
@@ -729,7 +669,8 @@ def control(main, *args, **kw):
 
 	with Interruption.trap(), __control_lock__:
 		try:
-			Fork.trap(main, *args, **kw)
+			r = Fork.trap(main, *args, **kw)
+			raise Exit(255) # Unspecified exit code.
 		except Interruption as e:
 			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
 			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
