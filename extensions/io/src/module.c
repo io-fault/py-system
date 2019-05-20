@@ -4944,8 +4944,8 @@ _init_intarray(void)
 #define FIRST_THREE_IRI(IOF, F1, F2, F3, ...) #F1 "://" #F2 "/" #F3
 #define FIRST_THREE_IRI_PORT(IOF, F1, F2, F3, ...) #F1 "://" #F2 ":" #F3
 
-#define _TCPIP_PARAMS SOCK_STREAM, IPPROTO_TCP
-#define _UDPIP_PARAMS SOCK_DGRAM, IPPROTO_UDP
+#define _TCPIP_PARAMS SOCK_STREAM, 0
+#define _UDPIP_PARAMS SOCK_DGRAM, 0
 #define _LOCAL_PARAMS PF_LOCAL, SOCK_STREAM, 0
 
 /*
