@@ -7,7 +7,7 @@
 """
 import importlib.machinery
 
-from ..routes import library as libroutes
+from ..routes import types as routes
 from . import files
 from . import identity
 
@@ -92,7 +92,7 @@ class IntegralFinder(object):
 		final = segments[-1] + '.i'
 		del segments[-1]
 
-		leading = libroutes.Segment.from_sequence(segments)
+		leading = routes.Segment.from_sequence(segments)
 		assert '{0}' in final # &groups must have 'name' in the final path identifier.
 
 		return leading, final, final.format

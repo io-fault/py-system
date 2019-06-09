@@ -8,11 +8,11 @@ import pkgutil
 import importlib
 
 from ..time import library as libtime
-from ..routes import core
+from ..routes import types as routes
 
 from . import files
 
-class Import(core.Route):
+class Import(routes.Selector):
 	"""
 	# Route for Python imports.
 	"""
@@ -355,7 +355,7 @@ class Reference(object):
 		# While an environment variable references are the primary use-case,
 		# there are certainly others.
 
-		# Also, &libroutes.Route might be a more appropriate baseclass;
+		# Also, &routes.Selector might be a more appropriate baseclass;
 		# load instead of value, store for update/overwrite.
 	"""
 	__slots__ = ('type', 'container_get', 'identifier', 'default')

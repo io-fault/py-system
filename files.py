@@ -15,11 +15,11 @@ import functools
 import operator
 
 from ..time import library as libtime # Import needs to be delayed somehow.
-from ..routes import core
+from ..routes import types
 
-class Path(core.Route):
+class Path(types.Selector):
 	"""
-	# &core.Route subclass for local filesystem paths.
+	# &types.Selector subclass for local filesystem paths.
 	"""
 	_path_separator = os.path.sep
 
