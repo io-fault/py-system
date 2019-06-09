@@ -3,7 +3,7 @@
 
 # &.library provides access to functionality for managing a process invoked by the system, and the
 # invocation of other system processes and forks. File system interfaces are primarily implemented
-# by &..routes.library.File, but are explicitly blocking.
+# by &.files.Path, but are explicitly blocking.
 
 # In order to eliminate a potential point of confusion:
 # &Invocation, notably with no prefix character classifying its purpose, describes the invocation
@@ -407,8 +407,6 @@ class Interruption(ControlException):
 	def void(signo, frame):
 		"""
 		# Python-level signal handler that does nothing.
-
-		# When Interruption has set traps, a Context will respond to signals.
 		"""
 		pass
 
