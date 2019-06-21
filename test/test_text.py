@@ -44,3 +44,7 @@ def test_cells_ctlchars(test):
 
 	# No fast path skip, so it generates an error.
 	test/cells("\x02\x01 春") == -1
+
+def test_encoding(test):
+	locale = text.setlocale()
+	locale in test/text.encoding()
