@@ -1,6 +1,6 @@
 /**
-	# IO implementation using kqueue or epoll.
-	# See &.documentation.io.mechanics for more information.
+	// IO implementation using kqueue or epoll.
+	// See &.documentation.io.mechanics for more information.
 */
 #include <errno.h>
 #include <unistd.h>
@@ -43,7 +43,7 @@
 PyObj PyExc_TransitionViolation = NULL;
 
 /**
-	# Get the name of the errno.
+	// Get the name of the errno.
 */
 static const char *
 errname(int err)
@@ -208,18 +208,18 @@ sockaddr_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
 }
 
 /**
-	# [ Parameters ]
-	# /ss/
-		# Source address structure.
-	# /dst/
-		# Destination memory buffer for the interface string
-		# to be written to.
-	# /dstlen/
-		# Length of &dst string.
+	// [ Parameters ]
+	// /ss/
+		// Source address structure.
+	// /dst/
+		// Destination memory buffer for the interface string
+		// to be written to.
+	// /dstlen/
+		// Length of &dst string.
 
-	# [ Return ]
-	# The &ss parameter is the destination of the interface
-	# described in &dst.
+	// [ Return ]
+	// The &ss parameter is the destination of the interface
+	// described in &dst.
 */
 static void
 sockaddr_interface(any_addr_t *ss, char *dst, size_t dstlen)
@@ -245,9 +245,9 @@ static kcall_t
 kcall_id(char *str)
 {
 	/*
-		# Naturally a hash is better, but
-		# this is only used during Port.__new__,
-		# which is rarely used.
+		// Naturally a hash is better, but
+		// this is only used during Port.__new__,
+		// which is rarely used.
 	*/
 	#define KC(x) if (strcmp(#x, str) == 0) return (kc_##x); else
 		KCALLS()
@@ -307,7 +307,7 @@ path(kpoint_t kp)
 		else
 		{
 			/*
-				# Ignore error; file path not available.
+				// Ignore error; file path not available.
 			*/
 			errno = 0;
 			Py_RETURN_NONE;
@@ -433,7 +433,7 @@ static PyMemberDef port_members[] = {
 	)},
 
 	/*
-		# Some aliases to lend toward convention.
+		// Some aliases to lend toward convention.
 	*/
 
 	{"fileno", T_KPOINT, offsetof(struct Port, point), READONLY,
@@ -548,7 +548,7 @@ static PyGetSetDef port_getset[] = {
 };
 
 /**
-	# String representation suitable for text based displays.
+	// String representation suitable for text based displays.
 */
 static PyObj
 port_str(PyObj self)
@@ -635,9 +635,9 @@ port_dealloc(PyObj self)
 	Port p = (Port) self;
 
 	/**
-		# Array instances hold a reference to a point until it is
-		# explicitly closed. At that point, it is detached from the ring,
-		# and Array's reference is released.
+		// Array instances hold a reference to a point until it is
+		// explicitly closed. At that point, it is detached from the ring,
+		// and Array's reference is released.
 	*/
 	if (p->latches && p->point != kp_invalid && p->cause != kc_leak)
 	{
@@ -843,7 +843,7 @@ endpoint_richcompare(PyObj self, PyObj x, int op)
 			if (op == Py_NE)
 			{
 				/*
-					# Invert result.
+					// Invert result.
 				*/
 				rob = (rob == Py_True) ? Py_False : Py_True;
 			}
@@ -860,7 +860,7 @@ endpoint_richcompare(PyObj self, PyObj x, int op)
 }
 
 /**
-	# String representation suitable for text based displays.
+	// String representation suitable for text based displays.
 */
 static PyObj
 endpoint_str(PyObj self)
@@ -894,7 +894,7 @@ endpoint_str(PyObj self)
 
 #define A(DOMAIN) \
 /**\
-	# Constructor.\
+	// Constructor.\
 */\
 static PyObj \
 endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
@@ -963,7 +963,7 @@ endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		return(NULL);
 
 	/*
-		# XXX: While it's not expected for endpoint_new to occur often, this should be a hash.
+		// XXX: While it's not expected for endpoint_new to occur often, this should be a hash.
 	*/
 	if (0) ;
 	#define A(DOMAIN) \
@@ -1026,7 +1026,7 @@ EndpointType = {
 #include "channel.h"
 
 /**
-	# Datagrams (struct)&Channel Structure.
+	// Datagrams (struct)&Channel Structure.
 */
 struct Datagrams {
 	Channel_HEAD
@@ -1072,10 +1072,10 @@ static int array_fall(Array, int);
 } while(0)
 
 /**
-	# Transfer Linked List management.
+	// Transfer Linked List management.
 
-	# The transfer linked list is the list that manages the channels
-	# that have significant state changes: transfer occurred--with exhaustion--or termination.
+	// The transfer linked list is the list that manages the channels
+	// that have significant state changes: transfer occurred--with exhaustion--or termination.
 */
 #define Channel_GetNextTransfer(t)       ((t)->lltransfer)
 #define Channel_IsTransfer(t)            (Channel_GetNextTransfer(t) != NULL)
@@ -1090,8 +1090,8 @@ static int array_fall(Array, int);
 	} while(0)
 
 /**
-	# Array only holds one reference to channels no matter
-	# how often they're referenced.
+	// Array only holds one reference to channels no matter
+	// how often they're referenced.
 */
 #define CHANNEL_JOIN(PREV, NEXT) \
 	do { \
@@ -1100,7 +1100,7 @@ static int array_fall(Array, int);
 	} while (0)
 
 /**
-	# Extends ring from behind. (Relative to TARGET, usually a Array instance)
+	// Extends ring from behind. (Relative to TARGET, usually a Array instance)
 */
 #define CHANNEL_ATTACH_SEGMENT_BEFORE(TARGET, FIRST, LAST) do { \
 	Channel T_prev = TARGET->prev; \
@@ -1111,7 +1111,7 @@ static int array_fall(Array, int);
 } while (0)
 
 /**
-	# Extends ring from front.
+	// Extends ring from front.
 */
 #define CHANNEL_ATTACH_SEGMENT_AFTER(TARGET, FIRST, LAST) do { \
 	FIRST->prev = (Channel) TARGET; \
@@ -1152,13 +1152,13 @@ static int array_fall(Array, int);
 #define Channel_GetRemainder(TYP, T) ((Channel_GetResourceSize(T) / sizeof(TYP)) - Channel_GetWindowStop(T))
 
 /**
-	# Requires GIL.
+	// Requires GIL.
 */
 static void
 Channel_ReleaseResource(Channel t)
 {
 	/**
-		# Free any Python resources associated with the channel.
+		// Free any Python resources associated with the channel.
 	*/
 	if (Channel_HasResource(t))
 	{
@@ -1170,13 +1170,13 @@ Channel_ReleaseResource(Channel t)
 }
 
 /**
-	# Requires GIL. Decrements the link reference and sets the field to &NULL.
+	// Requires GIL. Decrements the link reference and sets the field to &NULL.
 */
 static void
 Channel_ReleaseLink(Channel t)
 {
 	/**
-		# Free any Python resources associated with the channel.
+		// Free any Python resources associated with the channel.
 	*/
 	if (Channel_GetLink(t))
 	{
@@ -1262,8 +1262,8 @@ pkevent(kevent_t *kev)
 }
 
 /**
-	# Print channel structure to standard error.
-	# Used for tracing operations during debugging.
+	// Print channel structure to standard error.
+	// Used for tracing operations during debugging.
 */
 static void
 pchannel(Channel t)
@@ -1381,7 +1381,7 @@ kfilter_attach(Channel t, kevent_t *kev)
 #endif
 
 /**
-	# &PyTypeObject extension structure for configuring the I/O callbacks to use.
+	// &PyTypeObject extension structure for configuring the I/O callbacks to use.
 */
 struct ChannelInterface
 ChannelTIF = {
@@ -1390,27 +1390,27 @@ ChannelTIF = {
 };
 
 /**
-	# Iterator created by &.kernel.Array.transfer().
+	// Iterator created by &.kernel.Array.transfer().
 
-	# Given that this is restricted to iteration,
-	# the type is *not* exposed on the module.
+	// Given that this is restricted to iteration,
+	// the type is *not* exposed on the module.
 */
 struct jxi {
 	PyObject_HEAD
 
 	/**
-		# Subject &Array producing events.
+		// Subject &Array producing events.
 	*/
 	Array J;
 
 	/**
-		# Position in transfer linked list.
+		// Position in transfer linked list.
 	*/
 	Channel t;
 };
 
 /**
-	# Iterator protocol next implementation.
+	// Iterator protocol next implementation.
 */
 static PyObj
 jxi_next(PyObj self)
@@ -1518,14 +1518,14 @@ static char
 channel_can_acquire(Channel t)
 {
 	/*
-		# This should be called after receiving an exhaust event, which
-		# removes this internal flag.
+		// This should be called after receiving an exhaust event, which
+		// removes this internal flag.
 	*/
 	if (Channel_IQualified(t, teq_transfer))
 	{
 		/*
-			# This needs to error out as the flow may be using the
-			# channel's resource at this particular moment.
+			// This needs to error out as the flow may be using the
+			// channel's resource at this particular moment.
 		*/
 		PyErr_SetChannelResourceError(t);
 		return(0);
@@ -1535,13 +1535,13 @@ channel_can_acquire(Channel t)
 }
 
 /**
-	# Acquire a resource for faciliting a transfer. Qualifies the Channel for transfers.
+	// Acquire a resource for faciliting a transfer. Qualifies the Channel for transfers.
 
-	# The given &resource object is set on the &Channel and the memory buffer is filled
-	# out based on the direction of the channel. If the Channel has been acquired
-	# by a &Array, the Channel will be marked and enqueued for a subsequent transfer
-	# attempt. Otherwise, the Channel is qualified for transfer allowing the subsequent
-	# &array_acquire to ready a transfer.
+	// The given &resource object is set on the &Channel and the memory buffer is filled
+	// out based on the direction of the channel. If the Channel has been acquired
+	// by a &Array, the Channel will be marked and enqueued for a subsequent transfer
+	// attempt. Otherwise, the Channel is qualified for transfer allowing the subsequent
+	// &array_acquire to ready a transfer.
 */
 static PyObj
 channel_acquire(PyObj self, PyObj resource)
@@ -1551,30 +1551,30 @@ channel_acquire(PyObj self, PyObj resource)
 	if (Channel_Terminating(t))
 	{
 		/*
-			# Ignore resource acquisitions if terminating.
-			# In cases where Array is running in a parallel loop,
-			# it is possible for a terminate event to follow exhaustion.
+			// Ignore resource acquisitions if terminating.
+			// In cases where Array is running in a parallel loop,
+			// it is possible for a terminate event to follow exhaustion.
 
-			# Essentially, raising an exception here would a race condition
-			# for proper resource acquisition chains.
+			// Essentially, raising an exception here would a race condition
+			// for proper resource acquisition chains.
 		*/
 		Py_RETURN_NONE;
 	}
 
 	/*
-		# Raise ResourceError; user isn't paying attention to exhaust events.
+		// Raise ResourceError; user isn't paying attention to exhaust events.
 	*/
 	if (!channel_can_acquire(t))
 	{
 		/*
-			# Exhaust events are the only safe way that we can invalidate
-			# resources without introducing addtional locks.
+			// Exhaust events are the only safe way that we can invalidate
+			// resources without introducing addtional locks.
 		*/
 		return(NULL);
 	}
 
 	/*
-		# REQUIRES GIL
+		// REQUIRES GIL
 	*/
 
 	Channel_ReleaseResource(t);
@@ -1598,9 +1598,9 @@ channel_acquire(PyObj self, PyObj resource)
 	else
 	{
 		/*
-			# Not acquired by a array.
-			# Directly apply the event qualification and
-			# the array will enqueue it when acquired.
+			// Not acquired by a array.
+			// Directly apply the event qualification and
+			// the array will enqueue it when acquired.
 		*/
 		Channel_IQualify(t, teq_transfer);
 	}
@@ -1683,10 +1683,10 @@ channel_terminate(PyObj self)
 	if (!Channel_Attached(t))
 	{
 		/*
-			# Has GIL, not in Traffic.
-			# Array instances cannot acquire Channels without the GIL.
+			// Has GIL, not in Traffic.
+			// Array instances cannot acquire Channels without the GIL.
 
-			# Running terminate directly is safe.
+			// Running terminate directly is safe.
 		*/
 		if (!Channel_Terminated(t))
 		{
@@ -1699,10 +1699,10 @@ channel_terminate(PyObj self)
 	else if (!Channel_Terminating(t))
 	{
 		/*
-			# Acquired by a Array instance, that Array
-			# instance is responsible for performing termination.
+			// Acquired by a Array instance, that Array
+			// instance is responsible for performing termination.
 
-			# Has GIL, so place teq_terminate event qualification on the delta.
+			// Has GIL, so place teq_terminate event qualification on the delta.
 		*/
 		Channel_DQualify(t, teq_terminate);
 
@@ -1745,7 +1745,7 @@ channel_endpoint(PyObj self)
 	if (Channel_Polarity(t) == p_output)
 	{
 		/*
-			# Sends, get peer.
+			// Sends, get peer.
 		*/
 		r = getpeername(kp, (if_addr_ref_t) &(addr), &addrlen);
 		if (r)
@@ -1757,7 +1757,7 @@ channel_endpoint(PyObj self)
 	else
 	{
 		/*
-			# It is the endpoint, get sockname.
+			// It is the endpoint, get sockname.
 		*/
 		r = getsockname(kp, (if_addr_ref_t) &(addr), &addrlen);
 		if (r)
@@ -1773,12 +1773,12 @@ channel_endpoint(PyObj self)
 	if (addr.ss_family == AF_LOCAL)
 	{
 		/*
-			# Check for anonymous sockets. (socketpair)
+			// Check for anonymous sockets. (socketpair)
 		*/
 		local_addr_t *localaddr = (local_addr_t *) &addr;
 
 		/*
-			# Return the peereid if the remote is NULL/empty.
+			// Return the peereid if the remote is NULL/empty.
 		*/
 		if (local_addr_field(localaddr)[0] == 0)
 		{
@@ -1948,7 +1948,7 @@ channel_members[] = {
 	},
 
 	/*
-		# Internal state access.
+		// Internal state access.
 	*/
 	#if FV_INJECTIONS()
 		{"_state", T_UBYTE, offsetof(struct Channel, state), READONLY,
@@ -1972,9 +1972,9 @@ channel_dealloc(PyObj self)
 	#endif
 
 	/*
-		# Array instances hold a reference to a Channel until it is
-		# removed from the ring.
-		# Channels hold their reference to the array until..now:
+		// Array instances hold a reference to a Channel until it is
+		// removed from the ring.
+		// Channels hold their reference to the array until..now:
 	*/
 	Py_XDECREF(Channel_GetArray(t));
 	Channel_SetArray(t, NULL);
@@ -1993,8 +1993,8 @@ channel_get_polarity(PyObj self, void *_)
 	PyObj rob;
 
 	/*
-		# The polarity of a Channel may be often accessed, so
-		# avoid creating new objects.
+		// The polarity of a Channel may be often accessed, so
+		// avoid creating new objects.
 	*/
 	rob = polarity_objects[!Channel_GetControl(t, ctl_polarity)];
 	Py_INCREF(rob);
@@ -2025,21 +2025,21 @@ channel_get_exhausted(PyObj self, void *_)
 	if (Channel_Terminating(t))
 	{
 		/*
-			# Don't indicate that a resource can be acquired.
+			// Don't indicate that a resource can be acquired.
 		*/
 		Py_INCREF(Py_False);
 		return(Py_False);
 	}
 
 	/*
-		# This should be called after receiving an exhaust event, which
-		# removes this internal flag.
+		// This should be called after receiving an exhaust event, which
+		// removes this internal flag.
 	*/
 	if (Channel_IQualified(t, teq_transfer) || Channel_DQualified(t, teq_transfer))
 	{
 		/*
-			# This needs to error out as the flow may be using the
-			# channel's resource at this particular moment.
+			// This needs to error out as the flow may be using the
+			// channel's resource at this particular moment.
 		*/
 		Py_INCREF(Py_False);
 		return(Py_False);
@@ -2123,7 +2123,7 @@ channel_get_resource(PyObj self, void *_)
 
 static PyGetSetDef channel_getset[] = {
 	/*
-		# Event introspection.
+		// Event introspection.
 	*/
 	{"polarity", channel_get_polarity, NULL,
 		PyDoc_STR("`1` if the channel receives, `-1` if it sends.")
@@ -2162,7 +2162,7 @@ PyDoc_STRVAR(channel_doc,
 );
 
 /**
-	# Base type for the channel implementations.
+	// Base type for the channel implementations.
 */
 ChannelPyTypeObject ChannelType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -2223,7 +2223,7 @@ octets_resize_exoresource(PyObj self, PyObj args)
 			if (port_set_socket_option(p, Channel_Sends(((Channel) self)) ? SO_SNDBUF : SO_RCVBUF, size))
 			{
 				/*
-					# Throw Warning
+					// Throw Warning
 				*/
 			}
 		break;
@@ -2315,7 +2315,7 @@ alloco(PyObj isubtype, PyObj osubtype, Port *out)
 }
 
 /**
-	# Create a pair of Objects and put them in a tuple to be returned.
+	// Create a pair of Objects and put them in a tuple to be returned.
 */
 static PyObj
 allocio(PyObj isubtype, PyObj osubtype, Port *out)
@@ -2365,8 +2365,8 @@ allocio(PyObj isubtype, PyObj osubtype, Port *out)
 }
 
 /**
-	# Same as allocio, but the Ports for each Channel are distinct objects.
-	# (os.pipe(), dup() pairs.
+	// Same as allocio, but the Ports for each Channel are distinct objects.
+	// (os.pipe(), dup() pairs.
 */
 static PyObj
 allociopair(PyObj isubtype, PyObj osubtype, Port p[])
@@ -2404,7 +2404,7 @@ allociopair(PyObj isubtype, PyObj osubtype, Port p[])
 }
 
 /**
-	# Create a pair of Objects and put them in a tuple to be returned.
+	// Create a pair of Objects and put them in a tuple to be returned.
 */
 static PyObj
 allocioio(PyObj isubtype, PyObj osubtype, Port p[])
@@ -2633,9 +2633,9 @@ sockets_resize_exoresource(PyObj self, PyObj args)
 	if (Channel_PortLatched(t))
 	{
 		/*
-			# Failure to resize the listening queue is not necessarily
-			# fatal; this is unlike listen during initialization as
-			# we are essentially checking that the socket *can* listen.
+			// Failure to resize the listening queue is not necessarily
+			// fatal; this is unlike listen during initialization as
+			// we are essentially checking that the socket *can* listen.
 		*/
 
 		port_listen(Channel_GetPort(t), backlog);
@@ -2819,40 +2819,40 @@ PortsType = {{
 };
 
 /**
-	# Structure for &.kernel.DatagramArray providing access
-	# to the composition of datagrams to be emitted or received.
+	// Structure for &.kernel.DatagramArray providing access
+	// to the composition of datagrams to be emitted or received.
 */
 struct DatagramArray {
 	PyObject_VAR_HEAD
 
 	/**
-		# Number of entries in &indexes.
+		// Number of entries in &indexes.
 	*/
 	uint32_t ngrams;
 
 	/**
-		# Address Length of endpoint.
+		// Address Length of endpoint.
 	*/
 	socklen_t addrlen;
 
 	/**
-		# Packet Family of endpoint.
+		// Packet Family of endpoint.
 	*/
 	int pf;
 
 	/**
-		# Address Space of endpoint.
+		// Address Space of endpoint.
 	*/
 	uint32_t space;
 
 	/**
-		# Current transfer.
+		// Current transfer.
 	*/
 	Py_buffer data;
 
 	/**
-		# The indexes to the Datagrams held by the Array inside
-		# the buffer, `data`.
+		// The indexes to the Datagrams held by the Array inside
+		// the buffer, `data`.
 	*/
 	struct Datagram *indexes[0];
 };
@@ -2874,7 +2874,7 @@ datagramarray_get_memory(DatagramArray dga, uint32_t offset)
 	dg = dga->indexes[offset];
 
 	/**
-		# Need the base buffer object for proper slicing.
+		// Need the base buffer object for proper slicing.
 	*/
 	if (PyObject_GetBuffer(dga->data.obj, &buf, PyBUF_WRITABLE))
 		return(NULL);
@@ -3048,7 +3048,7 @@ allocdga(PyTypeObject *subtype, int pf, uint32_t space, uint32_t ngrams)
 	if (i) goto error;
 
 	/*
-		# Clear data. Allows memoryview payload access to copy first n-bytes and forget.
+		// Clear data. Allows memoryview payload access to copy first n-bytes and forget.
 	*/
 	bzero(dga->data.buf, dga->data.len);
 
@@ -3057,7 +3057,7 @@ allocdga(PyTypeObject *subtype, int pf, uint32_t space, uint32_t ngrams)
 	if (ngrams > 0)
 	{
 		/*
-			# The last index points to the end of the memory block.
+			// The last index points to the end of the memory block.
 		*/
 		for (fdg = dga->data.buf, i = 0; i < ngrams; ++i, fdg += unit)
 		{
@@ -3067,7 +3067,7 @@ allocdga(PyTypeObject *subtype, int pf, uint32_t space, uint32_t ngrams)
 		}
 
 		/*
-			# end of buffer index
+			// end of buffer index
 		*/
 		dga->indexes[i] = (struct Datagram *) fdg;
 	}
@@ -3092,8 +3092,8 @@ slicedga(DatagramArray src, Py_ssize_t start, Py_ssize_t stop)
 	DatagramArray dga;
 
 	/*
-		# Normalize indexes. If the index is greater than or less than,
-		# set it to the terminal.
+		// Normalize indexes. If the index is greater than or less than,
+		// set it to the terminal.
 	*/
 	if (start > src->ngrams)
 		stop = start = src->ngrams;
@@ -3105,14 +3105,14 @@ slicedga(DatagramArray src, Py_ssize_t start, Py_ssize_t stop)
 	if (src->ngrams == 0 || (start == 0 && stop == src->ngrams))
 	{
 		/*
-			# slice of empty array.
+			// slice of empty array.
 		*/
 		Py_INCREF(src);
 		return((PyObj) src);
 	}
 
 	/*
-		# At least one index for the sentinal.
+		// At least one index for the sentinal.
 	*/
 	PYTHON_RECEPTACLE(NULL, &rob, subtype->tp_alloc, subtype, (stop - start) + 1);
 	if (rob == NULL)
@@ -3121,7 +3121,7 @@ slicedga(DatagramArray src, Py_ssize_t start, Py_ssize_t stop)
 	dga->data.obj = NULL;
 
 	/*
-		# No Python errors after this point.
+		// No Python errors after this point.
 	*/
 	dga->addrlen = src->addrlen;
 	dga->pf = src->pf;
@@ -3135,7 +3135,7 @@ slicedga(DatagramArray src, Py_ssize_t start, Py_ssize_t stop)
 	}
 
 	/*
-		# The last index points to the end of the memory block.
+		// The last index points to the end of the memory block.
 	*/
 	for (i = 0; start <= stop; ++i, ++start)
 	{
@@ -3284,7 +3284,7 @@ datagramarray_getbuffer(PyObj self, Py_buffer *view, int flags)
 	if (r) return(r);
 
 	/*
-		# slice according to the local perspective of the underlying bytearray
+		// slice according to the local perspective of the underlying bytearray
 	*/
 	view->buf = (void *) dga->indexes[0];
 	view->len = ((intptr_t) dga->indexes[dga->ngrams]) - ((intptr_t) dga->indexes[0]);
@@ -3420,9 +3420,9 @@ DatagramsTIF = {
 };
 
 /*
-	# deallocation is straight forward except in the case of sockets,
-	# which have a shared file descriptor and must refer to each other
-	# to identify whether or not the kpoint can be closed.
+	// deallocation is straight forward except in the case of sockets,
+	// which have a shared file descriptor and must refer to each other
+	// to identify whether or not the kpoint can be closed.
 */
 
 PyDoc_STRVAR(datagrams_doc, "channel transferring DatagramArray's");
@@ -3477,13 +3477,13 @@ array_resize_exoresource(PyObj self, PyObj args)
 	Array J = (Array) self;
 
 	/*
-		# This adjusts the size of the kevents array, which is technically a
-		# process resource, but arrays are special so use the exoresource
-		# as a means to hint to the size of the kevent array as well.
+		// This adjusts the size of the kevents array, which is technically a
+		// process resource, but arrays are special so use the exoresource
+		// as a means to hint to the size of the kevent array as well.
 	*/
 
 	/*
-		# Requires GIL.
+		// Requires GIL.
 	*/
 
 	if (!PyArg_ParseTuple(args, "I", &new_size))
@@ -3506,8 +3506,8 @@ array_resize_exoresource(PyObj self, PyObj args)
 }
 
 /*
-	# Relay to the generated channel alloc functions.
-	# See the preproc blackmagic at the bottom of the file.
+	// Relay to the generated channel alloc functions.
+	// See the preproc blackmagic at the bottom of the file.
 */
 static PyObj _jra_map = NULL; /* module init */
 
@@ -3528,9 +3528,9 @@ array_rallocate(PyObj self, PyObj args)
 	req = PyTuple_GET_ITEM(args, 0);
 
 	/*
-		# It's essentially a method table.
-		# Capsules are used because we are resolving methods using arbitrary Python objects.
-		# (If it were just strings, we'd probably use a plain hash table with uthash)
+		// It's essentially a method table.
+		// Capsules are used because we are resolving methods using arbitrary Python objects.
+		// (If it were just strings, we'd probably use a plain hash table with uthash)
 	*/
 	cap = PyDict_GetItem(_jra_map, req);
 	if (cap == NULL)
@@ -3579,12 +3579,12 @@ array_acquire(PyObj self, PyObj ob)
 		{
 			/* Given Channel is Terminated */
 			/*
-				# Terminating check performed after the NULL check because
-				# if the given channel is already acquired by the Array,
-				# it shouldn't complain due to it already being acquired.
+				// Terminating check performed after the NULL check because
+				// if the given channel is already acquired by the Array,
+				// it shouldn't complain due to it already being acquired.
 
-				# Additionally, it's desired that ResourceError is consistently
-				# thrown in this case.
+				// Additionally, it's desired that ResourceError is consistently
+				// thrown in this case.
 			*/
 			PyErr_SetChannelTerminatedError(t);
 			return(NULL);
@@ -3691,7 +3691,7 @@ array_kevent_change(Array J)
 	Array_ResetWindow(J);
 
 	/*
-		# Receipts are demanded, so the enties are only used for error reporting.
+		// Receipts are demanded, so the enties are only used for error reporting.
 	*/
 	#if F_TRACE(subscribe)
 		for (int i = 0; i < nkevents; ++i)
@@ -3699,7 +3699,7 @@ array_kevent_change(Array J)
 	#endif
 
 	/*
-		# These must finish, so don't accept EINTR/EAGAIN.
+		// These must finish, so don't accept EINTR/EAGAIN.
 	*/
 	if (nkevents)
 		port_kevent(port, -1, &r, kevs, nkevents, kevs, nkevents, &nowait);
@@ -3717,9 +3717,9 @@ array_kevent_collect(Array J, int waiting)
 		const static int nowait = 0, wait = 9 * 1000;
 
 		/*
-			# For epoll, there are two file descriptors; one epoll referring to readers
-			# and the other to the writers. The interface doesn't provide details about
-			# whether reading is possible or writing can occur, so it has to be split up.
+			// For epoll, there are two file descriptors; one epoll referring to readers
+			// and the other to the writers. The interface doesn't provide details about
+			// whether reading is possible or writing can occur, so it has to be split up.
 		*/
 		switch (J->choice.array.haswrites)
 		{
@@ -3763,10 +3763,10 @@ array_kevent_collect(Array J, int waiting)
 }
 
 /**
-	# Note tev_join events on all Channels.
+	// Note tev_join events on all Channels.
 
-	# Run before array_transfer_delta to have all
-	# Channel's corresponding kevent filter to be loaded.
+	// Run before array_transfer_delta to have all
+	// Channel's corresponding kevent filter to be loaded.
 */
 static void
 array_reload(Array J)
@@ -3783,7 +3783,7 @@ array_reload(Array J)
 }
 
 /**
-	# Enqueue the delta into the lltransfer list.
+	// Enqueue the delta into the lltransfer list.
 */
 static void
 array_transfer_delta(Array J)
@@ -3793,21 +3793,21 @@ array_transfer_delta(Array J)
 	/* MUST HAVE GIL */
 
 	/*
-		# Scans the ring behind the Array.
-		# Process Events are queued up by moving the Channel behind the Array after
-		# applying flags to channel->delta.
+		// Scans the ring behind the Array.
+		// Process Events are queued up by moving the Channel behind the Array after
+		// applying flags to channel->delta.
 	*/
 	for (t = J->prev; Channel_GetDelta(t) != 0; t = t->prev)
 	{
 		/*
-			# prepend to the lltransfer list.
-			# The first 't' was the last enqueued.
+			// prepend to the lltransfer list.
+			// The first 't' was the last enqueued.
 		*/
 		Channel_StateMerge(t, Channel_GetDelta(t)); /* Record the internal event quals. */
 		Channel_ClearDelta(t); /* for subsequent use; after gil gets released */
 
 		/*
-			# Add to event list.
+			// Add to event list.
 		*/
 		Array_AddTransfer(J, t);
 	}
@@ -3827,7 +3827,7 @@ array_current_kevent_slot(Array J)
 }
 
 /**
-	# Process delta and setup for event processing
+	// Process delta and setup for event processing
 */
 static void
 array_apply_delta(Array J)
@@ -3842,11 +3842,11 @@ array_apply_delta(Array J)
 	Array_ResetWindow(J);
 
 	/*
-		# Iterate through the transfer list in order to make any necessary
-		# changes to the Channel's kfilter.
+		// Iterate through the transfer list in order to make any necessary
+		// changes to the Channel's kfilter.
 
-		# There is a need to keep track of the previous item on the list in case we need to
-		# evict the Channel from our event list.
+		// There is a need to keep track of the previous item on the list in case we need to
+		// evict the Channel from our event list.
 	*/
 
 	for (t = Channel_GetNextTransfer(J); t != (Channel) J; t = Channel_GetNextTransfer(prev))
@@ -3854,21 +3854,21 @@ array_apply_delta(Array J)
 		if (Channel_ShouldXConnect(t))
 		{
 			/*
-				# iff xterminate hasn't occurred.
-				# Happens with channels that are terminated at creation due to syscall failure.
+				// iff xterminate hasn't occurred.
+				// Happens with channels that are terminated at creation due to syscall failure.
 			*/
 			if (Channel_PortError(t) || !Channel_PortLatched(t))
 			{
 				/*
-					# Inherit error or ignore connect if unlatched.
+					// Inherit error or ignore connect if unlatched.
 				*/
 				Channel_XQualify(t, teq_terminate);
 			}
 			else if (!Channel_GetControl(t, ctl_requeue))
 			{
 				/*
-					# Only connect if our port is latched
-					# and the requeue flag is *not* set.
+					// Only connect if our port is latched
+					// and the requeue flag is *not* set.
 				*/
 				kfilter_attach(t, array_current_kevent_slot(J));
 				Array_ConsumeKEventSlot(J);
@@ -3880,40 +3880,40 @@ array_apply_delta(Array J)
 		if (Channel_GetControl(t, ctl_force))
 		{
 			/*
-				# Remove the flag.
+				// Remove the flag.
 			*/
 			Channel_NulControl(t, ctl_force);
 
 			/*
-				# It's a lie. The buffer will be zero, but the transfer
-				# attempt will still occur likely resulting in zero read.
+				// It's a lie. The buffer will be zero, but the transfer
+				// attempt will still occur likely resulting in zero read.
 			*/
 			Channel_XQualify(t, teq_transfer);
 		}
 
 		/*
-			# Determine whether or not the Channel should be processed due to
-			# the state change performed by the process.
+			// Determine whether or not the Channel should be processed due to
+			// the state change performed by the process.
 		*/
 		if (Channel_EventState(t))
 		{
 			/*
-				# There is no check for "should exhaust" as exhaustion only
-				# follows a transfer. Exhaust events are determined after the transfer
-				# is emitted.
+				// There is no check for "should exhaust" as exhaustion only
+				// follows a transfer. Exhaust events are determined after the transfer
+				// is emitted.
 			*/
 			prev = t;
 		}
 		else
 		{
 			/*
-				# Incomplete qualifications, remove channel from list.
+				// Incomplete qualifications, remove channel from list.
 			*/
 
 			/*
-				# Current `prev` is valid, so set the next to this channel's next.
-				# Afterwards, this Tranit's next pointer to NULL to signal that
-				# it is not participating in a Transfer.
+				// Current `prev` is valid, so set the next to this channel's next.
+				// Afterwards, this Tranit's next pointer to NULL to signal that
+				// it is not participating in a Transfer.
 			*/
 			Channel_SetNextTransfer(prev, Channel_GetNextTransfer(t));
 			Channel_SetNextTransfer(t, NULL);
@@ -3921,15 +3921,15 @@ array_apply_delta(Array J)
 	}
 
 	/*
-		# Make any remaining changes.
+		// Make any remaining changes.
 	*/
 	array_kevent_change(J);
 }
 
 #ifdef EVMECH_EPOLL
 /**
-	# Transform the collected events into local Channel state.
-	# Place actionable events onto their respective transfer list.
+	// Transform the collected events into local Channel state.
+	// Place actionable events onto their respective transfer list.
 */
 static void
 array_kevent_transform(Array J)
@@ -3940,8 +3940,8 @@ array_kevent_transform(Array J)
 	uint32_t i, nkevents = Array_NCollected(J);
 
 	/*
-		# Iterate over the collected events and
-		# transform the kevent state data into Channel state.
+		// Iterate over the collected events and
+		// transform the kevent state data into Channel state.
 	*/
 	for (i = 0; i < nkevents; ++i)
 	{
@@ -3949,7 +3949,7 @@ array_kevent_transform(Array J)
 		t = (Channel) kev->data.ptr;
 
 		/*
-			# The eventfd to trip epoll_wait()
+			// The eventfd to trip epoll_wait()
 		*/
 		if (t == NULL)
 		{
@@ -3960,7 +3960,7 @@ array_kevent_transform(Array J)
 		else if (t == J)
 		{
 			/*
-				# Writes signal.
+				// Writes signal.
 			*/
 			J->choice.array.haswrites = 1;
 		}
@@ -3989,8 +3989,8 @@ array_kevent_transform(Array J)
 #else
 
 /**
-	# Transform the collected events into local Channel state.
-	# Place actionable events onto their respective transfer list.
+	// Transform the collected events into local Channel state.
+	// Place actionable events onto their respective transfer list.
 */
 static void
 array_kevent_transform(Array J)
@@ -4001,8 +4001,8 @@ array_kevent_transform(Array J)
 	uint32_t i, nkevents = Array_NCollected(J);
 
 	/*
-		# Iterate over the collected events and
-		# transform the kevent state data into Channel state.
+		// Iterate over the collected events and
+		// transform the kevent state data into Channel state.
 	*/
 	for (i = 0; i < nkevents; ++i)
 	{
@@ -4010,7 +4010,7 @@ array_kevent_transform(Array J)
 		t = (Channel) kev->udata;
 
 		/*
-			# (EVFILT_USER) user signaled for kevent exit?
+			// (EVFILT_USER) user signaled for kevent exit?
 		*/
 		if (t == (Channel) J)
 		{
@@ -4022,30 +4022,30 @@ array_kevent_transform(Array J)
 		if (kev->filter == EVFILT_WRITE && kev->flags & EV_EOF)
 		{
 			/*
-				# Only xterminate when it's an Output channel.
-				# io_terminate will handle termination on Input channels
-				# in order to make sure that all data has been transferred into the process.
+				// Only xterminate when it's an Output channel.
+				// io_terminate will handle termination on Input channels
+				// in order to make sure that all data has been transferred into the process.
 			*/
 			Channel_XQualify(t, teq_terminate);
 			Port_SetError(p, kev->fflags, kc_eof);
 
 			/*
-				# ShouldTerminate
+				// ShouldTerminate
 			*/
 			Array_AddTransfer(J, t);
 		}
 		else
 		{
 			/*
-				# Always note when a transfer is *possible*.
-				# The iTransfer must be present in order for an event to be enqueued.
+				// Always note when a transfer is *possible*.
+				// The iTransfer must be present in order for an event to be enqueued.
 			*/
 
 			/* Zero read triggers termination, writes are terminated by [local] host. */
 			Channel_XQualify(t, teq_transfer);
 
 			/*
-				# Kernel can transfer, if the channel can too, then queue it up.
+				// Kernel can transfer, if the channel can too, then queue it up.
 			*/
 			if (Channel_IQualified(t, teq_transfer))
 				Array_AddTransfer(J, t);
@@ -4109,13 +4109,13 @@ _array_terminate(Channel J)
 	Channel_IQualify(J, teq_terminate);
 
 	/*
-		# Terminate all the Channels in the Array's ring.
+		// Terminate all the Channels in the Array's ring.
 	*/
 	for (t = J->next; t != J; t = t->next)
 	{
 		/*
-			# Enqueue is necessary here because ALL channels will
-			# have a terminate action.
+			// Enqueue is necessary here because ALL channels will
+			// have a terminate action.
 		*/
 		Channel_DQualify(t, teq_terminate);
 	}
@@ -4133,7 +4133,7 @@ _array_terminate(Channel J)
 }
 
 /**
-	# Collect and process events.
+	// Collect and process events.
 */
 static void
 _array_flow(Array J)
@@ -4143,20 +4143,20 @@ _array_flow(Array J)
 	array_start_cycle(J);
 
 	/*
-		# Check for Array termination.
+		// Check for Array termination.
 	*/
 	if (Channel_Terminating(J))
 	{
 		/*
-			# terminate all channels
+			// terminate all channels
 		*/
 		_array_terminate((Channel) J);
 	}
 	else if (!Channel_PortLatched(J))
 	{
 		/*
-			# kqueue file descriptor went bad.
-			# Either a fork occurred or the user close()'d it.
+			// kqueue file descriptor went bad.
+			// Either a fork occurred or the user close()'d it.
 		*/
 		array_init(J);
 		array_reload(J);
@@ -4164,32 +4164,32 @@ _array_flow(Array J)
 	Channel_ClearDelta(J);
 
 	/*
-		# Enqueue changed channels to lltransfer.
-		# *REQUIRES GIL*
+		// Enqueue changed channels to lltransfer.
+		// *REQUIRES GIL*
 	*/
 	array_transfer_delta(J);
 
 	if (Array_ShouldWait(J))
 	{
 		/*
-			# Signals that an EVFILT_USER is necessary to cause it
-			# to fall through.
+			// Signals that an EVFILT_USER is necessary to cause it
+			// to fall through.
 
-			# If not set, we can avoid a syscall.
+			// If not set, we can avoid a syscall.
 		*/
 		J->choice.array.will_wait = 1;
 	}
 
 	/*
-		# The GIL is no longer necessary, and concurrent
-		# code can send signals to Channels as desired.
+		// The GIL is no longer necessary, and concurrent
+		// code can send signals to Channels as desired.
 	*/
 
 	Py_BEGIN_ALLOW_THREADS
 
 	/*
-		# The ring portion of the Channel objects are managed with the GIL.
-		# t->next/t->prev CAN BE USED BY OTHER THREADS. DO NOT USE WITHOUT GIL.
+		// The ring portion of the Channel objects are managed with the GIL.
+		// t->next/t->prev CAN BE USED BY OTHER THREADS. DO NOT USE WITHOUT GIL.
 	*/
 
 	array_apply_delta(J);
@@ -4200,7 +4200,7 @@ _array_flow(Array J)
 		unsigned int countdown = 3;
 
 		/*
-			# Wait *iff* there are no transfers available for processing.
+			// Wait *iff* there are no transfers available for processing.
 		*/
 		array_kevent_collect(J, Array_ShouldWait(J));
 		J->choice.array.will_wait = 0; /* clear flag to avoid superfluous falls */
@@ -4208,9 +4208,9 @@ _array_flow(Array J)
 		array_kevent_transform(J);
 
 		/*
-			# Iff more kevents may exists.
-			# The previous collection of events must be equal to the size of our
-			# eventlist in order to run this loop.
+			// Iff more kevents may exists.
+			// The previous collection of events must be equal to the size of our
+			// eventlist in order to run this loop.
 		*/
 		#ifdef EVMECH_EPOLL
 			while (countdown)
@@ -4230,13 +4230,13 @@ _array_flow(Array J)
 	}
 
 	/*
-		# Prepare for array_next_kevent_slot()
+		// Prepare for array_next_kevent_slot()
 	*/
 	Array_ResetWindow(J);
 
 	/*
-		# Iterate over all the channels in the transfer list and process their events.
-		# Sort the list into the I/O list.
+		// Iterate over all the channels in the transfer list and process their events.
+		// Sort the list into the I/O list.
 	*/
 	for (t = Channel_GetNextTransfer(J); t != (Channel) J; t = Channel_GetNextTransfer(t))
 	{
@@ -4251,7 +4251,7 @@ _array_flow(Array J)
 		if (Channel_ShouldTerminate(t))
 		{
 			/*
-				# Disconnect from the kevent stream iff requeue is not configured.
+				// Disconnect from the kevent stream iff requeue is not configured.
 			*/
 			if (!Channel_GetControl(t, ctl_requeue))
 			{
@@ -4262,17 +4262,17 @@ _array_flow(Array J)
 			Channel_NoteEvent(t, tev_terminate);
 
 			/*
-				# _flush will perform resource releases (close and ReleaseResource)
+				// _flush will perform resource releases (close and ReleaseResource)
 
-				# This is necessary for two reasons:
-				# 1. User may need to refer to port.
-				# 2. GIL is needed to release local resources.
+				// This is necessary for two reasons:
+				// 1. User may need to refer to port.
+				// 2. GIL is needed to release local resources.
 			*/
 		}
 		else if (Channel_ShouldTransfer(t))
 		{
 			/*
-				# Transfers are preempted by termination.
+				// Transfers are preempted by termination.
 			*/
 			io_status_t stat;
 			uint32_t xfer = 0;
@@ -4280,9 +4280,9 @@ _array_flow(Array J)
 			char *buf = Channel_GetResourceBuffer(t);
 
 			/*
-				# The max transfer window spans from the end of the current window
-				# to the end of the resource. The stop is adjusted after the operation
-				# cannot transfer anymore.
+				// The max transfer window spans from the end of the current window
+				// to the end of the resource. The stop is adjusted after the operation
+				// cannot transfer anymore.
 			*/
 			uint32_t rsize = Channel_GetResourceSize(t);
 			uint32_t pos = Channel_GetWindowStop(t);
@@ -4291,13 +4291,13 @@ _array_flow(Array J)
 			Channel_NoteEvent(t, tev_transfer);
 
 			/*
-				# Adjust by the channel's window.
+				// Adjust by the channel's window.
 			*/
 			buf += (intptr_t) pos;
 
 			/*
-				# Acquire the IO operation from the ChannelType
-				# using the polarity to select the proper function pointer.
+				// Acquire the IO operation from the ChannelType
+				// using the polarity to select the proper function pointer.
 			*/
 			io_op_t io = Channel_GetInterface(t)->io[polarity];
 
@@ -4318,12 +4318,12 @@ _array_flow(Array J)
 			switch (stat)
 			{
 				/*
-					# map io_status_t to state change.
+					// map io_status_t to state change.
 				*/
 				case io_flow:
 					/*
-						# Buffer exhausted and EAGAIN *not* triggered
-						# Channel_XQualified(t, teq_transfer) == True
+						// Buffer exhausted and EAGAIN *not* triggered
+						// Channel_XQualified(t, teq_transfer) == True
 					*/
 					Channel_INQualify(t, teq_transfer);
 					trace(" FLOWS\n");
@@ -4331,7 +4331,7 @@ _array_flow(Array J)
 
 				case io_stop:
 					/*
-						# EAGAIN; wait for kernel event for continuation.
+						// EAGAIN; wait for kernel event for continuation.
 					*/
 					Channel_XNQualify(t, teq_transfer);
 					trace(" WOULDBLOCK\n");
@@ -4339,8 +4339,8 @@ _array_flow(Array J)
 
 				case io_terminate:
 					/*
-						# EOF condition or error returned.
-						# It is possible that this has a transfer.
+						// EOF condition or error returned.
+						// It is possible that this has a transfer.
 					*/
 					Channel_XQualify(t, teq_terminate);
 					Channel_NoteEvent(t, tev_terminate);
@@ -4364,7 +4364,7 @@ _array_flow(Array J)
 		else
 		{
 			/*
-				# No event. Filter.
+				// No event. Filter.
 			*/
 			#if F_TRACE(no_events)
 				pchannel(t);
@@ -4373,7 +4373,7 @@ _array_flow(Array J)
 	}
 
 	/*
-		# Perform any disconnects queued up in the loop.
+		// Perform any disconnects queued up in the loop.
 	*/
 	if (!Channel_Terminating(J))
 		array_kevent_change(J);
@@ -4388,7 +4388,7 @@ ArrayTIF = {
 };
 
 /**
-	# Return an iterable to the collected events. &.kernel.Array.transfer
+	// Return an iterable to the collected events. &.kernel.Array.transfer
 */
 static PyObj
 array_transfer(PyObj self)
@@ -4429,22 +4429,22 @@ _array_flush(Array J)
 		Channel_SetNextTransfer(t, NULL);
 
 		/*
-			# Unconditionally collapse the window here.
-			# We have the GIL so no concurrent Channel.acquire() calls are in progress.
-			# If the user acquired the resource during the cycle, collapse will merely
-			# set the stop to zero.
+			// Unconditionally collapse the window here.
+			// We have the GIL so no concurrent Channel.acquire() calls are in progress.
+			// If the user acquired the resource during the cycle, collapse will merely
+			// set the stop to zero.
 
-			# In cases where no transfer occurred, it's a no-op.
+			// In cases where no transfer occurred, it's a no-op.
 		*/
 		Channel_CollapseWindow(t);
 
 		if (Channel_HasEvent(t, tev_terminate))
 		{
 			/*
-				# Release any resources owned by the channel.
+				// Release any resources owned by the channel.
 
-				# In the case where the resource was acquired in the cycle,
-				# we're not doing anything with the resource anyways, so get rid of it.
+				// In the case where the resource was acquired in the cycle,
+				// we're not doing anything with the resource anyways, so get rid of it.
 			*/
 			Channel_ReleaseResource(t);
 			Channel_ReleaseLink(t);
@@ -4454,15 +4454,15 @@ _array_flush(Array J)
 			Array_DecrementChannelCount(J);
 
 			/*
-				# Emitted termination? Release reference to the channel.
+				// Emitted termination? Release reference to the channel.
 			*/
 			Py_DECREF(t);
 		}
 		else
 		{
 			/*
-				# If the delta qualification exists, the user channel.acquire()'d during
-				# the cycle, so don't release the new resource.
+				// If the delta qualification exists, the user channel.acquire()'d during
+				// the cycle, so don't release the new resource.
 			*/
 			int exhausted = !Channel_DQualified(t, teq_transfer)
 				&& !Channel_IQualified(t, teq_transfer);
@@ -4470,18 +4470,18 @@ _array_flush(Array J)
 			if (exhausted)
 			{
 				/*
-					# Exhaust event occurred, but no new resource supplied in cycle.
-					# Release any internal resources.
+					// Exhaust event occurred, but no new resource supplied in cycle.
+					// Release any internal resources.
 
-					# The user has the option to acquire() a new buffer within and
-					# after a cycle.
+					// The user has the option to acquire() a new buffer within and
+					// after a cycle.
 				*/
 				Channel_ReleaseResource(t);
 			}
 		}
 
 		/*
-			# Cycle is over. Clear events.
+			// Cycle is over. Clear events.
 		*/
 		Channel_ClearEvents(t);
 
@@ -4492,7 +4492,7 @@ _array_flush(Array J)
 }
 
 /**
-	# Close file descriptors and release references; destroy entire ring.
+	// Close file descriptors and release references; destroy entire ring.
 */
 static PyObj
 array_void(PyObj self)
@@ -4509,7 +4509,7 @@ array_void(PyObj self)
 	{
 		Port p = Channel_GetPort(t);
 		/*
-			# Clear any transfer state.
+			// Clear any transfer state.
 		*/
 		Channel_IQualify(t, teq_terminate);
 		Channel_SetNextTransfer(t, NULL);
@@ -4521,7 +4521,7 @@ array_void(PyObj self)
 		Py_DECREF(t);
 
 		/*
-			# The Array and Port references will be cleared by dealloc.
+			// The Array and Port references will be cleared by dealloc.
 		*/
 	}
 	t->next = NULL;
@@ -4541,7 +4541,7 @@ array_void(PyObj self)
 }
 
 /**
-	# Begin a transfer processing cycle.
+	// Begin a transfer processing cycle.
 */
 static PyObj
 array_enter(PyObj self)
@@ -4568,7 +4568,7 @@ array_enter(PyObj self)
 }
 
 /**
-	# Close a transfer processing cycle.
+	// Close a transfer processing cycle.
 */
 static PyObj
 array_exit(PyObj self, PyObj args)
@@ -4694,7 +4694,7 @@ array_get_resource(PyObj self, void *_)
 	Channel t = J->next;
 
 	/*
-		# Requires GIL.
+		// Requires GIL.
 	*/
 
 	l = PyList_New(Array_GetChannelCount(J));
@@ -4751,7 +4751,7 @@ array_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	Array_ResetTransferCount(J);
 
 	/*
-		# For Arrays, the Window's Stop is the size of malloc / sizeof(struct kevent)
+		// For Arrays, the Window's Stop is the size of malloc / sizeof(struct kevent)
 	*/
 	Channel_SetWindow(J, 0, CONFIG_DEFAULT_ARRAY_SIZE);
 	Array_SetKEvents(J, PyMem_Malloc(sizeof(kevent_t) * Channel_GetWindowStop(J)));
@@ -4812,8 +4812,8 @@ ArrayType = {{
 };
 
 /**
-	# Build out the array.array("i", (-1,)).__mul__ object
-	# for use in Sockets.rallocate(n)
+	// Build out the array.array("i", (-1,)).__mul__ object
+	// for use in Sockets.rallocate(n)
 */
 static PyObj
 _init_intarray(void)
@@ -4865,10 +4865,10 @@ _init_intarray(void)
 }
 
 /**
-	# The initial parameter designates the allocation type to support the new channels.
-	# The second parameter defines the freight type and the Python type used.
-	# The third parameter is the domain/address family.
-	# The fourth parameter is the "protocol".
+	// The initial parameter designates the allocation type to support the new channels.
+	// The second parameter defines the freight type and the Python type used.
+	// The third parameter is the domain/address family.
+	// The fourth parameter is the "protocol".
 */
 #define ARRAY_RESOURCE_ALLOCATION_DEFAULTS() \
 	X(io,octets,local,DEFAULT) \
@@ -4883,7 +4883,7 @@ _init_intarray(void)
 	X(io,datagrams,ip6,DEFAULT) \
 
 /**
-	# Protocol explicitly stated.
+	// Protocol explicitly stated.
 */
 #define ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL() \
 	X(io,octets,ip4,tcp) \
@@ -4949,11 +4949,11 @@ _init_intarray(void)
 #define _LOCAL_PARAMS PF_LOCAL, SOCK_STREAM, 0
 
 /*
-	# These defines are for the nasty X-macro generated channel allocation functions used
-	# by Array.rallocate(). There are a number of combinations, so grouping the
-	# the similar operations helps to save some redundant code.
+	// These defines are for the nasty X-macro generated channel allocation functions used
+	// by Array.rallocate(). There are a number of combinations, so grouping the
+	// the similar operations helps to save some redundant code.
 
-	# Cover each combination referenced by the capsule xmacro.
+	// Cover each combination referenced by the capsule xmacro.
 */
 #define ports_init_sockets_ip4_DEFAULT(P, x) \
 	ports_listen(P[0], ip4_pf, (if_addr_ref_t) &x, sizeof(x))
@@ -5072,8 +5072,8 @@ ARRAY_RESOURCE_ALLOCATION_SELECTION()
 #undef X
 
 /*
-	# Variant supporting bind.
-	# J.rallocate(('octets', 'ip4', 'tcp', 'bind'), (connect, bind))
+	// Variant supporting bind.
+	// J.rallocate(('octets', 'ip4', 'tcp', 'bind'), (connect, bind))
 */
 #define X(...) \
 	static PyObj \
@@ -5105,8 +5105,8 @@ static PyObj
 _init_array_rallocation(void)
 {
 	/*
-		# There is a number of allocation combinations possible,
-		# so macros are used to generate many allocation actions.
+		// There is a number of allocation combinations possible,
+		// so macros are used to generate many allocation actions.
 	*/
 	PyObj rob = NULL
 		#define X(...) , \
@@ -5202,7 +5202,7 @@ _init_array_rallocation(void)
 }
 
 /**
-	# No functions. Only types.
+	// No functions. Only types.
 */
 #define MODULE_FUNCTIONS()
 
@@ -5215,7 +5215,7 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 	if (new_array == NULL)
 	{
 		/*
-			# For Sockets rallocate.
+			// For Sockets rallocate.
 		*/
 		new_array = _init_intarray();
 		if (new_array == NULL)
@@ -5243,7 +5243,7 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 
 	#if FV_INJECTIONS()
 		/*
-			# Need this to help with the skip condition in the tests.
+			// Need this to help with the skip condition in the tests.
 		*/
 		#ifdef F_SETNOSIGPIPE
 			PyModule_AddIntConstant(mod, "F_SETNOSIGPIPE", 1);
@@ -5256,7 +5256,7 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 		goto error;
 
 	/*
-		# Initialize Channel types.
+		// Initialize Channel types.
 	*/
 	#define ID(NAME, IGNORED) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
@@ -5268,15 +5268,15 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 	#undef ID
 
 	/*
-		# Provides mapping for Array.rallocate()
-		# Must be initialized after types are Ready'd.
+		// Provides mapping for Array.rallocate()
+		// Must be initialized after types are Ready'd.
 	*/
 	_jra_map = _init_array_rallocation();
 	if (_jra_map == NULL)
 		goto error;
 
 	/**
-		# Setup exception instances.
+		// Setup exception instances.
 	*/
 	{
 		PyExc_TransitionViolation = PyErr_NewException(PYTHON_MODULE_PATH("TransitionViolation"), NULL, NULL);

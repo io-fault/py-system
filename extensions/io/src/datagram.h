@@ -1,9 +1,9 @@
 /**
-	# Datagram data. The inner structure of Datagrams' resource allocations.
+	// Datagram data. The inner structure of Datagrams' resource allocations.
 */
 
 /**
-	# A single datagram transmitted by &.kernel.Datagrams channels.
+	// A single datagram transmitted by &.kernel.Datagrams channels.
 */
 struct Datagram {
 	uint32_t gramspace, gramsize;
@@ -25,15 +25,15 @@ struct Datagram {
 #define DatagramCalculateUnit(dgspace, addrlen) (dgspace + addrlen + DatagramHeaderSize)
 
 /**
-	# Total space of the datagram including header data.
+	// Total space of the datagram including header data.
 */
 #define DatagramGetArea(DG) \
 	(DatagramGetSpace(DG) + DatagramGetAddressLength(DG) + DatagramHeaderSize)
 
 /**
-	# First check that there is enough space for a regular Datagram, then make sure that the
-	# space and address length don't exceed the available SIZE: The size must be greater than
-	# the size minus the header, space, and address length.
+	// First check that there is enough space for a regular Datagram, then make sure that the
+	// space and address length don't exceed the available SIZE: The size must be greater than
+	// the size minus the header, space, and address length.
 */
 #define DatagramIsValid(DG, SIZE) ( \
 	(SIZE >= DatagramHeaderSize) && (SIZE >= DatagramGetArea(DG)) && \

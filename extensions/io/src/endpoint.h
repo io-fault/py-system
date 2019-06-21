@@ -2,10 +2,10 @@
 #define _SYSTEM_IO_ENDPOINT_H_included_
 
 /**
-	# Endpoint - Hold an arbitrary socket address.
+	// Endpoint - Hold an arbitrary socket address.
 
-	# The data is zero-length array so the object is varsized to
-	# compensate for file system sockets rather large address storage.
+	// The data is zero-length array so the object is varsized to
+	// compensate for file system sockets rather large address storage.
 */
 struct Endpoint {
 	PyObject_VAR_HEAD
@@ -23,7 +23,7 @@ struct Endpoint {
 #endif
 
 /**
-	# These port structures should only be allocated on the stack.
+	// These port structures should only be allocated on the stack.
 */
 typedef enum {
 	aport_kind_numeric2,
@@ -105,10 +105,10 @@ void local_str(char *dst, size_t dstsize, local_addr_t *addr);
 void local_port(struct aport_t *port, size_t dstsize, local_addr_t *addr);
 
 /**
-	# File addresses are not usually passed around this way, so don't
-	# worry too much about the waste. If it ever gets particularly
-	# desirable to do so, however, we can leverage the VarSize object
-	# more and make the fa_path variably sized.
+	// File addresses are not usually passed around this way, so don't
+	// worry too much about the waste. If it ever gets particularly
+	// desirable to do so, however, we can leverage the VarSize object
+	// more and make the fa_path variably sized.
 */
 typedef struct {
 	struct sockaddr sa;
@@ -126,7 +126,7 @@ typedef struct {
 #define file_casted(NAME, src)        file_addr_t * NAME = (file_addr_t *) src
 
 /**
-	# pseudo domains
+	// pseudo domains
 */
 #define acquire_pf (SOCK_MAXADDRLEN - 2)
 #define clone_pf  (SOCK_MAXADDRLEN - 3)

@@ -1,11 +1,11 @@
 /**
-	# Includes Array definition and accessors as Channels
-	# and Arrays are co-dependent.
+	// Includes Array definition and accessors as Channels
+	// and Arrays are co-dependent.
 */
 
 /**
-	# ChannelInterface methods for a given type
-	# Attached to object system's type; not individual instances.
+	// ChannelInterface methods for a given type
+	// Attached to object system's type; not individual instances.
 */
 struct ChannelInterface {
 	io_op_t io[2];
@@ -16,9 +16,9 @@ struct ChannelInterface {
 typedef struct ChannelInterface *ChannelInterface;
 
 /**
-	# ChannelInterface is used internally by Arrays to perform transfers.
-	# tif.* are the interfaces used by Array [I/O] cycles.
-	# Whereas typ.* are the interfaces used by Python.
+	// ChannelInterface is used internally by Arrays to perform transfers.
+	// tif.* are the interfaces used by Array [I/O] cycles.
+	// Whereas typ.* are the interfaces used by Python.
 */
 typedef struct ChannelPyTypeObject {
 	PyTypeObject typ;
@@ -29,7 +29,7 @@ typedef struct ChannelPyTypeObject {
 #define Channel_GetInterface(OB) Type_GetInterface(Py_TYPE(OB))
 
 /*
-	# Channel type declarations.
+	// Channel type declarations.
 */
 ChannelPyTypeObject
 	ChannelType,
@@ -39,7 +39,7 @@ ChannelPyTypeObject
 	PortsType;
 
 /**
-	# Start of all Channel structures.
+	// Start of all Channel structures.
 */
 #define Channel_HEAD \
 	PyObject_HEAD \
@@ -60,7 +60,7 @@ ChannelPyTypeObject
 	uint8_t events; /* bit map of produced events */
 
 /**
-	# Generalized events used by all channels
+	// Generalized events used by all channels
 */
 typedef enum {
 	/* No event */
@@ -71,10 +71,10 @@ typedef enum {
 } channel_event_t;
 
 /**
-	# event qualifications
+	// event qualifications
 
-	# Pairs of qualifications must occur in order to produce an event.
-	# (Kernel Qualification and Process Qualification)
+	// Pairs of qualifications must occur in order to produce an event.
+	// (Kernel Qualification and Process Qualification)
 */
 enum channel_equal {
 	teq_terminate = 0, /* terminated noted/requested */
@@ -94,7 +94,7 @@ typedef uint32_t transfer_window_t[2];
 const static uint32_t transfer_window_limit = (0-1);
 
 /**
-	# Regular Channel or Array (collection of active channels)
+	// Regular Channel or Array (collection of active channels)
 */
 union channel_choice {
 	struct {
@@ -125,13 +125,13 @@ union channel_choice {
 #define Channel_CAddress(id) (1 << ((TS_CONTROLS * teq_terminal_) + id))
 
 /*
-	# Used to detect event availability
+	// Used to detect event availability
 */
 #define Channel_Termination (Channel_IAddress(teq_terminate) | Channel_XAddress(teq_terminate))
 #define Channel_Transferrence (Channel_IAddress(teq_transfer) | Channel_XAddress(teq_transfer))
 
 /*
-	# Delta flags are copied to the state and cleared. There is never a reason to unset
+	// Delta flags are copied to the state and cleared. There is never a reason to unset
 */
 #define Channel_DQualify(t, id) (Channel_GetDelta(t) |= Channel_IAddress(id))
 #define Channel_DControl(t, id) (Channel_GetDelta(t) |= Channel_CAddress(id))
@@ -177,17 +177,17 @@ union channel_choice {
 #define Channel_GetResourceSize(t)       ((t)->choice.buffer.view.len)
 
 /*
-	# If internal termination is requested do it or
-	# If external termination occurred, but only when there is no xtransfer.
+	// If internal termination is requested do it or
+	// If external termination occurred, but only when there is no xtransfer.
 */
 #define Channel_ShouldTerminate(t) (Channel_State(t) & Channel_Termination)
 #define Channel_ShouldTransfer(t) ((Channel_State(t) & Channel_Transferrence) == Channel_Transferrence)
 #define Channel_EventState(t) (Channel_ShouldTerminate(t) || Channel_ShouldTransfer(t))
 
 /*
-	# This condition does not refer to Terminating in order to allow
-	# futile Channels to connect and emit their termination through
-	# the event channel. (One code path to handle failures)
+	// This condition does not refer to Terminating in order to allow
+	// futile Channels to connect and emit their termination through
+	// the event channel. (One code path to handle failures)
 */
 #define Channel_ShouldXConnect(t) (Channel_GetControl(t, ctl_connect))
 
@@ -231,14 +231,14 @@ union channel_choice {
 #define Channel_InCycle(t)                (Channel_GetArray(t)->lltransfer != NULL)
 
 /*
-	# Representation Polarity
+	// Representation Polarity
 */
 #define Channel_Polarity(t)      (Channel_GetControl(t, ctl_polarity) ? p_input : p_output)
 #define Channel_Receives(t)      (Channel_GetControl(t, ctl_polarity))
 #define Channel_Sends(t)         (!Channel_Receives(t))
 
 /*
-	# Array accessors.
+	// Array accessors.
 */
 #define Array_HasTransfers(J)         (Channel_GetNextTransfer(J) != (Channel) J)
 #define Array_ShouldWait(J)           (Array_HasTransfers(J) ? 0 : 1)
@@ -248,8 +248,8 @@ union channel_choice {
 #define Array_GetKEventSlot(J, slot)  (&(Array_GetKEvents(J)[slot]))
 
 /*
-	# Array uses its window for keeping track of the size of kevent array and the
-	# relative position within that array for collection and modification.
+	// Array uses its window for keeping track of the size of kevent array and the
+	// relative position within that array for collection and modification.
 */
 #define Array_ResetWindow(t) do { Channel_GetWindowStart(t) = 0; } while(0)
 #define Array_NCollected Channel_GetWindowStart
@@ -268,15 +268,15 @@ union channel_choice {
 #define Array_ResetTransferCount(t) (Array_GetTransferCount(t) = 0)
 
 /**
-	# Base Channel structure.
+	// Base Channel structure.
 */
 struct Channel {
 	Channel_HEAD
 };
 
 /**
-	# The Array structure is equivalent to &Channel.
-	# It is provided for distinction.
+	// The Array structure is equivalent to &Channel.
+	// It is provided for distinction.
 */
 struct Array {
 	Channel_HEAD

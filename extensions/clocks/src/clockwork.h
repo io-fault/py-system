@@ -1,5 +1,5 @@
 /**
-	# Common defines and interfaces.
+	// Common defines and interfaces.
 */
 
 #include <sys/types.h>
@@ -21,7 +21,7 @@
 #define SUBSECOND_LIMIT NS_IN_SEC
 
 /**
-	# System Clock basetype providing offset control.
+	// System Clock basetype providing offset control.
 */
 struct Clockwork {
 	PyObject_HEAD

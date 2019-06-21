@@ -1,5 +1,5 @@
 /**
-	# tty device interfaces
+	// tty device interfaces
 */
 #include <sys/ttycom.h>
 #include <sys/ioctl.h>

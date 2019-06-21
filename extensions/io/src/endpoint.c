@@ -29,7 +29,7 @@
 #endif
 
 /**
-	# ParseTuple converter for IPv4 addresses.
+	// ParseTuple converter for IPv4 addresses.
 **/
 int
 ip4_from_object(PyObj ob, void *out)
@@ -41,7 +41,7 @@ ip4_from_object(PyObj ob, void *out)
 	int r;
 
 	/*
-		# Presume an (interface, port) pair.
+		// Presume an (interface, port) pair.
 	*/
 	if (Py_TYPE(ob) == (PyTypeObject *) endpointtype)
 	{
@@ -69,7 +69,7 @@ ip4_from_object(PyObj ob, void *out)
 	ip4_port_field(ref) = htons(port);
 
 	/*
-		# Allows receiver to detect that the struct was filled out.
+		// Allows receiver to detect that the struct was filled out.
 	*/
 	ref->sin_family = ip4_pf;
 	ip4_init_length(ref);
@@ -77,7 +77,7 @@ ip4_from_object(PyObj ob, void *out)
 }
 
 /**
-	# ParseTuple converter for IPv6 addresses.
+	// ParseTuple converter for IPv6 addresses.
 **/
 int
 ip6_from_object(PyObj ob, void *out)
@@ -90,7 +90,7 @@ ip6_from_object(PyObj ob, void *out)
 	int r;
 
 	/*
-		# Assume an (interface, port|, flow). (scope_id?)
+		// Assume an (interface, port|, flow). (scope_id?)
 	*/
 	if (Py_TYPE(ob) == (PyTypeObject *) endpointtype)
 	{
@@ -118,7 +118,7 @@ ip6_from_object(PyObj ob, void *out)
 	ip6_port_field(ref) = htons(port);
 
 	/*
-		# Allows receiver to detect that the struct was filled out.
+		// Allows receiver to detect that the struct was filled out.
 	*/
 	ref->sin6_family = ip6_pf;
 	ref->sin6_flowinfo = flowinfo;
@@ -155,7 +155,7 @@ local_port(struct aport_t *port, size_t dstsize, local_addr_t *addr)
 }
 
 /**
-	# ParseTuple converter for local file system sockets.
+	// ParseTuple converter for local file system sockets.
 **/
 int
 local_from_object(PyObj ob, void *out)
@@ -201,7 +201,7 @@ local_from_object(PyObj ob, void *out)
 	Py_DECREF(interface);
 
 	/*
-		# Allows receiver to detect that the struct was filled out.
+		// Allows receiver to detect that the struct was filled out.
 	*/
 	ref->sun_family = local_pf;
 	local_init_length(ref);
@@ -210,7 +210,7 @@ local_from_object(PyObj ob, void *out)
 }
 
 /**
-	# file being the domain (addressing); path_from_object is more appropriate.
+	// file being the domain (addressing); path_from_object is more appropriate.
 **/
 int
 file_from_object(PyObj ob, void *out)
@@ -235,7 +235,7 @@ file_from_object(PyObj ob, void *out)
 		return(0);
 
 	/*
-		# PERF: unicode -> bytes -> char[]; could be improved.
+		// PERF: unicode -> bytes -> char[]; could be improved.
 	*/
 	strncpy(ref->fa_path, PyBytes_AS_STRING(path), sizeof(ref->fa_path));
 	Py_DECREF(path);

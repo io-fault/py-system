@@ -1,5 +1,5 @@
 /**
-	# Abstraction for kernel ports (file descriptors).
+	// Abstraction for kernel ports (file descriptors).
 */
 #include <errno.h>
 #include <unistd.h>
@@ -25,7 +25,7 @@
 #define errpf(...) fprintf(stderr, __VA_ARGS__)
 
 /*
-	# Manage retry state for limiting the number of times we'll accept EINTR.
+	// Manage retry state for limiting the number of times we'll accept EINTR.
 */
 #define _RETRY_STATE _avail_retries
 #define RETRY_STATE_INIT int _RETRY_STATE = CONFIG_SYSCALL_RETRY
@@ -39,11 +39,11 @@
 #define UNLIMITED_RETRY() errno = 0; goto RETRY_SYSCALL;
 
 /*
-	# It seems unlikely that users will be sending dozens of file descriptors(Ports), so
-	# keep the internal buffer size limited.
+	// It seems unlikely that users will be sending dozens of file descriptors(Ports), so
+	// keep the internal buffer size limited.
 
-	# WARNING: Changing this *REQUIRES* code changes. Currently, the implementation does not
-	# properly handle messages containing more than file descriptor.
+	// WARNING: Changing this *REQUIRES* code changes. Currently, the implementation does not
+	// properly handle messages containing more than file descriptor.
 */
 #ifndef CONFIG_TRAFFIC_PORTS_PER_CALL
 	#define CONFIG_TRAFFIC_PORTS_PER_CALL 1
@@ -82,7 +82,7 @@ port_open(Port p, char *path, int oflags)
 			switch (errno)
 			{
 				/*
-					# Invalidate point to avoid future close().
+					// Invalidate point to avoid future close().
 				*/
 				case AGAIN:
 				case EINTR:
@@ -179,7 +179,7 @@ port_identify_type(Port p)
 				LIMITED_RETRY()
 			default:
 				/*
-					# Port will be closed by the usual mechanism.
+					// Port will be closed by the usual mechanism.
 				*/
 				Port_NoteError(p, kc_fstat);
 				return(1);
@@ -217,14 +217,14 @@ port_getpeername(Port p, if_addr_ref_t addr, socklen_t *addrlen)
 		switch (errno)
 		{
 			/*
-				# Invalidate point to avoid future close().
+				// Invalidate point to avoid future close().
 			*/
 			case AGAIN:
 			case EINTR:
 				LIMITED_RETRY()
 			default:
 				/*
-					# Port will be closed by the usual mechanism.
+					// Port will be closed by the usual mechanism.
 				*/
 				Port_NoteError(p, kc_getpeername);
 				return(1);
@@ -250,14 +250,14 @@ port_getsockname(Port p, if_addr_ref_t addr, socklen_t *addrlen)
 		switch (errno)
 		{
 			/*
-				# Invalidate point to avoid future close().
+				// Invalidate point to avoid future close().
 			*/
 			case AGAIN:
 			case EINTR:
 				LIMITED_RETRY()
 			default:
 				/*
-					# Port will be closed by the usual mechanism.
+					// Port will be closed by the usual mechanism.
 				*/
 				Port_NoteError(p, kc_getsockname);
 				return(1);
@@ -286,9 +286,9 @@ port_set_socket_option(Port p, int option, int setting)
 			case EINTR:
 				LIMITED_RETRY()
 				/*
-					# Just give up for set socket option.
-					# Setting an error here may or may not be a good idea,
-					# be optimistic about it not being critical.
+					// Just give up for set socket option.
+					// Setting an error here may or may not be a good idea,
+					// be optimistic about it not being critical.
 				*/
 			break;
 
@@ -317,7 +317,7 @@ port_socket(Port p, int domain, int socktype, int protocol)
 		switch (errno)
 		{
 			/*
-				# Invalidate point to avoid future close().
+				// Invalidate point to avoid future close().
 			*/
 			case AGAIN:
 			case EINTR:
@@ -349,7 +349,7 @@ port_socketpair(Port p1, Port p2)
 		switch (errno)
 		{
 			/*
-				# Invalidate point to avoid future close().
+				// Invalidate point to avoid future close().
 			*/
 			case AGAIN:
 			case EINTR:
@@ -444,7 +444,7 @@ port_bind(Port p, if_addr_ref_t addr, socklen_t addrlen)
 		switch (errno)
 		{
 			/*
-				# Invalidate point to avoid future close().
+				// Invalidate point to avoid future close().
 			*/
 			case AGAIN:
 			case EINTR:
@@ -586,15 +586,15 @@ port_kevent(Port p, int retry, int *out, kevent_t *changes, int nchanges, kevent
 	if (r >= 0)
 	{
 		/*
-			# EV_ERROR is used in cases where kevent(2) fails after it already processed
-			# some events. In these cases, the EV_ERROR flag is used to note the case.
+			// EV_ERROR is used in cases where kevent(2) fails after it already processed
+			// some events. In these cases, the EV_ERROR flag is used to note the case.
 		*/
 		if (r > 0 && events[r-1].flags & EV_ERROR)
 		{
 			--r;
 			*out = r;
 			/*
-				# XXX: Set error from EV_ERROR?
+				// XXX: Set error from EV_ERROR?
 			*/
 		}
 		else
@@ -609,7 +609,7 @@ port_kevent(Port p, int retry, int *out, kevent_t *changes, int nchanges, kevent
 			case AGAIN:
 			case EINTR:
 				/*
-					# The caller can designate whether or not retry will occur.
+					// The caller can designate whether or not retry will occur.
 				*/
 				switch (retry)
 				{
@@ -654,7 +654,7 @@ port_connect(Port p, if_addr_ref_t addr, socklen_t addrlen)
 			case EINPROGRESS:
 			case EISCONN:
 				/*
-					# It is connecting or ... it is already connected?
+					// It is connecting or ... it is already connected?
 				*/
 				errno = 0;
 			break;
@@ -700,8 +700,8 @@ port_listen(Port p, int backlog)
 }
 
 /**
-	# These are technically optional, so clear errno and do not report failures.
-	# XXX: socket option warnings may be useful.
+	// These are technically optional, so clear errno and do not report failures.
+	// XXX: socket option warnings may be useful.
 **/
 static void
 init_socket(kpoint_t kp)
@@ -710,7 +710,7 @@ init_socket(kpoint_t kp)
 
 	#if 0
 		/*
-			# Covered by fcntl().
+			// Covered by fcntl().
 		*/
 		const static struct timeval tv = {0,0,};
 
@@ -720,7 +720,7 @@ init_socket(kpoint_t kp)
 
 	#ifdef TCP_NODELAY
 		/*
-			# By default. However, we should expose an interface to turn it back on.
+			// By default. However, we should expose an interface to turn it back on.
 		*/
 		setsockopt(kp, IPPROTO_TCP, TCP_NODELAY, &true_indicator, sizeof(true_indicator));
 	#endif
@@ -730,8 +730,8 @@ init_socket(kpoint_t kp)
 	#endif
 
 	/*
-		# Inline out of band data. Apparently, some implementations can stall in the
-		# presenece of unhandled OOB data.
+		// Inline out of band data. Apparently, some implementations can stall in the
+		// presenece of unhandled OOB data.
 	*/
 	#ifdef SO_OOBINLINE
 		setsockopt(kp, SOL_SOCKET, SO_OOBINLINE, &true_indicator, sizeof(true_indicator));
@@ -745,7 +745,7 @@ init_socket(kpoint_t kp)
 }
 
 /**
-	# setsockopt's and run init_kpoint
+	// setsockopt's and run init_kpoint
 **/
 static void
 init_listening_socket(kpoint_t kp)
@@ -852,8 +852,8 @@ port_noblocking(Port p)
 #endif
 
 /**
-	# Method to "close" a port.
-	# Manages the reference counts and the effect of the close.
+	// Method to "close" a port.
+	// Manages the reference counts and the effect of the close.
 **/
 void
 port_unlatch(Port p, int8_t times)
@@ -975,7 +975,7 @@ port_unlatch(Port p, int8_t times)
 	if (p->latches != 0)
 	{
 		/*
-			# Still latched or invalid.
+			// Still latched or invalid.
 		*/
 		return;
 	}
@@ -1030,17 +1030,17 @@ port_input_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 		size -= (uint32_t) r;
 
 		/*
-			# Stream until EWOULDBLOCK (EAGAIN).
+			// Stream until EWOULDBLOCK (EAGAIN).
 		*/
 		if (size > 0)
 		{
 			/*
-				# *Unless* it's a file.
+				// *Unless* it's a file.
 			*/
 			if (p->type == kt_file)
 			{
 				/*
-					# zero read. file?
+					// zero read. file?
 				*/
 				if (r < isize)
 				{
@@ -1049,14 +1049,14 @@ port_input_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 			}
 
 			/*
-				# For some edge level trigger implementations, it's important
-				# that we exhaust our buffer or trigger EWOULDBLOCK. If EWOULDBLOCK
-				# is not triggered with epoll solutions, we won't see another event.
+				// For some edge level trigger implementations, it's important
+				// that we exhaust our buffer or trigger EWOULDBLOCK. If EWOULDBLOCK
+				// is not triggered with epoll solutions, we won't see another event.
 			*/
 			if (r)
 			{
 				/*
-					# Adjust buffer pointer.
+					// Adjust buffer pointer.
 				*/
 				buf = buf + r;
 				goto continuation;
@@ -1079,8 +1079,8 @@ port_input_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 			case ENOTCONN:
 			case AGAIN:
 				/*
-					# POSIX read(2)'s will throw EAGAIN on EOF of O_NONBLOCK fd's to REGULAR FILES.
-					# Darwin doesn't do this and appears to ignore O_NONBLOCK on regular files.
+					// POSIX read(2)'s will throw EAGAIN on EOF of O_NONBLOCK fd's to REGULAR FILES.
+					// Darwin doesn't do this and appears to ignore O_NONBLOCK on regular files.
 				*/
 				errno = 0;
 				return(io_stop);
@@ -1113,8 +1113,8 @@ port_output_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 	continuation:
 
 	/*
-		# If the buffer is larger than our maximum write size, write the SIGNED_MAX,
-		# but continue after subtraction in order to transfer to the entire buffer.
+		// If the buffer is larger than our maximum write size, write the SIGNED_MAX,
+		// but continue after subtraction in order to transfer to the entire buffer.
 	*/
 	isize = (size_t) MIN(SIZE_T_MAX, size);
 
@@ -1130,9 +1130,9 @@ port_output_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 		buf += (intptr_t) r;
 
 		/*
-			# For some edge level trigger implementations, it's important
-			# that we exhaust our buffer or trigger EWOULDBLOCK. If EWOULDBLOCK
-			# is not triggered with epoll solutions, we won't see another event.
+			// For some edge level trigger implementations, it's important
+			// that we exhaust our buffer or trigger EWOULDBLOCK. If EWOULDBLOCK
+			// is not triggered with epoll solutions, we won't see another event.
 		*/
 		if (size > 0)
 			goto continuation;
@@ -1148,8 +1148,8 @@ port_output_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 			case ENOTCONN:
 			case AGAIN:
 				/*
-					# POSIX read(2)'s will throw EAGAIN on EOF of O_NONBLOCK fd's to REGULAR FILES.
-					# Darwin doesn't do this and appears to ignore O_NONBLOCK on regular files.
+					// POSIX read(2)'s will throw EAGAIN on EOF of O_NONBLOCK fd's to REGULAR FILES.
+					// Darwin doesn't do this and appears to ignore O_NONBLOCK on regular files.
 				*/
 				errno = 0;
 				return(io_stop);
@@ -1158,12 +1158,12 @@ port_output_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 			case ENOBUFS:
 			case ENOMEM:
 				/*
-					# Possible transient error?
+					// Possible transient error?
 				*/
 				LIMITED_RETRY()
 			case ETIMEDOUT:
 				/*
-					# There may be some platform inconsistencies involving this errno...
+					// There may be some platform inconsistencies involving this errno...
 				*/
 			default:
 				/* fatal */
@@ -1240,7 +1240,7 @@ port_input_ports(Port p, uint32_t *consumed, int *buf, uint32_t quantity)
 		if (r >= 0)
 		{
 			/*
-				# Extract payload from the message, mh.
+				// Extract payload from the message, mh.
 			*/
 			buf[i] = ((int *) CMSG_DATA(cmsg))[0];
 			++i;
@@ -1289,7 +1289,7 @@ port_output_ports(Port p, uint32_t *consumed, int *buf, uint32_t quantity)
 	{
 		cmsg = _init_dm(&iom, _iovec_buf, 1);
 		/*
-			# Deposit payload into the message, mh.
+			// Deposit payload into the message, mh.
 		*/
 		((int *) CMSG_DATA(cmsg))[0] = buf[i];
 
@@ -1329,7 +1329,7 @@ port_output_ports(Port p, uint32_t *consumed, int *buf, uint32_t quantity)
 }
 
 /**
-	# Accept Loop
+	// Accept Loop
 **/
 io_status_t
 port_input_sockets(Port p, uint32_t *consumed, int *buf, uint32_t size)
@@ -1339,11 +1339,11 @@ port_input_sockets(Port p, uint32_t *consumed, int *buf, uint32_t size)
 	int i, fd;
 
 	/*
-		# Accept loop. Read as many as possible.
+		// Accept loop. Read as many as possible.
 
-		# On ignoring the address parameter:
-		# Accepts sockets subsequently passed to a new Octets instance can interrogate
-		# their endpoint() directly if necessary.
+		// On ignoring the address parameter:
+		// Accepts sockets subsequently passed to a new Octets instance can interrogate
+		// their endpoint() directly if necessary.
 	*/
 
 	for (i = 0; i < limit; ++i)
@@ -1369,7 +1369,7 @@ port_input_sockets(Port p, uint32_t *consumed, int *buf, uint32_t size)
 
 				case ECONNABORTED:
 					/*
-						# Accepted socket was closed before accept() returned. Retry.
+						// Accepted socket was closed before accept() returned. Retry.
 					*/
 				case EINTR:
 					UNLIMITED_RETRY()
@@ -1379,7 +1379,7 @@ port_input_sockets(Port p, uint32_t *consumed, int *buf, uint32_t size)
 					LIMITED_RETRY()
 				default:
 					/*
-						# Error out.
+						// Error out.
 					*/
 					Port_NoteError(p, kc_accept);
 					return(io_terminate);
@@ -1403,7 +1403,7 @@ port_input_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t q
 	if (!DatagramIsValid(current, quantity))
 	{
 		/*
-			# Truncate the invalid remainder.
+			// Truncate the invalid remainder.
 		*/
 		*consumed = (((intptr_t) current) - ((intptr_t) dg)) + quantity;
 		return(io_flow);
@@ -1462,7 +1462,7 @@ port_output_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t 
 	if (!DatagramIsValid(current, quantity))
 	{
 		/*
-			# Truncate the invalid remainder.
+			// Truncate the invalid remainder.
 		*/
 		*consumed = (((intptr_t) current) - ((intptr_t) dg)) + quantity;
 		return(io_flow);
@@ -1509,18 +1509,18 @@ port_output_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t 
 }
 
 /**
-	# Sequence of Port operations (portS)
+	// Sequence of Port operations (portS)
 
-	# These functions respresent a series of operations of that
-	# need to be successful in order for the port to function properly.
-	# If one step errors out, jump to the exit. The port_* interface will
-	# note the error on the port.
+	// These functions respresent a series of operations of that
+	// need to be successful in order for the port to function properly.
+	// If one step errors out, jump to the exit. The port_* interface will
+	// note the error on the port.
 **/
 int
 ports_listen(Port p, int domain, if_addr_ref_t interface, size_t interface_size)
 {
 	/*
-		# Specifically for binding listen sockets.
+		// Specifically for binding listen sockets.
 	*/
 	if (port_socket(p, domain, SOCK_STREAM, 0))
 		goto exit;
@@ -1546,7 +1546,7 @@ int
 ports_bind(Port p, int domain, int socktype, int proto, if_addr_ref_t endpoint, size_t endpoint_size)
 {
 	/*
-		# Primarily for datagram sockets.
+		// Primarily for datagram sockets.
 	*/
 	if (port_socket(p, domain, socktype, proto))
 		goto exit;
@@ -1698,7 +1698,7 @@ ports_identify_input(Port p)
 		goto exit;
 
 	/*
-		# Reads don't cause EPIPE
+		// Reads don't cause EPIPE
 	*/
 
 	if (port_noblocking(p))

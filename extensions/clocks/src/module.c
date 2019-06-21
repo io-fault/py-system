@@ -1,10 +1,10 @@
 /**
-	# Implementation for POSIX clocks.
+	// Implementation for POSIX clocks.
 
-	# Creates a clock concept defined by &ClockworkType that provides
-	# interfaces to retrieving a snapshot of the clock's state.
-	# The two subclasses (&RealClockType and &MonotonicClockType) hardcode
-	# the clockid_t to instances.
+	// Creates a clock concept defined by &ClockworkType that provides
+	// interfaces to retrieving a snapshot of the clock's state.
+	// The two subclasses (&RealClockType and &MonotonicClockType) hardcode
+	// the clockid_t to instances.
 */
 #include <fault/libc.h>
 #include <fault/python/environ.h>
@@ -234,7 +234,7 @@ Monotonic_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 }
 
 /**
-	# Declare types.
+	// Declare types.
 */
 #define CLOCK_RECORD(NAME, CLOCK_ID, DOCS) static PyTypeObject ClockType(NAME, DOCS);
 	Clocks()

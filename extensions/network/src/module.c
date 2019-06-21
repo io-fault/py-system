@@ -1,11 +1,11 @@
 /**
-	# Various high-level interfaces for working with the system's network and netdb.
-	# Currently this only includes getaddrinfo interfaces.
+	// Various high-level interfaces for working with the system's network and netdb.
+	// Currently this only includes getaddrinfo interfaces.
 
-	# Address resolution only supports PF_INET, PF_INET6, and PF_LOCAL.
-	# The transport protocols returned are not directly exposed; the socket type
-	# is expected to unamibguously imply the protocol. This is not always
-	# coherent.
+	// Address resolution only supports PF_INET, PF_INET6, and PF_LOCAL.
+	// The transport protocols returned are not directly exposed; the socket type
+	// is expected to unamibguously imply the protocol. This is not always
+	// coherent.
 */
 #include <errno.h>
 #include <fcntl.h>
@@ -21,7 +21,7 @@
 #include <fault/python/environ.h>
 
 /**
-	# The failure structure prefers to have a name with the code.
+	// The failure structure prefers to have a name with the code.
 */
 #define X_EAI_ERRORS() \
 	X_EAI(EAI_AGAIN) \
@@ -158,7 +158,7 @@ interpret_address_record(const char *stream_type, int socktype, struct addrinfo 
 	switch (x->ai_family)
 	{
 		/**
-			# Currently, it is likely that PF_LOCAL would only occur unnaturally.
+			// Currently, it is likely that PF_LOCAL would only occur unnaturally.
 		*/
 		#ifdef PF_LOCAL
 			case PF_LOCAL:
@@ -250,7 +250,7 @@ interpret_address_record(const char *stream_type, int socktype, struct addrinfo 
 }
 
 /**
-	# Convert transport type to POSIX socket type.
+	// Convert transport type to POSIX socket type.
 */
 static int
 nw_socket_type(const char *transfertype)
@@ -290,7 +290,7 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 			case EAI_AGAIN:
 			{
 				/*
-					# Try again signal.
+					// Try again signal.
 				*/
 				Py_RETURN_NONE;
 			}
@@ -301,7 +301,7 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 				if (r == EAI_SYSTEM)
 				{
 					/*
-						# Try again signal.
+						// Try again signal.
 					*/
 					switch (errno)
 					{
@@ -359,7 +359,7 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 }
 
 /**
-	# Resolve transport selectors for the given host and service.
+	// Resolve transport selectors for the given host and service.
 */
 static PyObj
 nw_select_transports_gai(PyObj mod, PyObj args)
@@ -388,7 +388,7 @@ nw_select_transports_gai(PyObj mod, PyObj args)
 }
 
 /**
-	# Find service interfaces using GAI.
+	// Find service interfaces using GAI.
 */
 static PyObj
 nw_select_interfaces_gai(PyObj mod, PyObj args)

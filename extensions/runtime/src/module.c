@@ -1,5 +1,5 @@
 /**
-	# Runtime control support.
+	// Runtime control support.
 */
 #include <errno.h>
 #include <pthread.h>
@@ -14,15 +14,15 @@ static int
 ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 {
 	/*
-		# TODO: debugger control tracefunc
+		// TODO: debugger control tracefunc
 	*/
 	return(0);
 }
 
 /**
-	# Set the trace object on a set of threads.
-	# Only supports callable-object level.
-	# This is intended for debuggers.
+	// Set the trace object on a set of threads.
+	// Only supports callable-object level.
+	// This is intended for debuggers.
 */
 static PyObj
 trace(PyObj self, PyObj args)
@@ -44,7 +44,7 @@ trace(PyObj self, PyObj args)
 		return(NULL);
 
 	/*
-		# Convert sequence to array of longs.
+		// Convert sequence to array of longs.
 	*/
 	for (i = 0; i < nthreads; ++i)
 	{
@@ -68,7 +68,7 @@ trace(PyObj self, PyObj args)
 	}
 
 	/*
-		# Install the tracefunc on the matching threadstates.
+		// Install the tracefunc on the matching threadstates.
 	*/
 	ts = start;
 	do
@@ -97,7 +97,7 @@ trace(PyObj self, PyObj args)
 }
 
 /**
-	# AddPendingCall callback
+	// AddPendingCall callback
 */
 static int
 _call(void *ob)
@@ -113,7 +113,7 @@ _call(void *ob)
 }
 
 /**
-	# Expose AddPendingCall C-API to the Python language.
+	// Expose AddPendingCall C-API to the Python language.
 */
 static PyObj
 interject(PyObj self, PyObj callable)

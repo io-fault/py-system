@@ -1,5 +1,5 @@
 /**
-	# System text services.
+	// System text services.
 */
 #include <wchar.h>
 #include <locale.h>
@@ -17,7 +17,7 @@ cells(PyObj self, PyObj parameter)
 	PyObj str;
 
 	/**
-		# str(parameter) here in order to allow callers to avoid the composition.
+		// str(parameter) here in order to allow callers to avoid the composition.
 	*/
 	str = PyObject_Str(parameter);
 	if (str == NULL)
@@ -32,8 +32,8 @@ cells(PyObj self, PyObj parameter)
 	len = PyUnicode_GET_LENGTH(str);
 
 	/**
-		# Fast path for ascii strings.
-		# XXX: Currently inconsistent with wcswidth regarding control characters.
+		// Fast path for ascii strings.
+		// XXX: Currently inconsistent with wcswidth regarding control characters.
 	*/
 	if (PyUnicode_IS_ASCII(str) || len == 0)
 	{
@@ -42,9 +42,9 @@ cells(PyObj self, PyObj parameter)
 	}
 
 	/**
-		# Presume stack allocation is faster.
-		# If the codepoint is represented with a surrogate pair, wcswidth currently
-		# doesn't handle it anyways.
+		// Presume stack allocation is faster.
+		// If the codepoint is represented with a surrogate pair, wcswidth currently
+		// doesn't handle it anyways.
 	*/
 	if (len == 1)
 	{
@@ -59,13 +59,13 @@ cells(PyObj self, PyObj parameter)
 	}
 
 	/*
-		# goto skipped.
+		// goto skipped.
 	*/
 	{
 		wchar_t *wstr;
 
 		/*
-			# Switch to heap.
+			// Switch to heap.
 		*/
 		wstr = PyUnicode_AsWideCharString(str, &size);
 		if (wstr == NULL)

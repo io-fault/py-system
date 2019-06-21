@@ -1,5 +1,5 @@
 /**
-	# Port Resource Indicators
+	// Port Resource Indicators
 */
 typedef struct sockaddr_in ip4_addr_t;
 #define ip4_pf PF_INET
@@ -93,7 +93,7 @@ local_port(struct aport_t *port, size_t dstsize, local_addr_t *addr)
 }
 
 /**
-	# pseudo domains
+	// pseudo domains
 */
 #define acquire_pf (SOCK_MAXADDRLEN - 2)
 #define clone_pf  (SOCK_MAXADDRLEN - 3)
@@ -109,10 +109,10 @@ typedef kpoint_t acquire_addr_t;
 typedef kpoint_t clone_addr_t;
 
 /**
-	# File addresses are not usually passed around this way, so don't
-	# worry too much about the waste. If it ever gets particularly
-	# desirable to do so, however, we can leverage the VarSize object
-	# more and make the fa_path variably sized.
+	// File addresses are not usually passed around this way, so don't
+	// worry too much about the waste. If it ever gets particularly
+	// desirable to do so, however, we can leverage the VarSize object
+	// more and make the fa_path variably sized.
 */
 typedef struct {
 	struct sockaddr sa;
@@ -130,7 +130,7 @@ typedef struct {
 #define file_casted(NAME, src)        file_addr_t * NAME = (file_addr_t *) src
 
 /**
-	# Macros provided for building out functions for creating kpoint_t's.
+	// Macros provided for building out functions for creating kpoint_t's.
 */
 #define ADDRESSING() \
 	A(ip4) \

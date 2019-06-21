@@ -12,7 +12,7 @@
 extern char **environ;
 
 /*
-	# For fork callbacks
+	// For fork callbacks
 */
 static PyObj process_module = NULL;
 static int exit_signal = -1;
@@ -43,9 +43,9 @@ typedef struct Invocation *Invocation;
 	SA(POSIX_SPAWN_START_SUSPENDED, start_suspended)
 
 /**
-	# SA(POSIX_SPAWN_CLOEXEC_DEFAULT, close_exec_default)
-	# CLOEXEC_DEFAULT is an apple extension that is unconditionally used; users
-	# are encourage to explicitly map (dup2) file descriptors using Invocation's call
+	// SA(POSIX_SPAWN_CLOEXEC_DEFAULT, close_exec_default)
+	// CLOEXEC_DEFAULT is an apple extension that is unconditionally used; users
+	// are encourage to explicitly map (dup2) file descriptors using Invocation's call
 */
 #define POSIX_SPAWN_ATTRIBUTES() \
 	SA(POSIX_SPAWN_SETSCHEDULER, set_schedular_priority) \
@@ -71,13 +71,13 @@ invocation_spawn(PyObj self, PyObj args, PyObj kw)
 		return(NULL);
 
 	/*
-		# Inherit pgroup setting from Invocation instance if not overridden.
+		// Inherit pgroup setting from Invocation instance if not overridden.
 	*/
 	if (pgrp < 0 && inv->invocation_options & IOPTION_SET_PGROUP)
 	{
 		/*
-			# Some invocations are essentially identified
-			# as independent daemons this way
+			// Some invocations are essentially identified
+			// as independent daemons this way
 		*/
 		pgrp = 0;
 	}
@@ -89,8 +89,8 @@ invocation_spawn(PyObj self, PyObj args, PyObj kw)
 	}
 
 	/*
-		# Modify attributes per-invocation.
-		# Attributes like process group need to be per-invocation.
+		// Modify attributes per-invocation.
+		// Attributes like process group need to be per-invocation.
 	*/
 	if (posix_spawnattr_getflags(&(inv->invocation_spawnattr), &flags))
 	{
@@ -139,7 +139,7 @@ invocation_spawn(PyObj self, PyObj args, PyObj kw)
 
 	#if __DARWIN__
 		/*
-			# Might remove this due to portability issues.
+			// Might remove this due to portability issues.
 		*/
 		if (inherits != NULL)
 		{
@@ -183,7 +183,7 @@ invocation_spawn(PyObj self, PyObj args, PyObj kw)
 	if (posix_spawn_file_actions_destroy(&fa) != 0)
 	{
 		/*
-			# A warning would be appropriate.
+			// A warning would be appropriate.
 		*/
 		errno = 0;
 	}
@@ -268,7 +268,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 
 	/*
-		# Environment
+		// Environment
 	*/
 	if (env == NULL || env == Py_None)
 	{
@@ -317,7 +317,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 
 	/*
-		# Command Arguments
+		// Command Arguments
 	*/
 	if (cargs != NULL)
 	{
@@ -392,7 +392,7 @@ invocation_dealloc(PyObj self)
 	Invocation inv = (Invocation) self;
 
 	/*
-		# cleanup code. errors here are ignored.
+		// cleanup code. errors here are ignored.
 	*/
 	if (inv->invocation_path != NULL)
 		free(inv->invocation_path);
@@ -490,7 +490,7 @@ set_process_title(PyObj mod, PyObj title)
 		;
 	#else
 		/*
-			# no support on darwin
+			// no support on darwin
 		*/
 		bytes = PyUnicode_AsUTF8String(title);
 
@@ -511,10 +511,10 @@ struct inherit {
 };
 
 /**
-	# Communicate child's parent to parent.
+	// Communicate child's parent to parent.
 
-	# This allows fork to track (system:manual)`fork`'s that weren't explicitly performed by
-	# an &.library interface.
+	// This allows fork to track (system:manual)`fork`'s that weren't explicitly performed by
+	// an &.library interface.
 */
 static void
 prepare(void)
@@ -526,7 +526,7 @@ prepare(void)
 static struct inherit fork_data = {-1};
 
 /**
-	# Execute the &.library._after_fork_parent object from a pending call.
+	// Execute the &.library._after_fork_parent object from a pending call.
 */
 static int
 _after_fork_parent(void *pc_param)
@@ -568,7 +568,7 @@ parent(void)
 }
 
 /**
-	# Execute the &.library._after_fork_child object from a pending call.
+	// Execute the &.library._after_fork_child object from a pending call.
 */
 static int
 _after_fork_child(void *pc_param)
@@ -580,7 +580,7 @@ _after_fork_child(void *pc_param)
 }
 
 /**
-	# Synchronize with the parent process.
+	// Synchronize with the parent process.
 */
 static void
 child(void)
@@ -612,15 +612,15 @@ static int
 ltracefunc(PyObj ob, PyFrameObject *f, int event, PyObj arg)
 {
 	/*
-		# TODO: debugger control tracefunc
+		// TODO: debugger control tracefunc
 	*/
 	return(0);
 }
 
 /**
-	# Set the trace object on a set of threads.
-	# Only supports callable-object level.
-	# This is intended for debuggers.
+	// Set the trace object on a set of threads.
+	// Only supports callable-object level.
+	// This is intended for debuggers.
 */
 static PyObj
 trace(PyObj self, PyObj args)
@@ -642,7 +642,7 @@ trace(PyObj self, PyObj args)
 		return(NULL);
 
 	/*
-		# Convert sequence to array of longs.
+		// Convert sequence to array of longs.
 	*/
 	for (i = 0; i < nthreads; ++i)
 	{
@@ -666,7 +666,7 @@ trace(PyObj self, PyObj args)
 	}
 
 	/*
-		# Install the tracefunc on the matching threadstates.
+		// Install the tracefunc on the matching threadstates.
 	*/
 	ts = start;
 	do
@@ -696,13 +696,13 @@ trace(PyObj self, PyObj args)
 
 
 /**
-	# Executed in atexit in order to preserve the signal's exit code.
+	// Executed in atexit in order to preserve the signal's exit code.
 */
 void
 _exit_by_signal(void)
 {
 	/*
-		# Ignore this if it somehow forked after the exit_by_signal was called.
+		// Ignore this if it somehow forked after the exit_by_signal was called.
 	*/
 	if (exit_for_pid == getpid())
 	{
@@ -716,7 +716,7 @@ _exit_by_signal(void)
 }
 
 /**
-	# Register low-level atexit handler for exiting via a signal.
+	// Register low-level atexit handler for exiting via a signal.
 */
 static PyObj
 exit_by_signal(PyObj mod, PyObj ob)
@@ -746,11 +746,11 @@ exit_by_signal(PyObj mod, PyObj ob)
 }
 
 /**
-	# Ensure that the kport is preserved across process images.
-	# Used by system to hold on to listening sockets.
+	// Ensure that the kport is preserved across process images.
+	// Used by system to hold on to listening sockets.
 
-	# Generally, most file descriptors created by &.system will have
-	# the FD_CLOEXEC flag set as in only a few cases, preservation is desired.
+	// Generally, most file descriptors created by &.system will have
+	// the FD_CLOEXEC flag set as in only a few cases, preservation is desired.
 */
 static PyObj
 kport_clear_cloexec(PyObj mod, PyObj seq)
@@ -784,11 +784,11 @@ kport_clear_cloexec(PyObj mod, PyObj seq)
 }
 
 /*
-	# Retrieve a reference to the process_module module and register
-	# the atfork handlers.
+	// Retrieve a reference to the process_module module and register
+	// the atfork handlers.
 
-	# Only runs once and there is currently no way to update the
-	# process_module entry meaning that system.process should not be reloaded.
+	// Only runs once and there is currently no way to update the
+	// process_module entry meaning that system.process should not be reloaded.
 */
 static PyObj
 initialize(PyObj mod, PyObj ctx)
@@ -796,7 +796,7 @@ initialize(PyObj mod, PyObj ctx)
 	if (process_module != NULL)
 	{
 		/*
-			# Already configured.
+			// Already configured.
 		*/
 		Py_RETURN_NONE;
 	}

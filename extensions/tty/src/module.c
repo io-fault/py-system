@@ -1,8 +1,8 @@
 /**
-	# system tty device interface
+	// system tty device interface
 
-	# The functionality is purposefully incomplete and primarily intended for
-	# use by terminal applications.
+	// The functionality is purposefully incomplete and primarily intended for
+	// use by terminal applications.
 */
 #include <fcntl.h>
 
@@ -221,9 +221,9 @@ device_set_cooked(PyObj self)
 	struct termios ts = {0,};
 
 	/**
-		# Retrieve settings snapshot for existing keybinds in c_cc.
-		# This function is not looking to implement a total
-		# reset as it's not expected to perform that kind of cleanup.
+		// Retrieve settings snapshot for existing keybinds in c_cc.
+		// This function is not looking to implement a total
+		// reset as it's not expected to perform that kind of cleanup.
 	*/
 	if (tcgetattr(dev->dev_fd, &ts) == -1)
 		return(PyErr_SetFromErrno(PyExc_OSError));

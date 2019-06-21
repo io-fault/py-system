@@ -1,5 +1,5 @@
 /**
-	# Handy for macros working with lowercase names.
+	// Handy for macros working with lowercase names.
 */
 #define channeltype   ((PyObject *) &ChannelType)
 #define arraytype     ((PyObject *) &ArrayType)
