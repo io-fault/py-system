@@ -651,42 +651,42 @@ PyTypeObject
 PortType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Port"),   /* tp_name */
-	sizeof(struct Port),   /* tp_basicsize */
-	0,                     /* tp_itemsize */
-	port_dealloc,          /* tp_dealloc */
-	NULL,                  /* tp_print */
-	NULL,                  /* tp_getattr */
-	NULL,                  /* tp_setattr */
-	NULL,                  /* tp_compare */
-	port_repr,             /* tp_repr */
-	NULL,                  /* tp_as_number */
-	NULL,                  /* tp_as_sequence */
-	NULL,                  /* tp_as_mapping */
-	NULL,                  /* tp_hash */
-	NULL,                  /* tp_call */
-	port_str,              /* tp_str */
-	NULL,                  /* tp_getattro */
-	NULL,                  /* tp_setattro */
-	NULL,                  /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,    /* tp_flags */
-	port_doc,              /* tp_doc */
-	NULL,                  /* tp_traverse */
-	NULL,                  /* tp_clear */
-	NULL,                  /* tp_richcompare */
-	0,                     /* tp_weaklistoffset */
-	NULL,                  /* tp_iter */
-	NULL,                  /* tp_iternext */
-	port_methods,          /* tp_methods */
-	port_members,          /* tp_members */
-	port_getset,           /* tp_getset */
-	NULL,                  /* tp_base */
-	NULL,                  /* tp_dict */
-	NULL,                  /* tp_descr_get */
-	NULL,                  /* tp_descr_set */
-	0,                     /* tp_dictoffset */
-	NULL,                  /* tp_init */
-	NULL,                  /* tp_alloc */
-	port_new,              /* tp_new */
+	sizeof(struct Port),          /* tp_basicsize */
+	0,                            /* tp_itemsize */
+	port_dealloc,                 /* tp_dealloc */
+	NULL,                         /* tp_print */
+	NULL,                         /* tp_getattr */
+	NULL,                         /* tp_setattr */
+	NULL,                         /* tp_compare */
+	port_repr,                    /* tp_repr */
+	NULL,                         /* tp_as_number */
+	NULL,                         /* tp_as_sequence */
+	NULL,                         /* tp_as_mapping */
+	NULL,                         /* tp_hash */
+	NULL,                         /* tp_call */
+	port_str,                     /* tp_str */
+	NULL,                         /* tp_getattro */
+	NULL,                         /* tp_setattro */
+	NULL,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,           /* tp_flags */
+	port_doc,                     /* tp_doc */
+	NULL,                         /* tp_traverse */
+	NULL,                         /* tp_clear */
+	NULL,                         /* tp_richcompare */
+	0,                            /* tp_weaklistoffset */
+	NULL,                         /* tp_iter */
+	NULL,                         /* tp_iternext */
+	port_methods,                 /* tp_methods */
+	port_members,                 /* tp_members */
+	port_getset,                  /* tp_getset */
+	NULL,                         /* tp_base */
+	NULL,                         /* tp_dict */
+	NULL,                         /* tp_descr_get */
+	NULL,                         /* tp_descr_set */
+	0,                            /* tp_dictoffset */
+	NULL,                         /* tp_init */
+	NULL,                         /* tp_alloc */
+	port_new,                     /* tp_new */
 };
 
 static PyMethodDef endpoint_methods[] = {
@@ -985,42 +985,42 @@ PyTypeObject
 EndpointType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Endpoint"), /* tp_name */
-	sizeof(struct Endpoint), /* tp_basicsize */
-	sizeof(void *),          /* tp_itemsize */
-	NULL,                    /* tp_dealloc */
-	NULL,                    /* tp_print */
-	NULL,                    /* tp_getattr */
-	NULL,                    /* tp_setattr */
-	NULL,                    /* tp_compare */
-	NULL,                    /* tp_repr */
-	NULL,                    /* tp_as_number */
-	NULL,                    /* tp_as_sequence */
-	NULL,                    /* tp_as_mapping */
-	NULL,                    /* tp_hash */
-	NULL,                    /* tp_call */
-	endpoint_str,            /* tp_str */
-	NULL,                    /* tp_getattro */
-	NULL,                    /* tp_setattro */
-	NULL,                    /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,      /* tp_flags */
-	endpoint_doc,            /* tp_doc */
-	NULL,                    /* tp_traverse */
-	NULL,                    /* tp_clear */
-	endpoint_richcompare,    /* tp_richcompare */
-	0,                       /* tp_weaklistoffset */
-	NULL,                    /* tp_iter */
-	NULL,                    /* tp_iternext */
-	endpoint_methods,        /* tp_methods */
-	NULL,                    /* tp_members */
-	endpoint_getset,         /* tp_getset */
-	NULL,                    /* tp_base */
-	NULL,                    /* tp_dict */
-	NULL,                    /* tp_descr_get */
-	NULL,                    /* tp_descr_set */
-	0,                       /* tp_dictoffset */
-	NULL,                    /* tp_init */
-	NULL,                    /* tp_alloc */
-	endpoint_new,            /* tp_new */
+	sizeof(struct Endpoint),        /* tp_basicsize */
+	sizeof(void *),                 /* tp_itemsize */
+	NULL,                           /* tp_dealloc */
+	NULL,                           /* tp_print */
+	NULL,                           /* tp_getattr */
+	NULL,                           /* tp_setattr */
+	NULL,                           /* tp_compare */
+	NULL,                           /* tp_repr */
+	NULL,                           /* tp_as_number */
+	NULL,                           /* tp_as_sequence */
+	NULL,                           /* tp_as_mapping */
+	NULL,                           /* tp_hash */
+	NULL,                           /* tp_call */
+	endpoint_str,                   /* tp_str */
+	NULL,                           /* tp_getattro */
+	NULL,                           /* tp_setattro */
+	NULL,                           /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,             /* tp_flags */
+	endpoint_doc,                   /* tp_doc */
+	NULL,                           /* tp_traverse */
+	NULL,                           /* tp_clear */
+	endpoint_richcompare,           /* tp_richcompare */
+	0,                              /* tp_weaklistoffset */
+	NULL,                           /* tp_iter */
+	NULL,                           /* tp_iternext */
+	endpoint_methods,               /* tp_methods */
+	NULL,                           /* tp_members */
+	endpoint_getset,                /* tp_getset */
+	NULL,                           /* tp_base */
+	NULL,                           /* tp_dict */
+	NULL,                           /* tp_descr_get */
+	NULL,                           /* tp_descr_set */
+	0,                              /* tp_dictoffset */
+	NULL,                           /* tp_init */
+	NULL,                           /* tp_alloc */
+	endpoint_new,                   /* tp_new */
 };
 
 #include "channel.h"
@@ -1469,31 +1469,31 @@ PyDoc_STRVAR(jxi_doc, "iterator producing Channels with events to be processed")
 PyTypeObject jxi_type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("jxi"),   /* tp_name */
-	sizeof(struct jxi),   /* tp_basicsize */
-	0,                    /* tp_itemsize */
-	jxi_dealloc,          /* tp_dealloc */
-	NULL,                 /* tp_print */
-	NULL,                 /* tp_getattr */
-	NULL,                 /* tp_setattr */
-	NULL,                 /* tp_compare */
-	NULL,                 /* tp_repr */
-	NULL,                 /* tp_as_number */
-	NULL,                 /* tp_as_sequence */
-	NULL,                 /* tp_as_mapping */
-	NULL,                 /* tp_hash */
-	NULL,                 /* tp_call */
-	NULL,                 /* tp_str */
-	NULL,                 /* tp_getattro */
-	NULL,                 /* tp_setattro */
-	NULL,                 /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,   /* tp_flags */
-	jxi_doc,              /* tp_doc */
-	NULL,                 /* tp_traverse */
-	NULL,                 /* tp_clear */
-	NULL,                 /* tp_richcompare */
-	0,                    /* tp_weaklistoffset */
-	jxi_iter,             /* tp_iter */
-	jxi_next,             /* tp_iternext */
+	sizeof(struct jxi),          /* tp_basicsize */
+	0,                           /* tp_itemsize */
+	jxi_dealloc,                 /* tp_dealloc */
+	NULL,                        /* tp_print */
+	NULL,                        /* tp_getattr */
+	NULL,                        /* tp_setattr */
+	NULL,                        /* tp_compare */
+	NULL,                        /* tp_repr */
+	NULL,                        /* tp_as_number */
+	NULL,                        /* tp_as_sequence */
+	NULL,                        /* tp_as_mapping */
+	NULL,                        /* tp_hash */
+	NULL,                        /* tp_call */
+	NULL,                        /* tp_str */
+	NULL,                        /* tp_getattro */
+	NULL,                        /* tp_setattro */
+	NULL,                        /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,          /* tp_flags */
+	jxi_doc,                     /* tp_doc */
+	NULL,                        /* tp_traverse */
+	NULL,                        /* tp_clear */
+	NULL,                        /* tp_richcompare */
+	0,                           /* tp_weaklistoffset */
+	jxi_iter,                    /* tp_iter */
+	jxi_next,                    /* tp_iternext */
 	NULL,
 };
 
@@ -2167,43 +2167,43 @@ PyDoc_STRVAR(channel_doc,
 ChannelPyTypeObject ChannelType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Channel"),   /* tp_name */
-	sizeof(struct Channel),   /* tp_basicsize */
-	0,                        /* tp_itemsize */
-	channel_dealloc,          /* tp_dealloc */
-	NULL,                     /* tp_print */
-	NULL,                     /* tp_getattr */
-	NULL,                     /* tp_setattr */
-	NULL,                     /* tp_compare */
-	NULL,                     /* tp_repr */
-	NULL,                     /* tp_as_number */
-	NULL,                     /* tp_as_sequence */
-	NULL,                     /* tp_as_mapping */
-	NULL,                     /* tp_hash */
-	NULL,                     /* tp_call */
-	NULL,                     /* tp_str */
-	NULL,                     /* tp_getattro */
-	NULL,                     /* tp_setattro */
-	NULL,                     /* tp_as_buffer */
+	sizeof(struct Channel),          /* tp_basicsize */
+	0,                               /* tp_itemsize */
+	channel_dealloc,                 /* tp_dealloc */
+	NULL,                            /* tp_print */
+	NULL,                            /* tp_getattr */
+	NULL,                            /* tp_setattr */
+	NULL,                            /* tp_compare */
+	NULL,                            /* tp_repr */
+	NULL,                            /* tp_as_number */
+	NULL,                            /* tp_as_sequence */
+	NULL,                            /* tp_as_mapping */
+	NULL,                            /* tp_hash */
+	NULL,                            /* tp_call */
+	NULL,                            /* tp_str */
+	NULL,                            /* tp_getattro */
+	NULL,                            /* tp_setattro */
+	NULL,                            /* tp_as_buffer */
 	Py_TPFLAGS_BASETYPE|
-	Py_TPFLAGS_DEFAULT,       /* tp_flags */
-	channel_doc,              /* tp_doc */
-	NULL,                     /* tp_traverse */
-	NULL,                     /* tp_clear */
-	NULL,                     /* tp_richcompare */
-	0,                        /* tp_weaklistoffset */
-	NULL,                     /* tp_iter */
-	NULL,                     /* tp_iternext */
-	channel_methods,          /* tp_methods */
-	channel_members,          /* tp_members */
-	channel_getset,           /* tp_getset */
-	NULL,                     /* tp_base */
-	NULL,                     /* tp_dict */
-	NULL,                     /* tp_descr_get */
-	NULL,                     /* tp_descr_set */
-	0,                        /* tp_dictoffset */
-	NULL,                     /* tp_init */
-	NULL,                     /* tp_alloc */
-	NULL,                     /* tp_new */
+	Py_TPFLAGS_DEFAULT,              /* tp_flags */
+	channel_doc,                     /* tp_doc */
+	NULL,                            /* tp_traverse */
+	NULL,                            /* tp_clear */
+	NULL,                            /* tp_richcompare */
+	0,                               /* tp_weaklistoffset */
+	NULL,                            /* tp_iter */
+	NULL,                            /* tp_iternext */
+	channel_methods,                 /* tp_methods */
+	channel_members,                 /* tp_members */
+	channel_getset,                  /* tp_getset */
+	NULL,                            /* tp_base */
+	NULL,                            /* tp_dict */
+	NULL,                            /* tp_descr_get */
+	NULL,                            /* tp_descr_set */
+	0,                               /* tp_dictoffset */
+	NULL,                            /* tp_init */
+	NULL,                            /* tp_alloc */
+	NULL,                            /* tp_new */
 },
 	&ChannelTIF,
 };
@@ -2536,42 +2536,42 @@ PyDoc_STRVAR(Octets_doc, "Channel transferring binary data in bytes.");
 ChannelPyTypeObject OctetsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Octets"),   /* tp_name */
-	sizeof(struct Channel),  /* tp_basicsize */
-	0,                       /* tp_itemsize */
-	NULL,                    /* tp_dealloc */
-	NULL,                    /* tp_print */
-	NULL,                    /* tp_getattr */
-	NULL,                    /* tp_setattr */
-	NULL,                    /* tp_compare */
-	NULL,                    /* tp_repr */
-	NULL,                    /* tp_as_number */
-	NULL,                    /* tp_as_sequence */
-	NULL,                    /* tp_as_mapping */
-	NULL,                    /* tp_hash */
-	NULL,                    /* tp_call */
-	NULL,                    /* tp_str */
-	NULL,                    /* tp_getattro */
-	NULL,                    /* tp_setattro */
-	NULL,                    /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,      /* tp_flags */
-	Octets_doc,              /* tp_doc */
-	NULL,                    /* tp_traverse */
-	NULL,                    /* tp_clear */
-	NULL,                    /* tp_richcompare */
-	0,                       /* tp_weaklistoffset */
-	NULL,                    /* tp_iter */
-	NULL,                    /* tp_iternext */
-	octets_methods,          /* tp_methods */
-	NULL,                    /* tp_members */
-	NULL,                    /* tp_getset */
-	&ChannelType.typ,        /* tp_base */
-	NULL,                    /* tp_dict */
-	NULL,                    /* tp_descr_get */
-	NULL,                    /* tp_descr_set */
-	0,                       /* tp_dictoffset */
-	NULL,                    /* tp_init */
-	NULL,                    /* tp_alloc */
-	NULL,                    /* tp_new */
+	sizeof(struct Channel),         /* tp_basicsize */
+	0,                              /* tp_itemsize */
+	NULL,                           /* tp_dealloc */
+	NULL,                           /* tp_print */
+	NULL,                           /* tp_getattr */
+	NULL,                           /* tp_setattr */
+	NULL,                           /* tp_compare */
+	NULL,                           /* tp_repr */
+	NULL,                           /* tp_as_number */
+	NULL,                           /* tp_as_sequence */
+	NULL,                           /* tp_as_mapping */
+	NULL,                           /* tp_hash */
+	NULL,                           /* tp_call */
+	NULL,                           /* tp_str */
+	NULL,                           /* tp_getattro */
+	NULL,                           /* tp_setattro */
+	NULL,                           /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,             /* tp_flags */
+	Octets_doc,                     /* tp_doc */
+	NULL,                           /* tp_traverse */
+	NULL,                           /* tp_clear */
+	NULL,                           /* tp_richcompare */
+	0,                              /* tp_weaklistoffset */
+	NULL,                           /* tp_iter */
+	NULL,                           /* tp_iternext */
+	octets_methods,                 /* tp_methods */
+	NULL,                           /* tp_members */
+	NULL,                           /* tp_getset */
+	&ChannelType.typ,               /* tp_base */
+	NULL,                           /* tp_dict */
+	NULL,                           /* tp_descr_get */
+	NULL,                           /* tp_descr_set */
+	0,                              /* tp_dictoffset */
+	NULL,                           /* tp_init */
+	NULL,                           /* tp_alloc */
+	NULL,                           /* tp_new */
 },
 	&OctetsTIF
 };
@@ -2706,42 +2706,42 @@ PyDoc_STRVAR(Sockets_doc, "channel transferring file descriptors accepted by acc
 ChannelPyTypeObject SocketsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Sockets"),  /* tp_name */
-	sizeof(struct Channel),  /* tp_basicsize */
-	0,                       /* tp_itemsize */
-	NULL,                    /* tp_dealloc */
-	NULL,                    /* tp_print */
-	NULL,                    /* tp_getattr */
-	NULL,                    /* tp_setattr */
-	NULL,                    /* tp_compare */
-	NULL,                    /* tp_repr */
-	NULL,                    /* tp_as_number */
-	NULL,                    /* tp_as_sequence */
-	NULL,                    /* tp_as_mapping */
-	NULL,                    /* tp_hash */
-	NULL,                    /* tp_call */
-	NULL,                    /* tp_str */
-	NULL,                    /* tp_getattro */
-	NULL,                    /* tp_setattro */
-	NULL,                    /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,      /* tp_flags */
-	Sockets_doc,             /* tp_doc */
-	NULL,                    /* tp_traverse */
-	NULL,                    /* tp_clear */
-	NULL,                    /* tp_richcompare */
-	0,                       /* tp_weaklistoffset */
-	NULL,                    /* tp_iter */
-	NULL,                    /* tp_iternext */
-	sockets_methods,         /* tp_methods */
-	NULL,                    /* tp_members */
-	NULL,                    /* tp_getset */
-	&ChannelType.typ,        /* tp_base */
-	NULL,                    /* tp_dict */
-	NULL,                    /* tp_descr_get */
-	NULL,                    /* tp_descr_set */
-	0,                       /* tp_dictoffset */
-	NULL,                    /* tp_init */
-	NULL,                    /* tp_alloc */
-	NULL,                    /* tp_new */
+	sizeof(struct Channel),         /* tp_basicsize */
+	0,                              /* tp_itemsize */
+	NULL,                           /* tp_dealloc */
+	NULL,                           /* tp_print */
+	NULL,                           /* tp_getattr */
+	NULL,                           /* tp_setattr */
+	NULL,                           /* tp_compare */
+	NULL,                           /* tp_repr */
+	NULL,                           /* tp_as_number */
+	NULL,                           /* tp_as_sequence */
+	NULL,                           /* tp_as_mapping */
+	NULL,                           /* tp_hash */
+	NULL,                           /* tp_call */
+	NULL,                           /* tp_str */
+	NULL,                           /* tp_getattro */
+	NULL,                           /* tp_setattro */
+	NULL,                           /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,             /* tp_flags */
+	Sockets_doc,                    /* tp_doc */
+	NULL,                           /* tp_traverse */
+	NULL,                           /* tp_clear */
+	NULL,                           /* tp_richcompare */
+	0,                              /* tp_weaklistoffset */
+	NULL,                           /* tp_iter */
+	NULL,                           /* tp_iternext */
+	sockets_methods,                /* tp_methods */
+	NULL,                           /* tp_members */
+	NULL,                           /* tp_getset */
+	&ChannelType.typ,               /* tp_base */
+	NULL,                           /* tp_dict */
+	NULL,                           /* tp_descr_get */
+	NULL,                           /* tp_descr_set */
+	0,                              /* tp_dictoffset */
+	NULL,                           /* tp_init */
+	NULL,                           /* tp_alloc */
+	NULL,                           /* tp_new */
 },
 	&SocketsTIF,
 };
@@ -2778,42 +2778,42 @@ ChannelPyTypeObject
 PortsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Ports"),    /* tp_name */
-	sizeof(struct Channel),  /* tp_basicsize */
-	0,                       /* tp_itemsize */
-	NULL,                    /* tp_dealloc */
-	NULL,                    /* tp_print */
-	NULL,                    /* tp_getattr */
-	NULL,                    /* tp_setattr */
-	NULL,                    /* tp_compare */
-	NULL,                    /* tp_repr */
-	NULL,                    /* tp_as_number */
-	NULL,                    /* tp_as_sequence */
-	NULL,                    /* tp_as_mapping */
-	NULL,                    /* tp_hash */
-	NULL,                    /* tp_call */
-	NULL,                    /* tp_str */
-	NULL,                    /* tp_getattro */
-	NULL,                    /* tp_setattro */
-	NULL,                    /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,      /* tp_flags */
-	Ports_doc,               /* tp_doc */
-	NULL,                    /* tp_traverse */
-	NULL,                    /* tp_clear */
-	NULL,                    /* tp_richcompare */
-	0,                       /* tp_weaklistoffset */
-	NULL,                    /* tp_iter */
-	NULL,                    /* tp_iternext */
-	ports_methods,           /* tp_methods */
-	NULL,                    /* tp_members */
-	NULL,                    /* tp_getset */
-	&ChannelType.typ,        /* tp_base */
-	NULL,                    /* tp_dict */
-	NULL,                    /* tp_descr_get */
-	NULL,                    /* tp_descr_set */
-	0,                       /* tp_dictoffset */
-	NULL,                    /* tp_init */
-	NULL,                    /* tp_alloc */
-	NULL,                    /* tp_new */
+	sizeof(struct Channel),         /* tp_basicsize */
+	0,                              /* tp_itemsize */
+	NULL,                           /* tp_dealloc */
+	NULL,                           /* tp_print */
+	NULL,                           /* tp_getattr */
+	NULL,                           /* tp_setattr */
+	NULL,                           /* tp_compare */
+	NULL,                           /* tp_repr */
+	NULL,                           /* tp_as_number */
+	NULL,                           /* tp_as_sequence */
+	NULL,                           /* tp_as_mapping */
+	NULL,                           /* tp_hash */
+	NULL,                           /* tp_call */
+	NULL,                           /* tp_str */
+	NULL,                           /* tp_getattro */
+	NULL,                           /* tp_setattro */
+	NULL,                           /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,             /* tp_flags */
+	Ports_doc,                      /* tp_doc */
+	NULL,                           /* tp_traverse */
+	NULL,                           /* tp_clear */
+	NULL,                           /* tp_richcompare */
+	0,                              /* tp_weaklistoffset */
+	NULL,                           /* tp_iter */
+	NULL,                           /* tp_iternext */
+	ports_methods,                  /* tp_methods */
+	NULL,                           /* tp_members */
+	NULL,                           /* tp_getset */
+	&ChannelType.typ,               /* tp_base */
+	NULL,                           /* tp_dict */
+	NULL,                           /* tp_descr_get */
+	NULL,                           /* tp_descr_set */
+	0,                              /* tp_dictoffset */
+	NULL,                           /* tp_init */
+	NULL,                           /* tp_alloc */
+	NULL,                           /* tp_new */
 },
 	&PortsTIF,
 };
@@ -3316,42 +3316,42 @@ PyDoc_STRVAR(datagramarray_doc, "A mutable buffer object for sending and receivi
 PyTypeObject DatagramArrayType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("DatagramArray"), /* tp_name */
-	sizeof(struct DatagramArray), /* tp_basicsize */
-	sizeof(struct Datagram *),    /* tp_itemsize */
-	datagramarray_dealloc,        /* tp_dealloc */
-	NULL,                         /* tp_print */
-	NULL,                         /* tp_getattr */
-	NULL,                         /* tp_setattr */
-	NULL,                         /* tp_compare */
-	NULL,                         /* tp_repr */
-	NULL,                         /* tp_as_number */
-	&datagramarray_sequence,      /* tp_as_sequence */
-	&datagramarray_mapping,       /* tp_as_mapping */
-	NULL,                         /* tp_hash */
-	NULL,                         /* tp_call */
-	NULL,                         /* tp_str */
-	NULL,                         /* tp_getattro */
-	NULL,                         /* tp_setattro */
-	&datagramarray_buffer,        /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,           /* tp_flags */
-	datagramarray_doc,            /* tp_doc */
-	NULL,                         /* tp_traverse */
-	NULL,                         /* tp_clear */
-	NULL,                         /* tp_richcompare */
-	0,                            /* tp_weaklistoffset */
-	datagramarray_iter,           /* tp_iter */
-	NULL,                         /* tp_iternext */
-	datagramarray_methods,        /* tp_methods */
-	NULL,                         /* tp_members */
-	NULL,                         /* tp_getset */
-	NULL,                         /* tp_base */
-	NULL,                         /* tp_dict */
-	NULL,                         /* tp_descr_get */
-	NULL,                         /* tp_descr_set */
-	0,                            /* tp_dictoffset */
-	NULL,                         /* tp_init */
-	NULL,                         /* tp_alloc */
-	datagramarray_new,            /* tp_new */
+	sizeof(struct DatagramArray),        /* tp_basicsize */
+	sizeof(struct Datagram *),           /* tp_itemsize */
+	datagramarray_dealloc,               /* tp_dealloc */
+	NULL,                                /* tp_print */
+	NULL,                                /* tp_getattr */
+	NULL,                                /* tp_setattr */
+	NULL,                                /* tp_compare */
+	NULL,                                /* tp_repr */
+	NULL,                                /* tp_as_number */
+	&datagramarray_sequence,             /* tp_as_sequence */
+	&datagramarray_mapping,              /* tp_as_mapping */
+	NULL,                                /* tp_hash */
+	NULL,                                /* tp_call */
+	NULL,                                /* tp_str */
+	NULL,                                /* tp_getattro */
+	NULL,                                /* tp_setattro */
+	&datagramarray_buffer,               /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,                  /* tp_flags */
+	datagramarray_doc,                   /* tp_doc */
+	NULL,                                /* tp_traverse */
+	NULL,                                /* tp_clear */
+	NULL,                                /* tp_richcompare */
+	0,                                   /* tp_weaklistoffset */
+	datagramarray_iter,                  /* tp_iter */
+	NULL,                                /* tp_iternext */
+	datagramarray_methods,               /* tp_methods */
+	NULL,                                /* tp_members */
+	NULL,                                /* tp_getset */
+	NULL,                                /* tp_base */
+	NULL,                                /* tp_dict */
+	NULL,                                /* tp_descr_get */
+	NULL,                                /* tp_descr_set */
+	0,                                   /* tp_dictoffset */
+	NULL,                                /* tp_init */
+	NULL,                                /* tp_alloc */
+	datagramarray_new,                   /* tp_new */
 };
 
 static PyObj
@@ -3429,42 +3429,42 @@ PyDoc_STRVAR(datagrams_doc, "channel transferring DatagramArray's");
 ChannelPyTypeObject DatagramsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Datagrams"),  /* tp_name */
-	sizeof(struct Datagrams),  /* tp_basicsize */
-	0,                         /* tp_itemsize */
-	NULL,                      /* tp_dealloc */
-	NULL,                      /* tp_print */
-	NULL,                      /* tp_getattr */
-	NULL,                      /* tp_setattr */
-	NULL,                      /* tp_compare */
-	NULL,                      /* tp_repr */
-	NULL,                      /* tp_as_number */
-	NULL,                      /* tp_as_sequence */
-	NULL,                      /* tp_as_mapping */
-	NULL,                      /* tp_hash */
-	NULL,                      /* tp_call */
-	NULL,                      /* tp_str */
-	NULL,                      /* tp_getattro */
-	NULL,                      /* tp_setattro */
-	NULL,                      /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,        /* tp_flags */
-	datagrams_doc,             /* tp_doc */
-	NULL,                      /* tp_traverse */
-	NULL,                      /* tp_clear */
-	NULL,                      /* tp_richcompare */
-	0,                         /* tp_weaklistoffset */
-	NULL,                      /* tp_iter */
-	NULL,                      /* tp_iternext */
-	datagrams_methods,         /* tp_methods */
-	NULL,                      /* tp_members */
-	NULL,                      /* tp_getset */
-	&ChannelType.typ,          /* tp_base */
-	NULL,                      /* tp_dict */
-	NULL,                      /* tp_descr_get */
-	NULL,                      /* tp_descr_set */
-	0,                         /* tp_dictoffset */
-	NULL,                      /* tp_init */
-	NULL,                      /* tp_alloc */
-	NULL,                      /* tp_new */
+	sizeof(struct Datagrams),         /* tp_basicsize */
+	0,                                /* tp_itemsize */
+	NULL,                             /* tp_dealloc */
+	NULL,                             /* tp_print */
+	NULL,                             /* tp_getattr */
+	NULL,                             /* tp_setattr */
+	NULL,                             /* tp_compare */
+	NULL,                             /* tp_repr */
+	NULL,                             /* tp_as_number */
+	NULL,                             /* tp_as_sequence */
+	NULL,                             /* tp_as_mapping */
+	NULL,                             /* tp_hash */
+	NULL,                             /* tp_call */
+	NULL,                             /* tp_str */
+	NULL,                             /* tp_getattro */
+	NULL,                             /* tp_setattro */
+	NULL,                             /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,               /* tp_flags */
+	datagrams_doc,                    /* tp_doc */
+	NULL,                             /* tp_traverse */
+	NULL,                             /* tp_clear */
+	NULL,                             /* tp_richcompare */
+	0,                                /* tp_weaklistoffset */
+	NULL,                             /* tp_iter */
+	NULL,                             /* tp_iternext */
+	datagrams_methods,                /* tp_methods */
+	NULL,                             /* tp_members */
+	NULL,                             /* tp_getset */
+	&ChannelType.typ,                 /* tp_base */
+	NULL,                             /* tp_dict */
+	NULL,                             /* tp_descr_get */
+	NULL,                             /* tp_descr_set */
+	0,                                /* tp_dictoffset */
+	NULL,                             /* tp_init */
+	NULL,                             /* tp_alloc */
+	NULL,                             /* tp_new */
 },
 	&DatagramsTIF
 };
@@ -4771,42 +4771,42 @@ ChannelPyTypeObject
 ArrayType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
 	PYTHON_MODULE_PATH("Array"),  /* tp_name */
-	sizeof(struct Array),  /* tp_basicsize */
-	0,                        /* tp_itemsize */
-	array_dealloc,         /* tp_dealloc */
-	NULL,                     /* tp_print */
-	NULL,                     /* tp_getattr */
-	NULL,                     /* tp_setattr */
-	NULL,                     /* tp_compare */
-	NULL,                     /* tp_repr */
-	NULL,                     /* tp_as_number */
-	NULL,                     /* tp_as_sequence */
-	NULL,                     /* tp_as_mapping */
-	NULL,                     /* tp_hash */
-	NULL,                     /* tp_call */
-	NULL,                     /* tp_str */
-	NULL,                     /* tp_getattro */
-	NULL,                     /* tp_setattro */
-	NULL,                     /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,       /* tp_flags */
-	Array_doc,             /* tp_doc */
-	NULL,                     /* tp_traverse */
-	NULL,                     /* tp_clear */
-	NULL,                     /* tp_richcompare */
-	0,                        /* tp_weaklistoffset */
-	NULL,                     /* tp_iter */
-	NULL,                     /* tp_iternext */
-	array_methods,         /* tp_methods */
-	array_members,         /* tp_members */
-	array_getset,          /* tp_getset */
-	&ChannelType.typ,         /* tp_base */
-	NULL,                     /* tp_dict */
-	NULL,                     /* tp_descr_get */
-	NULL,                     /* tp_descr_set */
-	0,                        /* tp_dictoffset */
-	NULL,                     /* tp_init */
-	NULL,                     /* tp_alloc */
-	array_new,             /* tp_new */
+	sizeof(struct Array),         /* tp_basicsize */
+	0,                            /* tp_itemsize */
+	array_dealloc,                /* tp_dealloc */
+	NULL,                         /* tp_print */
+	NULL,                         /* tp_getattr */
+	NULL,                         /* tp_setattr */
+	NULL,                         /* tp_compare */
+	NULL,                         /* tp_repr */
+	NULL,                         /* tp_as_number */
+	NULL,                         /* tp_as_sequence */
+	NULL,                         /* tp_as_mapping */
+	NULL,                         /* tp_hash */
+	NULL,                         /* tp_call */
+	NULL,                         /* tp_str */
+	NULL,                         /* tp_getattro */
+	NULL,                         /* tp_setattro */
+	NULL,                         /* tp_as_buffer */
+	Py_TPFLAGS_DEFAULT,           /* tp_flags */
+	Array_doc,                    /* tp_doc */
+	NULL,                         /* tp_traverse */
+	NULL,                         /* tp_clear */
+	NULL,                         /* tp_richcompare */
+	0,                            /* tp_weaklistoffset */
+	NULL,                         /* tp_iter */
+	NULL,                         /* tp_iternext */
+	array_methods,                /* tp_methods */
+	array_members,                /* tp_members */
+	array_getset,                 /* tp_getset */
+	&ChannelType.typ,             /* tp_base */
+	NULL,                         /* tp_dict */
+	NULL,                         /* tp_descr_get */
+	NULL,                         /* tp_descr_set */
+	0,                            /* tp_dictoffset */
+	NULL,                         /* tp_init */
+	NULL,                         /* tp_alloc */
+	array_new,                    /* tp_new */
 },
 	&ArrayTIF,
 };
