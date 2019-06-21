@@ -20,6 +20,108 @@
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 
+/**
+	# The failure structure prefers to have a name with the code.
+*/
+#define X_EAI_ERRORS() \
+	X_EAI(EAI_AGAIN) \
+	X_EAI(EAI_BADFLAGS) \
+	X_EAI(EAI_FAIL) \
+	X_EAI(EAI_FAMILY) \
+	X_EAI(EAI_MEMORY) \
+	X_EAI(EAI_NONAME) \
+	X_EAI(EAI_SERVICE) \
+	X_EAI(EAI_SOCKTYPE) \
+	X_EAI(EAI_SYSTEM) \
+	X_EAI(EAI_OVERFLOW)
+
+static const char *
+error_name_gai(int code)
+{
+	switch (code)
+	{
+		#define X_EAI(X) \
+			case X: \
+				return(#X); \
+			break;
+
+			X_EAI_ERRORS()
+		#undef X_EAI
+
+		#ifdef EAI_BADHINTS
+			case (EAI_BADHINTS):
+				return("EAI_BADHINTS");
+			break;
+		#endif
+
+		#ifdef EAI_ADDRFAMILY
+			case (EAI_ADDRFAMILY):
+				return("EAI_ADDRFAMILY");
+			break;
+		#endif
+
+		#ifdef EAI_PROTOCOL
+			case (EAI_PROTOCOL):
+				return("EAI_PROTOCOL");
+			break;
+		#endif
+
+		#ifdef EAI_NODATA
+			case (EAI_NODATA):
+				return("EAI_NODATA");
+			break;
+		#endif
+
+		default:
+			return("");
+		break;
+	}
+}
+
+static PyObj
+construct_error(int code)
+{
+	char buf[16];
+	PyObj rob = NULL;
+
+	if (code == EAI_SYSTEM)
+	{
+		rob = PyList_New(3);
+		if (rob == NULL)
+			return(NULL);
+
+		snprintf(buf, sizeof(buf), "%d", (int) errno);
+		PyList_SET_ITEM(rob, 2, Py_BuildValue("ssss", "error", "errno", "EUNKNOWN", buf));
+		errno = 0;
+
+		if (PyList_GET_ITEM(rob, 2) == NULL)
+			goto error;
+	}
+	else
+	{
+		rob = PyList_New(2);
+		if (rob == NULL)
+			return(NULL);
+	}
+
+	PyList_SET_ITEM(rob, 0, Py_BuildValue("ssss", "error", "call", "system", "getaddrinfo"));
+	if (PyList_GET_ITEM(rob, 0) == NULL)
+		goto error;
+
+	snprintf(buf, sizeof(buf), "%d", code);
+	PyList_SET_ITEM(rob, 1, Py_BuildValue("ssss", "error", "eai", error_name_gai(code), buf));
+	if (PyList_GET_ITEM(rob, 1) == NULL)
+		goto error;
+
+	return(rob);
+
+	error:
+	{
+		Py_DECREF(rob);
+		return(NULL);
+	}
+}
+
 static const char *
 transport_type_string(const char *stream_type, int socktype)
 {
@@ -51,7 +153,7 @@ interpret_address_record(const char *stream_type, int socktype, struct addrinfo 
 	char addr_buf[1024];
 	char port_buf[8];
 	const char *port;
-	const char *ts, *proto;
+	const char *pf, *proto;
 
 	switch (x->ai_family)
 	{
@@ -111,7 +213,7 @@ interpret_address_record(const char *stream_type, int socktype, struct addrinfo 
 			snprintf(port_buf, sizeof(port_buf), "%hu", p);
 			port = port_buf;
 
-			ts = "ip4";
+			pf = "ip4";
 		}
 		break;
 
@@ -130,7 +232,7 @@ interpret_address_record(const char *stream_type, int socktype, struct addrinfo 
 			snprintf(port_buf, sizeof(port_buf), "%hu", p);
 			port = port_buf;
 
-			ts = "ip6";
+			pf = "ip6";
 		}
 		break;
 
@@ -139,21 +241,12 @@ interpret_address_record(const char *stream_type, int socktype, struct addrinfo 
 			snprintf(addr_buf, sizeof(addr_buf), "%s", "");
 			port = "";
 
-			ts = "unknown";
+			pf = "unknown";
 		}
 	}
 
 	proto = transport_type_string(stream_type, x->ai_socktype);
-	return(Py_BuildValue("ssss", proto, ts, addr_buf, port));
-}
-
-static void
-set_gai_error(int code)
-{
-	/**
-		# XXX: This exception will be specialized in the future and more data exposed.
-	*/
-	PyErr_Format(PyExc_Exception, "%s", gai_strerror(code));
+	return(Py_BuildValue("ssss", proto, pf, addr_buf, port));
 }
 
 /**
@@ -205,8 +298,28 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 
 			default:
 			{
-				set_gai_error(r);
-				return(NULL);
+				if (r == EAI_SYSTEM)
+				{
+					/*
+						# Try again signal.
+					*/
+					switch (errno)
+					{
+						case EAGAIN:
+						case EINTR:
+							Py_RETURN_NONE;
+						break;
+					}
+				}
+
+				addrlist = construct_error(r);
+				if (addrlist == NULL)
+					return(NULL);
+
+				rob = Py_BuildValue("OO", Py_None, addrlist);
+				Py_DECREF(addrlist);
+
+				return(rob);
 			}
 			break;
 		}
@@ -230,10 +343,7 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 			goto error;
 	}
 
-	if (info->ai_canonname != NULL)
-		rob = Py_BuildValue("sO", info->ai_canonname, addrlist);
-	else
-		rob = Py_BuildValue("OO", Py_None, addrlist);
+	rob = Py_BuildValue("sO", (info->ai_canonname?info->ai_canonname:""), addrlist);
 
 	freeaddrinfo(info);
 	Py_DECREF(addrlist);
