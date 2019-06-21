@@ -52,7 +52,7 @@ typedef struct Invocation *Invocation;
 	SA(POSIX_SPAWN_SETSCHEDPARAM, set_schedular_parameter)
 
 static PyObj
-invocation_call(PyObj self, PyObj args, PyObj kw)
+invocation_spawn(PyObj self, PyObj args, PyObj kw)
 {
 	int r;
 	pid_t child = 0;
@@ -420,6 +420,7 @@ invocation_dealloc(PyObj self)
 
 static PyMethodDef
 invocation_methods[] = {
+	{"spawn", invocation_spawn, METH_KEYWORDS, "submit the request to spawn the invocation"},
 	{NULL,},
 };
 
@@ -453,7 +454,7 @@ InvocationType = {
 	NULL,                       /* tp_as_sequence */
 	NULL,                       /* tp_as_mapping */
 	NULL,                       /* tp_hash */
-	invocation_call,            /* tp_call */
+	invocation_spawn,           /* tp_call */
 	NULL,                       /* tp_str */
 	NULL,                       /* tp_getattro */
 	NULL,                       /* tp_setattro */
@@ -826,7 +827,7 @@ initialize(PyObj mod, PyObj ctx)
 			"Does nothing if unsupported or unsafe.") \
 	PYMETHOD( \
 		exit_by_signal, exit_by_signal, METH_O, \
-			"Register an (system:manual)`atexit` handler that causes the " \
+			"Register an (system/manual)`atexit` handler that causes the " \
 			"process to exit with the given signal number." \
 			"\n\nThis may only be called once per-process.") \
 	PYMETHOD( \
