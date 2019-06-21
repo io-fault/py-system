@@ -3,6 +3,7 @@
 */
 #include <wchar.h>
 #include <locale.h>
+#include <langinfo.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
@@ -98,10 +99,22 @@ dsetlocale(PyObj self)
 	return(PyUnicode_FromString(selection));
 }
 
+static PyObj
+get_encoding(PyObj self)
+{
+	char *encoding = nl_langinfo(CODESET);
+	if (encoding[0] == '\000')
+		Py_RETURN_NONE;
+
+	return(PyUnicode_FromString(encoding));
+}
+
 #define MODULE_FUNCTIONS() \
 	PYMETHOD(cells, cells, METH_O, \
 		"get the number of cells the given unicode string requires " \
 		"for display in a monospaced character matrix.") \
+	PYMETHOD(encoding, get_encoding, METH_NOARGS, \
+		"get the CODESET string using the system's nl_langinfo(2)") \
 	PYMETHOD(setlocale, dsetlocale, METH_NOARGS, \
 		"limited setlocale(2) interface providing access to setting the native environment locale.")
 
