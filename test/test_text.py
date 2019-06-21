@@ -47,4 +47,4 @@ def test_cells_ctlchars(test):
 
 def test_encoding(test):
 	locale = text.setlocale()
-	locale in test/text.encoding()
+	text.encoding() in test/locale
