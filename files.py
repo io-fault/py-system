@@ -14,7 +14,7 @@ import itertools
 import functools
 import operator
 
-from ..time import library as libtime # Import needs to be delayed somehow.
+from ..time import types as timetypes # Import needs to be delayed somehow.
 from ..routes import types
 
 class Path(types.Selector):
@@ -379,9 +379,9 @@ class Path(types.Selector):
 
 		return dirs, files
 
-	def since(self, since:libtime.Timestamp,
+	def since(self, since:timetypes.Timestamp,
 			traversed=None,
-		) -> typing.Iterable[typing.Tuple[libtime.Timestamp, "Path"]]:
+		) -> typing.Iterable[typing.Tuple[timetypes.Timestamp, "Path"]]:
 		"""
 		# Identify the set of files that have been modified
 		# since the given point in time.
@@ -446,14 +446,14 @@ class Path(types.Selector):
 
 		return stat(self.fullpath, follow_symlinks=True).st_size
 
-	def get_last_modified(self, stat=os.stat, unix=libtime.unix) -> libtime.Timestamp:
+	def get_last_modified(self, stat=os.stat, unix=timetypes.from_unix_timestamp) -> timetypes.Timestamp:
 		"""
 		# Return the modification time of the file.
 		"""
 
 		return unix(stat(self.fullpath).st_mtime)
 
-	def set_last_modified(self, time:libtime.Timestamp, utime=os.utime):
+	def set_last_modified(self, time:timetypes.Timestamp, utime=os.utime):
 		"""
 		# Set the modification time of the file identified by the &Route.
 		"""
@@ -474,7 +474,7 @@ class Path(types.Selector):
 		with open(str(self), 'w', encoding=encoding) as f:
 			f.write(string)
 
-	def meta(self, stat=os.stat, unix=libtime.unix):
+	def meta(self, stat=os.stat, unix=timetypes.from_unix_timestamp):
 		"""
 		# Return file specific meta data.
 

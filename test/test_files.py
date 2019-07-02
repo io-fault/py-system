@@ -4,6 +4,7 @@
 import sys
 import os.path
 from .. import files as lib
+from ...time import sysclock
 
 def test_Path(test):
 	dir = os.path.dirname(os.path.realpath(__file__))
@@ -185,7 +186,7 @@ def test_Path_get_last_modified(test):
 		mtime2 = r.get_last_modified()
 
 	test/mtime2 > mtime1
-	test/mtime1.measure(mtime2) >= lib.libtime.Measure.of(second=1)
+	test/mtime1.measure(mtime2) >= lib.timetypes.Measure.of(second=1)
 
 def test_Path_set_last_modified(test):
 	"""
@@ -200,7 +201,7 @@ def test_Path_set_last_modified(test):
 		test/r.exists() == True
 		original_time = r.get_last_modified()
 
-		ttime = lib.libtime.now().update('minute', -10, 'hour')
+		ttime = sysclock.now().update('minute', -10, 'hour')
 
 		r.set_last_modified(ttime)
 		new_time = r.get_last_modified()
@@ -249,9 +250,9 @@ def test_Path_since(test):
 		times.sort(reverse=True)
 		y = times[0]
 
-		test/list(root.since(lib.libtime.now())) == []
+		test/list(root.since(sysclock.now())) == []
 
-		m = root.since(lib.libtime.now().rollback(minute=1))
+		m = root.since(sysclock.now().rollback(minute=1))
 		test/set(x[1] for x in m) == set(files)
 
 def test_Path_construct(test):
@@ -371,8 +372,8 @@ def test_Path_recursive_since(test):
 	# &lib.Path.since with recursive directories.
 	"""
 	import itertools
-	ago10mins = lib.libtime.now().rollback(minute=10)
-	thirty = lib.libtime.now().rollback(minute=30)
+	ago10mins = sysclock.now().rollback(minute=10)
+	thirty = sysclock.now().rollback(minute=30)
 
 	with lib.Path.temporary() as t:
 		d = t / 'dir' / 'subdir'

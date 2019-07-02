@@ -7,7 +7,7 @@ import collections
 import pkgutil
 import importlib
 
-from ..time import library as libtime
+from ..time import types as timetypes
 from ..routes import types as routes
 
 from . import files
@@ -179,7 +179,7 @@ class Import(routes.Selector):
 				return x
 			x = x.container
 
-	def get_last_modified(self) -> libtime.Timestamp:
+	def get_last_modified(self) -> timetypes.Timestamp:
 		"""
 		# Return the modification time of the module's file as a chronometry Timestamp.
 		"""
