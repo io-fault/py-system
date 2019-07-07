@@ -1,5 +1,9 @@
 /**
 	// Kernel interfaces for process invocation and system signal management.
+
+	// [ Engineering ]
+	// Currently, this is lacking some aggressive testing and many error branches
+	// are not exercised for coverage; considering how critical the task queue, this is not appropriate.
 */
 #include <errno.h>
 #include <unistd.h>
@@ -14,6 +18,8 @@
 #include <fault/python/environ.h>
 
 typedef struct kevent kevent_t; /* kernel event description */
+#include "interface.h"
+
 #define KQ_FILTERS() \
 	FILTER(EVFILT_USER) \
 	FILTER(EVFILT_PROC) \
@@ -85,7 +91,7 @@ typedef struct kevent kevent_t; /* kernel event description */
 #endif
 
 /*
-	// Manage retry state for limiting the number of times we'll accept EINTR.
+	// Limited retry state.
 */
 #define _RETRY_STATE _avail_retries
 #define RETRY_STATE_INIT int _RETRY_STATE = CONFIG_SYSCALL_RETRY
@@ -98,22 +104,8 @@ typedef struct kevent kevent_t; /* kernel event description */
 } while(0);
 #define UNLIMITED_RETRY() errno = 0; goto RETRY_SYSCALL;
 
-typedef int kpoint_t; /* file descriptor */
-typedef int kerror_t; /* kerror error identifier (errno) */
-
-struct Interface {
-	PyObject_HEAD
-	PyObj kif_kset; /* storage for objects referenced by the kernel */
-	PyObj kif_cancellations; /* cancel bucket */
-
-	kpoint_t kif_kqueue; /* kqueue(2) fd */
-	kevent_t kif_events[8];
-	int kif_waiting;
-};
-typedef struct Interface *Interface;
-
 static int
-interface_kevent(
+ki_kevent(
 	Interface kif,
 	int retry, int *out,
 	kevent_t *changes, int nchanges,
@@ -187,15 +179,203 @@ interface_kevent(
 	return(1);
 }
 
-static PyObj
-interface_repr(PyObj self)
+static inline int
+ki_force_event(Interface ki)
 {
-	Interface kif = (Interface) self;
-	PyObj rob;
+	struct timespec ts = {0,0};
+	kevent_t kev;
+	int out = 0;
 
-	rob = PyUnicode_FromFormat("");
+	/**
+		// Ignore force if it's not waiting or has already forced.
+	*/
+	if (ki->kif_waiting > 0)
+	{
+		kev.udata = (void *) ki;
+		kev.ident = (uintptr_t) ki;
+		kev.filter = EVFILT_USER;
+		kev.fflags = NOTE_TRIGGER;
+		kev.data = 0;
+		kev.flags = EV_RECEIPT;
 
-	return(rob);
+		if (!ki_kevent(ki, 1, &out, &kev, 1, NULL, 0, &ts))
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			return(-1);
+		}
+
+		ki->kif_waiting = -1;
+		return(2);
+	}
+	else if (ki->kif_waiting < 0)
+		return(1);
+	else
+		return(0);
+}
+
+/**
+	// Append a memory allocation to the task queue.
+*/
+static int
+ki_extend(Interface ki, Tasks tail)
+{
+	Tasks new;
+	size_t count = tail->t_allocated;
+
+	if (count < MAX_TASKS_PER_SEGMENT)
+		count *= 2;
+
+	new = PyMem_Malloc(sizeof(struct Tasks) + (sizeof(PyObject *) * count));
+	if (new == NULL)
+		return(-1);
+
+	new->t_next = NULL;
+	new->t_allocated = count;
+	ki->kif_tail->t_next = new;
+
+	/* update position */
+	ki->kif_tail = new;
+	ki->kif_tailcursor = 0;
+
+	return(0);
+}
+
+/**
+	// Called to pop executing.
+*/
+static int
+ki_queue_continue(Interface ki)
+{
+	Tasks n = NULL;
+
+	n = PyMem_Malloc(
+		sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(PyObject *))
+	);
+	if (n == NULL)
+	{
+		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue continuation");
+		return(-1);
+	}
+
+	ki->kif_tail->t_allocated = ki->kif_tailcursor;
+	ki->kif_executing = ki->kif_loading;
+
+	ki->kif_tail = ki->kif_loading = n;
+	ki->kif_loading->t_next = NULL;
+	ki->kif_loading->t_allocated = INITIAL_TASKS_ALLOCATED;
+
+	ki->kif_tailcursor = 0;
+
+	return(0);
+}
+
+static PyObj
+ki_enqueue_task(Interface ki, PyObj callable)
+{
+	Tasks tail = ki->kif_tail;
+
+	if (ki->kif_tailcursor == tail->t_allocated)
+	{
+		/* bit of a latent error */
+		PyErr_SetString(PyExc_MemoryError, "task queue could not be extended and must be flushed");
+		return(NULL);
+	}
+
+	tail->t_queue[ki->kif_tailcursor++] = callable;
+	Py_INCREF(callable);
+
+	if (ki->kif_tailcursor == tail->t_allocated)
+		ki_extend(ki, tail);
+
+	/* XXX: redundant condition; refactor force into inline */
+	if (ki_force_event(ki) < 0)
+		return(NULL);
+
+	Py_RETURN_NONE;
+}
+
+static PyObj
+ki_execute_tasks(Interface ki, PyObj errctl)
+{
+	Tasks exec = ki->kif_executing;
+	Tasks next = NULL;
+	PyObj task, xo;
+	int i, c, total = 0;
+
+	if (exec == NULL)
+	{
+		PyErr_SetString(PyExc_RuntimeError, "concurrent task queue execution");
+		return(NULL);
+	}
+
+	/* signals processing */
+	ki->kif_executing = NULL;
+
+	do {
+		for (i = 0, c = exec->t_allocated; i < c; ++i)
+		{
+			task = exec->t_queue[i];
+			xo = PyObject_CallObject(task, NULL);
+			total += 1;
+
+			if (xo == NULL)
+			{
+				PyObj exc, val, tb;
+				PyErr_Fetch(&exc, &val, &tb);
+
+				if (errctl != Py_None)
+				{
+					PyErr_NormalizeException(&exc, &val, &tb);
+
+					if (tb != NULL)
+					{
+						PyException_SetTraceback(val, tb);
+						Py_DECREF(tb);
+					}
+
+					/* XXX: presuming normalize wont fail */
+					PyObject_CallFunctionObjArgs(errctl, task, val, NULL);
+				}
+				else
+				{
+					/* explicitly discarded */
+					Py_XDECREF(tb);
+				}
+
+				Py_XDECREF(exc);
+				Py_XDECREF(val);
+			}
+			else
+			{
+				Py_DECREF(xo);
+			}
+
+			Py_DECREF(task);
+		}
+
+		next = exec->t_next;
+		PyMem_Free(exec);
+		exec = next;
+	}
+	while (exec != NULL);
+
+	if (KI_LQUEUE_HAS_TASKS(ki))
+	{
+		if (ki_queue_continue(ki) == -1)
+		{
+			/* re-init executing somehow? force instance dropped? */
+			return(NULL);
+		}
+	}
+	else
+	{
+		/* loading queue is empty; create empty executing queue */
+		ki->kif_executing = PyMem_Malloc(sizeof(struct Tasks));
+		ki->kif_executing->t_allocated = 0;
+		ki->kif_executing->t_next = NULL;
+	}
+
+	return(PyLong_FromLong((long) total));
 }
 
 /*
@@ -204,7 +384,7 @@ interface_repr(PyObj self)
 */
 
 static int
-interface_init(Interface kif)
+ki_init(Interface kif)
 {
 	const struct timespec ts = {0,0};
 	int nkevents;
@@ -227,7 +407,7 @@ interface_init(Interface kif)
 	kev.fflags = 0;
 	kev.data = 0;
 
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
+	if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		close(kif->kif_kqueue);
@@ -243,7 +423,7 @@ interface_init(Interface kif)
 		kev.filter = EVFILT_SIGNAL; \
 		kev.fflags = 0; \
 		\
-		if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts)) \
+		if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts)) \
 		{ \
 			PyErr_SetFromErrno(PyExc_OSError); \
 			close(kif->kif_kqueue); \
@@ -258,12 +438,33 @@ interface_init(Interface kif)
 }
 
 /**
-	// Interface.void()
+	// Close the kqueue FD.
+*/
+static PyObj
+ki_close(PyObj self)
+{
+	Interface kif = (Interface) self;
+	PyObj rob = NULL;
 
+	if (kif->kif_kqueue != -1)
+	{
+		close(kif->kif_kqueue);
+		kif->kif_kqueue = -1;
+		kif->kif_waiting = -3;
+		rob = Py_True;
+	}
+	else
+		rob = Py_False;
+
+	Py_INCREF(rob);
+	return(rob);
+}
+
+/**
 	// Close the kqueue FD, and release references.
 */
 static PyObj
-interface_void(PyObj self)
+ki_void(PyObj self)
 {
 	Interface kif = (Interface) self;
 
@@ -308,7 +509,7 @@ acquire_kernel_ref(Interface kif, PyObj link)
 	// Begin listening for the process exit event.
 */
 static PyObj
-interface_track(PyObj self, PyObj args)
+ki_track(PyObj self, PyObj args)
 {
 	const static struct timespec ts = {0,0};
 
@@ -328,7 +529,7 @@ interface_track(PyObj self, PyObj args)
 	kev.filter = EVFILT_PROC;
 	kev.fflags = NOTE_EXIT;
 
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 0, &ts))
+	if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 0, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
@@ -347,7 +548,7 @@ interface_track(PyObj self, PyObj args)
 }
 
 static PyObj
-interface_untrack(PyObj self, PyObj args)
+ki_untrack(PyObj self, PyObj args)
 {
 	const static struct timespec ts = {0,0};
 	Interface kif = (Interface) self;
@@ -366,7 +567,7 @@ interface_untrack(PyObj self, PyObj args)
 	kev.filter = EVFILT_PROC;
 	kev.fflags = NOTE_EXIT;
 
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
+	if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
@@ -385,39 +586,29 @@ interface_untrack(PyObj self, PyObj args)
 }
 
 static PyObj
-interface_force(PyObj self)
+ki_force(PyObj self)
 {
 	Interface kif = (Interface) self;
-	struct timespec ts = {0,0};
 	PyObj rob;
-	kevent_t kev;
-	int out = 0;
 
-	/**
-		// Ignore force if we're not waiting or have already forced.
-	*/
-	if (kif->kif_waiting > 0)
+	switch (ki_force_event(kif))
 	{
-		kev.udata = (void *) kif;
-		kev.ident = (uintptr_t) kif;
-		kev.filter = EVFILT_USER;
-		kev.fflags = NOTE_TRIGGER;
-		kev.data = 0;
-		kev.flags = EV_RECEIPT;
-
-		if (!interface_kevent(kif, 1, &out, &kev, 1, NULL, 0, &ts))
-		{
-			PyErr_SetFromErrno(PyExc_OSError);
+		case -1:
 			return(NULL);
-		}
+		break;
 
-		kif->kif_waiting = -1;
-		rob = Py_True;
+		case 0:
+			rob = Py_None;
+		break;
+
+		case 1:
+			rob = Py_False;
+		break;
+
+		case 2:
+			rob = Py_True;
+		break;
 	}
-	else if (kif->kif_waiting < 0)
-		rob = Py_False;
-	else
-		rob = Py_None;
 
 	Py_INCREF(rob);
 	return(rob);
@@ -441,7 +632,7 @@ set_timer(Interface kif, int recur, int note, unsigned long quantity, PyObj link
 	if (!recur)
 		kev.flags |= EV_ONESHOT;
 
-	if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
+	if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(0);
@@ -512,7 +703,7 @@ note_unit(int unit, unsigned long *l)
 }
 
 static PyObj
-interface_alarm(PyObj self, PyObj args, PyObj kw)
+ki_alarm(PyObj self, PyObj args, PyObj kw)
 {
 	const static char *kwlist[] = {
 		"link", "quantity", "unitcode", NULL,
@@ -541,7 +732,7 @@ interface_alarm(PyObj self, PyObj args, PyObj kw)
 }
 
 static PyObj
-interface_recur(PyObj self, PyObj args, PyObj kw)
+ki_recur(PyObj self, PyObj args, PyObj kw)
 {
 	const static char *kwlist[] = {
 		"link", "quantity", "unitcode", NULL,
@@ -570,7 +761,7 @@ interface_recur(PyObj self, PyObj args, PyObj kw)
 }
 
 static PyObj
-interface_cancel(PyObj self, PyObj link)
+ki_cancel(PyObj self, PyObj link)
 {
 	const static struct timespec ts = {0,0};
 	Interface kif = (Interface) self;
@@ -588,7 +779,7 @@ interface_cancel(PyObj self, PyObj link)
 		kev.filter = EVFILT_TIMER;
 		kev.flags = EV_DELETE|EV_RECEIPT;
 
-		if (!interface_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
+		if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 		{
 			PyErr_SetFromErrno(PyExc_OSError);
 			return(NULL);
@@ -653,7 +844,7 @@ signal_string(int sig)
 }
 
 static PyObj
-interface_enter(PyObj self)
+ki_enter(PyObj self)
 {
 	Interface kif = (Interface) self;
 	kif->kif_waiting = 1;
@@ -661,7 +852,7 @@ interface_enter(PyObj self)
 }
 
 static PyObj
-interface_exit(PyObj self, PyObj args)
+ki_exit(PyObj self, PyObj args)
 {
 	Interface kif = (Interface) self;
 	kif->kif_waiting = 0;
@@ -672,7 +863,7 @@ interface_exit(PyObj self, PyObj args)
 	// collect and process kqueue events
 */
 static PyObj
-interface_wait(PyObj self, PyObj args)
+ki_wait(PyObj self, PyObj args)
 {
 	struct timespec waittime = {0,0};
 	struct timespec *ref = &waittime;
@@ -681,26 +872,52 @@ interface_wait(PyObj self, PyObj args)
 	PyObj rob;
 	int i, nkevents = 0;
 	int error = 0;
-	long sleeptime = -1;
+	long sleeptime = -1024;
 
 	if (!PyArg_ParseTuple(args, "|l", &sleeptime))
 		return(NULL);
 
-	/*
-		// *Negative* numbers signal indefinite.
-	*/
+	/* Validate opened. */
+	if (kif->kif_kqueue == -1)
+	{
+		PyErr_SetString(PyExc_RuntimeError, "cannot wait on closed kernel interface");
+		return(NULL);
+	}
+
 	if (sleeptime >= 0)
+	{
 		waittime.tv_sec = sleeptime;
-	else
+		kif->kif_waiting = sleeptime ? 1 : 0;
+	}
+	else if (sleeptime == -1)
+	{
+		/* explicit wait indefinite */
 		ref = NULL;
+		kif->kif_waiting = 1;
+	}
+	else
+	{
+		if (KI_LQUEUE_HAS_TASKS(kif) || KI_XQUEUE_HAS_TASKS(kif))
+		{
+			waittime.tv_sec = 0;
+			kif->kif_waiting = 0;
+		}
+		else
+		{
+			/* implicit indefinite */
+			ref = NULL;
+			kif->kif_waiting = 1;
+		}
+	}
 
 	Py_BEGIN_ALLOW_THREADS
-	if (!interface_kevent(kif, 0, &nkevents, NULL, 0, kif->kif_events, CONFIG_STATIC_KEVENTS, ref))
+	if (!ki_kevent(kif, 0, &nkevents, NULL, 0, kif->kif_events, CONFIG_STATIC_KEVENTS, ref))
 	{
 		error = 1;
 	}
 	Py_END_ALLOW_THREADS
 
+	kif->kif_waiting = 0;
 	if (error)
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
@@ -713,6 +930,18 @@ interface_wait(PyObj self, PyObj args)
 	rob = PyList_New(0);
 	if (rob == NULL)
 		return(NULL);
+
+	if (nkevents == 0 && waittime.tv_sec > 0)
+	{
+		/* No events and definite wait time */
+		error = PyList_Append(rob, Py_BuildValue("sl", "timeout", waittime.tv_sec));
+
+		if (error == -1 || PyList_GET_ITEM(rob, 0) == NULL)
+		{
+			Py_DECREF(rob);
+			return(NULL);
+		}
+	}
 
 	for (i = 0; i < nkevents; ++i)
 	{
@@ -839,45 +1068,59 @@ interface_wait(PyObj self, PyObj args)
 }
 
 static PyMethodDef
-interface_methods[] = {
-	{"void", (PyCFunction) interface_void,
+ki_methods[] = {
+	{"close",
+		(PyCFunction) ki_close,
+		METH_NOARGS, PyDoc_STR(
+			"Close the interface eliminating the possibility of receiving events from the kernel.\n"
+		)
+	},
+
+	{"void",
+		(PyCFunction) ki_void,
 		METH_NOARGS, PyDoc_STR(
 			"Destroy the Interface instance, closing any file descriptors managed by the object.\n"
 			"Also destroy the internal set-object for holding kernel references.\n"
 		)
 	},
 
-	{"track", (PyCFunction) interface_track, METH_VARARGS,
+	{"track",
+		(PyCFunction) ki_track, METH_VARARGS,
 		PyDoc_STR(
 			"Listen for the process exit event."
 		)
 	},
 
-	{"untrack", (PyCFunction) interface_untrack, METH_VARARGS,
+	{"untrack",
+		(PyCFunction) ki_untrack, METH_VARARGS,
 		PyDoc_STR(
 			"Stop listening for the process exit event."
 		)
 	},
 
-	{"alarm", (PyCFunction) interface_alarm, METH_VARARGS|METH_KEYWORDS,
+	{"alarm",
+		(PyCFunction) ki_alarm, METH_VARARGS|METH_KEYWORDS,
 		PyDoc_STR(
 			"Allocate a one-time timer that will cause an event after the designed period.\n"
 		)
 	},
 
-	{"recur", (PyCFunction) interface_recur, METH_VARARGS|METH_KEYWORDS,
+	{"recur",
+		(PyCFunction) ki_recur, METH_VARARGS|METH_KEYWORDS,
 		PyDoc_STR(
 			"Allocate a recurring timer that will cause an event at the designed frequency.\n"
 		)
 	},
 
-	{"cancel", (PyCFunction) interface_cancel, METH_O,
+	{"cancel",
+		(PyCFunction) ki_cancel, METH_O,
 		PyDoc_STR(
 			"Cancel a timer, recurring or once, using the link that the timer was allocated with.\n"
 		)
 	},
 
-	{"force", (PyCFunction) interface_force, METH_NOARGS,
+	{"force",
+		(PyCFunction) ki_force, METH_NOARGS,
 		PyDoc_STR(
 			"Cause a corresponding &wait call to stop waiting **if** the Interface\n"
 			"instance is inside a with-statement block::\n"
@@ -885,21 +1128,34 @@ interface_methods[] = {
 	},
 
 	{"wait",
-		(PyCFunction) interface_wait, METH_VARARGS,
+		(PyCFunction) ki_wait, METH_VARARGS,
 		PyDoc_STR(
 			"Executed after entering a with-statement block to collect queued events or timeout.\n"
 		)
 	},
 
+	{"enqueue",
+		(PyCFunction) ki_enqueue_task, METH_O,
+		PyDoc_STR(
+			"Enqueue a task for execution.\n"
+		)
+	},
+	{"execute",
+		(PyCFunction) ki_execute_tasks, METH_O,
+		PyDoc_STR(
+			"Execute recently enqueued, FIFO, tasks and prepare for the next cycle.\n"
+		)
+	},
+
 	{"__enter__",
-		(PyCFunction) interface_enter, METH_NOARGS,
+		(PyCFunction) ki_enter, METH_NOARGS,
 		PyDoc_STR(
 			"Enter waiting state."
 		)
 	},
 
 	{"__exit__",
-		(PyCFunction) interface_exit, METH_VARARGS,
+		(PyCFunction) ki_exit, METH_VARARGS,
 		PyDoc_STR(
 			"Leave waiting state."
 		)
@@ -908,16 +1164,52 @@ interface_methods[] = {
 	{NULL,},
 };
 
-static PyMemberDef interface_members[] = {
+static PyMemberDef ki_members[] = {
 	{"waiting", T_PYSSIZET, offsetof(struct Interface, kif_waiting), READONLY,
 		PyDoc_STR("Whether or not the Interface object is with statement block.")},
 	{NULL,},
 };
 
+static PyObj
+ki_get_closed(PyObj self, void *closure)
+{
+	Interface ki = (Interface) self;
+	PyObj rob = Py_False;
+
+	if (ki->kif_kqueue == -1)
+		rob = Py_True;
+
+	Py_INCREF(rob);
+	return(rob);
+}
+
+static PyObj
+ki_get_has_tasks(PyObj self, void *closure)
+{
+	Interface ki = (Interface) self;
+	PyObj rob = Py_False;
+
+	if (KI_LQUEUE_HAS_TASKS(ki) || KI_XQUEUE_HAS_TASKS(ki))
+		rob = Py_True;
+
+	Py_INCREF(rob);
+	return(rob);
+}
+
+static PyGetSetDef ki_getset[] = {
+	{"closed", ki_get_closed, NULL,
+		PyDoc_STR("whether the interface's kernel connection is closed")},
+	{"loaded", ki_get_has_tasks, NULL,
+		PyDoc_STR("whether the queue has been loaded with any number of tasks")},
+	{NULL,},
+};
+
 static void
-interface_dealloc(PyObj self)
+ki_dealloc(PyObj self)
 {
 	Interface kif = (Interface) self;
+	Tasks t, n;
+	size_t i;
 
 	Py_XDECREF(kif->kif_kset);
 	kif->kif_kset = NULL;
@@ -927,12 +1219,55 @@ interface_dealloc(PyObj self)
 	if (kif->kif_kqueue != -1)
 	{
 		close(kif->kif_kqueue);
-		PyErr_WarnFormat(PyExc_ResourceWarning, 0, FACTOR_PATH("Interface") " instance not voided before deallocation");
+		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
+			FACTOR_PATH("Interface") " instance not closed before deallocation");
 	}
+
+	/*
+		// Executing queue's t_allocated provides accurate count of the segment.
+	*/
+	t = kif->kif_executing;
+	while (t != NULL)
+	{
+		n = t->t_next;
+		for (i = 0; i < t->t_allocated; ++i)
+			Py_DECREF(t->t_queue[i]);
+
+		PyMem_Free(t);
+		t = n;
+	}
+
+	/*
+		// Special case for final segment in loading.
+	*/
+	t = kif->kif_tail;
+	if (t != NULL)
+	{
+		for (i = 0; i < kif->kif_tailcursor; ++i)
+			Py_DECREF(t->t_queue[i]);
+
+		kif->kif_tail->t_allocated = 0;
+	}
+
+	/*
+		// Prior loop on tail sets allocated to zero maintaining the invariant.
+	*/
+	t = kif->kif_loading;
+	while (t != NULL)
+	{
+		n = t->t_next;
+		for (i = 0; i < t->t_allocated; ++i)
+			Py_DECREF(t->t_queue[i]);
+
+		PyMem_Free(t);
+		t = n;
+	}
+
+	kif->kif_executing = kif->kif_loading = kif->kif_tail = NULL;
 }
 
 static int
-interface_clear(PyObj self)
+ki_clear(PyObj self)
 {
 	Interface kif = (Interface) self;
 	Py_CLEAR(kif->kif_kset);
@@ -941,7 +1276,7 @@ interface_clear(PyObj self)
 }
 
 static int
-interface_traverse(PyObj self, visitproc visit, void *arg)
+ki_traverse(PyObj self, visitproc visit, void *arg)
 {
 	Interface kif = (Interface) self;
 	Py_VISIT(kif->kif_kset);
@@ -949,8 +1284,40 @@ interface_traverse(PyObj self, visitproc visit, void *arg)
 	return(0);
 }
 
+static int
+init_queue(Interface kif)
+{
+	kif->kif_loading = PyMem_Malloc(
+		sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(PyObject *))
+	);
+	if (kif->kif_loading == NULL)
+	{
+		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue");
+		return(-1);
+	}
+
+	kif->kif_loading->t_next = NULL;
+	kif->kif_loading->t_allocated = INITIAL_TASKS_ALLOCATED;
+
+	kif->kif_executing = PyMem_Malloc(
+		sizeof(struct Tasks) + (0 * sizeof(PyObject *))
+	);
+	if (kif->kif_executing == NULL)
+	{
+		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue");
+		return(-1);
+	}
+
+	kif->kif_executing->t_next = NULL;
+	kif->kif_executing->t_allocated = 0;
+
+	kif->kif_tail = kif->kif_loading;
+	kif->kif_tailcursor = 0;
+	return(0);
+}
+
 static PyObj
-interface_new(PyTypeObject *subtype, PyObj args, PyObj kw)
+ki_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
 	static char *kwlist[] = {NULL,};
 	Interface kif;
@@ -961,6 +1328,12 @@ interface_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	kif = (Interface) subtype->tp_alloc(subtype, 0);
 	if (kif == NULL)
 		return(NULL);
+
+	if (init_queue(kif) == -1)
+	{
+		Py_DECREF(kif);
+		return(NULL);
+	}
 
 	kif->kif_kqueue = -1;
 	kif->kif_waiting = 0;
@@ -979,7 +1352,7 @@ interface_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		return(NULL);
 	}
 
-	if (!interface_init(kif))
+	if (!ki_init(kif))
 	{
 		Py_DECREF(((PyObj) kif));
 		return(NULL);
@@ -988,7 +1361,7 @@ interface_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	return((PyObj) kif);
 }
 
-PyDoc_STRVAR(interface_doc,
+PyDoc_STRVAR(ki_doc,
 "The kernel Interface implementation providing event driven signalling "
 "for control signals and subprocess exits.");
 
@@ -998,7 +1371,7 @@ InterfaceType = {
 	FACTOR_PATH("Interface"),     /* tp_name */
 	sizeof(struct Interface),     /* tp_basicsize */
 	0,                            /* tp_itemsize */
-	interface_dealloc,            /* tp_dealloc */
+	ki_dealloc,                   /* tp_dealloc */
 	NULL,                         /* tp_print */
 	NULL,                         /* tp_getattr */
 	NULL,                         /* tp_setattr */
@@ -1016,16 +1389,17 @@ InterfaceType = {
 	Py_TPFLAGS_BASETYPE|
 	Py_TPFLAGS_HAVE_GC|
 	Py_TPFLAGS_DEFAULT,           /* tp_flags */
-	interface_doc,                /* tp_doc */
-	interface_traverse,           /* tp_traverse */
-	interface_clear,              /* tp_clear */
+	ki_doc,                       /* tp_doc */
+
+	ki_traverse,                  /* tp_traverse */
+	ki_clear,                     /* tp_clear */
 	NULL,                         /* tp_richcompare */
 	0,                            /* tp_weaklistoffset */
 	NULL,                         /* tp_iter */
 	NULL,                         /* tp_iternext */
-	interface_methods,            /* tp_methods */
-	interface_members,            /* tp_members */
-	NULL,                         /* tp_getset */
+	ki_methods,                   /* tp_methods */
+	ki_members,                   /* tp_members */
+	ki_getset,                    /* tp_getset */
 	NULL,                         /* tp_base */
 	NULL,                         /* tp_dict */
 	NULL,                         /* tp_descr_get */
@@ -1033,7 +1407,7 @@ InterfaceType = {
 	0,                            /* tp_dictoffset */
 	NULL,                         /* tp_init */
 	NULL,                         /* tp_alloc */
-	interface_new,                /* tp_new */
+	ki_new,                       /* tp_new */
 };
 
 #define PYTHON_TYPES() \
