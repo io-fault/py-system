@@ -110,24 +110,126 @@ def test_track(test):
 		i = os.read(fd, 1)
 		os._exit(3)
 
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
 		pid = os.fork()
 
 		if pid == 0:
 			child()
 		else:
-			kif.track(pid)
+			ki.track(pid)
 			os.write(w, b'f')
-		with kif:
-			r = kif.wait()
+
+		r = ki.wait()
 		test/r[0] == ('process', pid, None)
 		_, status = os.waitpid(pid, os.P_WAIT)
 		test/os.WIFEXITED(status) == True
 		test/os.WEXITSTATUS(status) == 3
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
+
+def test_execute(test):
+	"""
+	# - &module.Interface.execute
+	"""
+
+	k = module.Interface()
+	x = False
+	def effect():
+		nonlocal x
+		x = True
+
+	test/k.loaded == False
+	k.enqueue(effect)
+	test/k.loaded == True
+	test/k.execute(None) == 0
+	test/k.loaded == True
+	test/k.execute(None) == 1
+	test/k.loaded == False
+	test/x == True
+
+	test/k.execute(None) == 0
+	test/k.loaded == False
+
+def test_execute_error_trap(test):
+	"""
+	# - &module.Interface.execute
+	"""
+
+	k = module.Interface()
+	x = False
+	def trap(ob, err):
+		nonlocal x
+		x = (ob, err)
+	def effect():
+		raise ValueError("data")
+
+	k.enqueue(effect)
+	test/k.execute(None) == 0
+	test/k.execute(trap) == 1
+
+	test/x[0] == effect
+	test.isinstance(x[1], ValueError)
+	test/x[1].args == ("data",)
+
+def test_execute_nothing(test):
+	"""
+	# - &module.Interface.execute
+	"""
+
+	k = module.Interface()
+	for x in range(512):
+		test/k.loaded == False
+		test/k.execute(None) == 0
+
+def test_enqueue_force_event(test):
+	"""
+	# - &module.Interface.execute
+
+	# Interface.enqueue should be sensitive to the event wait state.
+	# This validates that no timeout event is generated designating that a user event was received.
+	"""
+
+	k = module.Interface()
+	k._set_waiting()
+	k.enqueue((lambda: None))
+	test/k.execute(None) == 0
+	test/k.wait(2) == []
+	test/k.execute(None) == 1
+
+def test_wait_timeout_event(test):
+	"""
+	# - &module.Interface.execute
+
+	# Interface.enqueue should be sensitive to the event wait state.
+	# This validates that no timeout event is generated designating that a user event was received.
+	"""
+
+	k = module.Interface()
+	test/k.wait(0) == [] # No duration no timeout event.
+	test/k.wait(1) == [('timeout', 1)]
+
+def test_interface_close(test):
+	"""
+	# - &module.Interface.close
+	# - &module.Interface.closed
+	"""
+
+	k = module.Interface()
+	test/k.closed == False
+	test/k.close() == True
+	test/k.closed == True
+
+	test/k.close() == False # already closed
+	test/k.closed == True
+
+	test/RuntimeError ^ k.wait
+
+	# Task still functions.
+	k.enqueue((lambda: None))
+	test/k.execute(None) == 0
+	test/k.execute(None) == 1
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
