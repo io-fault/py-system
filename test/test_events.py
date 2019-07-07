@@ -1,106 +1,106 @@
 import os
 import time
-from .. import events as library
+from .. import events as module
 
 def test_alarm_units(test):
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
-		kif.alarm(1, 0, 'n')
-		kif.alarm(2, 0, 's')
-		kif.alarm(3, 0, 'm')
-		kif.alarm(4, 0, 'u')
+		ki.alarm(1, 0, 'n')
+		ki.alarm(2, 0, 's')
+		ki.alarm(3, 0, 'm')
+		ki.alarm(4, 0, 'u')
 		with test/TypeError:
-			kif.alarm(5, 0, 492492)
+			ki.alarm(5, 0, 492492)
 		with test/TypeError:
-			kif.alarm(6, 0, 'microsecond')
+			ki.alarm(6, 0, 'microsecond')
 		with test/ValueError:
-			kif.alarm(7, 0, 'f')
+			ki.alarm(7, 0, 'f')
 
-		test/len(kif.wait()) == 4
+		test/len(ki.wait()) == 4
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
 
 def test_alarm(test):
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
 		ob = "foobar"
-		kif.alarm(ob, 1, 'n')
-		test/kif.wait() << ('alarm', ob)
+		ki.alarm(ob, 1, 'n')
+		test/ki.wait() << ('alarm', ob)
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
 
 def test_alarm_time(test):
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
 		ob = "foobar"
 		a=time.time()
-		kif.alarm(ob, 1, 's')
-		test/kif.wait() << ('alarm', ob)
+		ki.alarm(ob, 1, 's')
+		test/ki.wait() << ('alarm', ob)
 		b=time.time()
 		test/(b-a-1) < 0.3
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
 
 def test_ignore_force(test):
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
 		ob = "foobar"
 		a=time.time()
-		kif.alarm(ob, 1200, 'm')
-		kif.force()
+		ki.alarm(ob, 1200, 'm')
+		ki.force()
 		# forced while not waiting outside block validate that it's not drop through.
-		kif.wait()
+		ki.wait()
 		b=time.time()
 		test/(b-a) >= 1
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
 
 def test_force(test):
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
 		ob = "foobar"
 		a=time.time()
-		kif.alarm(ob, 5, 's')
-		test/kif.force() == None
-		with kif:
-			test/kif.force() == True
-			kif.force()
-			# signals that it was already tripped
-			test/kif.force() == False
-			test/kif.force() == False
-			# forced while not waiting outside block validate that it's not drop through.
-			kif.wait()
-		test/kif.force() == None
+		ki.alarm(ob, 5, 's')
+		test/ki.force() == None
+
+		ki._set_waiting()
+		test/ki.force() == True
+		ki.force()
+		# signals that it was already tripped
+		test/ki.force() == False
+		test/ki.force() == False
+		# forced while not waiting outside block validate that it's not drop through.
+		ki.wait()
+
+		test/ki.force() == None
 		b=time.time()
 		test/(b-a) < 5
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
 
 def test_recur(test):
-	kif = library.Interface()
+	ki = module.Interface()
 	try:
 		ob = "foo"
 		a=time.time()
 		# recur about 500ms
-		kif.recur(ob, 100, 'm')
+		ki.recur(ob, 100, 'm')
 		for x in range(5):
-			test/kif.wait() << ('recur', ob)
+			test/ki.wait() << ('recur', ob)
 		b=time.time()
 		# approx half a second
 		test/(b-a) < 0.8
 
 		# cancellation
-		kif.cancel(ob)
-		with kif:
-			kif.force()
-			test/kif.wait() == []
+		ki.cancel(ob)
+		test/ki.wait(0) == []
 	finally:
-		kif.void()
+		ki.void()
 		test.garbage()
 
 def test_track(test):

@@ -844,18 +844,10 @@ signal_string(int sig)
 }
 
 static PyObj
-ki_enter(PyObj self)
+ki_set_waiting(PyObj self)
 {
 	Interface kif = (Interface) self;
 	kif->kif_waiting = 1;
-	Py_RETURN_NONE;
-}
-
-static PyObj
-ki_exit(PyObj self, PyObj args)
-{
-	Interface kif = (Interface) self;
-	kif->kif_waiting = 0;
 	Py_RETURN_NONE;
 }
 
@@ -1147,17 +1139,10 @@ ki_methods[] = {
 		)
 	},
 
-	{"__enter__",
-		(PyCFunction) ki_enter, METH_NOARGS,
+	{"_set_waiting",
+		(PyCFunction) ki_set_waiting, METH_NOARGS,
 		PyDoc_STR(
-			"Enter waiting state."
-		)
-	},
-
-	{"__exit__",
-		(PyCFunction) ki_exit, METH_VARARGS,
-		PyDoc_STR(
-			"Leave waiting state."
+			"Set waiting state for testing."
 		)
 	},
 
