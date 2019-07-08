@@ -325,16 +325,33 @@ ki_execute_tasks(Interface ki, PyObj errctl)
 
 				if (errctl != Py_None)
 				{
+					PyObj ereturn;
+
 					PyErr_NormalizeException(&exc, &val, &tb);
-
-					if (tb != NULL)
+					if (PyErr_Occurred())
 					{
-						PyException_SetTraceback(val, tb);
-						Py_DECREF(tb);
+						/* normalization failed? */
+						PyErr_WriteUnraisable(task);
+						PyErr_Clear();
 					}
+					else
+					{
+						if (tb != NULL)
+						{
+							PyException_SetTraceback(val, tb);
+							Py_DECREF(tb);
+						}
 
-					/* XXX: presuming normalize wont fail */
-					PyObject_CallFunctionObjArgs(errctl, task, val, NULL);
+						ereturn = PyObject_CallFunctionObjArgs(errctl, task, val, NULL);
+						if (ereturn)
+							Py_DECREF(ereturn);
+						else
+						{
+							/* errctl raised exception */
+							PyErr_WriteUnraisable(task);
+							PyErr_Clear();
+						}
+					}
 				}
 				else
 				{

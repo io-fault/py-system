@@ -231,6 +231,22 @@ def test_interface_close(test):
 	test/k.execute(None) == 0
 	test/k.execute(None) == 1
 
+def test_execute_error_trap_exceptions(test):
+	"""
+	# - &module.Interface.execute
+	"""
+
+	test.explicit()
+	out = []
+	def etrap(ob, err):
+		out.append((ob, err))
+		raise RuntimeError("exception during exception")
+
+	k = module.Interface()
+	k.enqueue(None)
+	test/k.execute(etrap) == 0
+	test/k.execute(etrap) == 1
+
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
 	libtest.execute(sys.modules[__name__])
