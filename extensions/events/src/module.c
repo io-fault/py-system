@@ -905,7 +905,7 @@ ki_wait(PyObj self, PyObj args)
 	}
 	else
 	{
-		if (KI_LQUEUE_HAS_TASKS(kif) || KI_XQUEUE_HAS_TASKS(kif))
+		if (KI_HAS_TASKS(kif))
 		{
 			waittime.tv_sec = 0;
 			kif->kif_waiting = 0;
@@ -1190,7 +1190,7 @@ ki_get_has_tasks(PyObj self, void *closure)
 	Interface ki = (Interface) self;
 	PyObj rob = Py_False;
 
-	if (KI_LQUEUE_HAS_TASKS(ki) || KI_XQUEUE_HAS_TASKS(ki))
+	if (KI_HAS_TASKS(ki))
 		rob = Py_True;
 
 	Py_INCREF(rob);

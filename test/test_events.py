@@ -224,7 +224,7 @@ def test_interface_close(test):
 	test/k.close() == False # already closed
 	test/k.closed == True
 
-	test/RuntimeError ^ k.wait
+	test/tuple(k.wait()) == ()
 
 	# Task still functions.
 	k.enqueue((lambda: None))

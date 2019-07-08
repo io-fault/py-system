@@ -58,3 +58,4 @@ typedef struct Interface *Interface;
 
 #define KI_LQUEUE_HAS_TASKS(I) (I->kif_tailcursor > 0 || I->kif_loading != I->kif_tail)
 #define KI_XQUEUE_HAS_TASKS(I) (I->kif_executing != NULL && I->kif_executing->t_allocated > 0)
+#define KI_HAS_TASKS(I) (KI_LQUEUE_HAS_TASKS(I) || KI_XQUEUE_HAS_TASKS(I))
