@@ -889,8 +889,7 @@ ki_wait(PyObj self, PyObj args)
 	/* Validate opened. */
 	if (kif->kif_kqueue == -1)
 	{
-		PyErr_SetString(PyExc_RuntimeError, "cannot wait on closed kernel interface");
-		return(NULL);
+		return(PyTuple_New(0));
 	}
 
 	if (sleeptime >= 0)
