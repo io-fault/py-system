@@ -420,7 +420,7 @@ invocation_dealloc(PyObj self)
 
 static PyMethodDef
 invocation_methods[] = {
-	{"spawn", invocation_spawn, METH_KEYWORDS, "submit the request to spawn the invocation"},
+	{"spawn", invocation_spawn, METH_VARARGS|METH_KEYWORDS, "submit the request to spawn the invocation"},
 	{NULL,},
 };
 
