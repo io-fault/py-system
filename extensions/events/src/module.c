@@ -83,7 +83,7 @@ typedef struct kevent kevent_t; /* kernel event description */
 #endif
 
 #ifndef CONFIG_SYSCALL_RETRY
-	#define CONFIG_SYSCALL_RETRY 64
+	#define CONFIG_SYSCALL_RETRY 16
 #elif CONFIG_SYSCALL_RETRY < 8
 	#undef CONFIG_SYSCALL_RETRY
 	#define CONFIG_SYSCALL_RETRY 16
