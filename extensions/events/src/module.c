@@ -463,7 +463,7 @@ ki_close(PyObj self)
 	Interface kif = (Interface) self;
 	PyObj rob = NULL;
 
-	if (kif->kif_kqueue != -1)
+	if (kif->kif_kqueue >= 0)
 	{
 		close(kif->kif_kqueue);
 		kif->kif_kqueue = -1;
@@ -892,27 +892,21 @@ ki_wait(PyObj self, PyObj args)
 		return(PyTuple_New(0));
 	}
 
-	if (sleeptime >= 0)
+	if (KI_HAS_TASKS(kif))
 	{
-		waittime.tv_sec = sleeptime;
-		kif->kif_waiting = sleeptime ? 1 : 0;
-	}
-	else if (sleeptime == -1)
-	{
-		/* explicit wait indefinite */
-		ref = NULL;
-		kif->kif_waiting = 1;
+		waittime.tv_sec = 0;
+		kif->kif_waiting = 0;
 	}
 	else
 	{
-		if (KI_HAS_TASKS(kif))
+		if (sleeptime >= 0)
 		{
-			waittime.tv_sec = 0;
-			kif->kif_waiting = 0;
+			waittime.tv_sec = sleeptime;
+			kif->kif_waiting = sleeptime ? 1 : 0;
 		}
 		else
 		{
-			/* implicit indefinite */
+			/* indefinite */
 			ref = NULL;
 			kif->kif_waiting = 1;
 		}
