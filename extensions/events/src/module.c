@@ -1358,7 +1358,7 @@ ki_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 
 PyDoc_STRVAR(ki_doc,
 "The kernel Interface implementation providing event driven signalling "
-"for control signals and subprocess exits.");
+"for control signals, subprocess exits, timers, and a task queue.");
 
 PyTypeObject
 InterfaceType = {
