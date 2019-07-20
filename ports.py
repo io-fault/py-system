@@ -8,7 +8,7 @@
 
 _state = {}
 
-def restore(identifier:str, ports:typing.Sequence[int]):
+def restore(identifier:str, ports:typing.Sequence[int]) -> None:
 	"""
 	# Add &ports to the set using the &identifier presuming that the ports
 	# are properly configured. Used by daemon processes after performing
@@ -16,7 +16,7 @@ def restore(identifier:str, ports:typing.Sequence[int]):
 	"""
 	_state[identifier] = list(ports)
 
-def install(identifier, ports:typing.Sequence[int]):
+def install(identifier, ports:typing.Sequence[int]) -> None:
 	"""
 	# Add the &ports to the set making sure that they are properly configured
 	# to persist across process images.
@@ -34,7 +34,7 @@ def install(identifier, ports:typing.Sequence[int]):
 	else:
 		_state[identifier] = p
 
-def allocate():
+def allocate() -> typing.Mapping[str, typing.Sequence[int]]:
 	"""
 	# Return the full set of installed ports for use within a worker process
 	# and remove the installed ports from process the global data.
