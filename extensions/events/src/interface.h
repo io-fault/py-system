@@ -10,7 +10,7 @@
 	#define MAX_TASKS_PER_SEGMENT 128
 #endif
 
-typedef int kpoint_t; /* file descriptor */
+typedef int kport_t; /* file descriptor */
 typedef int kerror_t; /* kerror error identifier (errno) */
 
 typedef struct Tasks *Tasks;
@@ -48,7 +48,7 @@ struct Interface {
 	int kif_tailcursor;
 
 	/* kqueue(2) fd */
-	kpoint_t kif_kqueue;
+	kport_t kif_kqueue;
 	int kif_waiting;
 
 	kevent_t kif_events[8];
