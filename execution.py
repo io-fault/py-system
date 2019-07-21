@@ -487,6 +487,39 @@ class PInvocation(tuple):
 				close(pipes[0][0])
 				close(pipes[-1][1])
 
+def parse_sx_plan(text) -> typing.Tuple[
+		typing.Sequence[typing.Tuple[str, str]],
+		str,
+		typing.Sequence[str]
+	]:
+	"""
+	# Parse a System Execution Plan string into structured environment
+	# settings, executable path, and command arguments.
+	"""
+	header, *body = text.strip().split('\n\t') # Env + Exe, Command Arguments.
+	*env, exe = header.split('\n') # Separate environment settings and executable.
+
+	parameters = []
+
+	for f in body:
+		if f[:1] == '|':
+			parameters.extend(f[1:].split(' '))
+		elif f[:1] == ':':
+			parameters.append(f[1:])
+		elif f[:1] == '\\':
+			if ' ' in f:
+				nlines, suffix = f.split(' ', 1)
+				nlines = nlines[1:]
+			else:
+				nlines = f[1:]
+				suffix = ''
+			parameters[-1] += (int(nlines) * '\n')
+			parameters[-1] += suffix
+		else:
+			raise Exception("unknown parameter type")
+
+	return ([tuple(x.split('=', 1)+[None])[:2] for x in env], exe, parameters)
+
 if __name__ == '__main__':
 	method, target, *args = sys.argv[1:]
 	print(root.prepare(method, target, args))
