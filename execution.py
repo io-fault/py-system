@@ -516,9 +516,47 @@ def parse_sx_plan(text) -> typing.Tuple[
 			parameters[-1] += (int(nlines) * '\n')
 			parameters[-1] += suffix
 		else:
-			raise Exception("unknown parameter type")
+			raise ValueError("unknown argument field qualifier")
 
 	return ([tuple(x.split('=', 1)+[None])[:2] for x in env], exe, parameters)
+
+def serialize_sx_plan(triple, limit=8) -> str:
+	"""
+	# Serialize the environment, execution path, and command arguments into a string.
+	"""
+
+	from ..context import string
+	env, exe, args = triple
+
+	out = ""
+	for env, val in env:
+		if val is None:
+			yield env
+		else:
+			out += env + '=' + val
+			yield env + '=' + val
+
+		yield '\n'
+
+	yield exe
+	yield '\n'
+
+	for f in args:
+		if '\n' in f:
+			fs = list(string.varsplit('\n', f))
+			yield '\t:'
+			yield fs[0]
+			yield '\n'
+
+			for count, suffix in zip(fs[1::2], fs[2::2]):
+				yield '\t\\'+str(count)
+				if suffix:
+					yield ' '+suffix
+				yield '\n'
+		else:
+			yield '\t:'
+			yield f
+			yield '\n'
 
 if __name__ == '__main__':
 	method, target, *args = sys.argv[1:]

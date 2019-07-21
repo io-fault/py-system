@@ -128,6 +128,41 @@ def test_parse_sx_plan_no_op(test):
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file"])
 
+def test_parse_sx_plan_unknown_qual(test):
+	"""
+	# - &module.parse_sx_plan
+	"""
+	sample = "" + \
+		"/bin/cat\n" + \
+		"\t:cat\n" + \
+		"\t?/file\n"
+
+	test/ValueError ^ (lambda: module.parse_sx_plan(sample))
+
+def test_serialize_sx_plan_escapes(test):
+	"""
+	# - &module.parse_sx_plan
+	"""
+	sample = (
+		[('ENV', 'env-string')],
+		'/bin/cat',
+		[
+			"-f", "FILE",
+			"\nsuffix",
+		]
+	)
+
+	sxp = ''.join(module.serialize_sx_plan(sample))
+	test/sxp.split('\n') == [
+		"ENV=env-string",
+		"/bin/cat",
+		"\t:-f",
+		"\t:FILE",
+		"\t:",
+		"\t\\1 suffix",
+		"",
+	]
+
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
 	libtest.execute(sys.modules[__name__])
