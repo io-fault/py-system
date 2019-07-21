@@ -163,6 +163,31 @@ def test_serialize_sx_plan_escapes(test):
 		"",
 	]
 
+def test_serialize_sx_plan_none(test):
+	"""
+	# - &module.parse_sx_plan
+	"""
+	sample = (
+		[('ENV', 'env-string'), ('ZERO', None)],
+		'/bin/cat',
+		[
+			"-f", "FILE",
+			"\nsuffix",
+		]
+	)
+
+	sxp = ''.join(module.serialize_sx_plan(sample))
+	test/sxp.split('\n') == [
+		"ENV=env-string",
+		"ZERO",
+		"/bin/cat",
+		"\t:-f",
+		"\t:FILE",
+		"\t:",
+		"\t\\1 suffix",
+		"",
+	]
+
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
 	libtest.execute(sys.modules[__name__])
