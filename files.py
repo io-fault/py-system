@@ -510,7 +510,7 @@ class Path(types.Selector):
 
 		# [ Parameters ]
 
-		# /replacement
+		# /replacement/
 			# The route to the file or directory that will be used to replace
 			# the one at &self.
 		"""
@@ -524,7 +524,7 @@ class Path(types.Selector):
 		else:
 			copyfile(src, dst)
 
-	def link(self, to:"Path", relative=True, link=os.symlink, exists=os.path.lexists):
+	def link(self, to, relative:bool=True, link=os.symlink, exists=os.path.lexists):
 		"""
 		# Create a *symbolic* link at &self pointing to &to, the target file.
 
