@@ -1,5 +1,5 @@
 """
-# Execute an application module.
+# Execute an application module selected by argument zero.
 """
 import importlib
 from .. import process
