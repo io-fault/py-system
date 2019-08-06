@@ -670,9 +670,6 @@ def control(main, *args, **kw):
 			r = Fork.trap(main, *args, **kw)
 			raise Exit(255) # Unspecified exit code.
 		except Interruption as e:
-			highlight = lambda x: '\x1b[38;5;' '196' 'm' + x + '\x1b[0m'
-			sys.stderr.write("\r{0}: {1}".format(highlight("INTERRUPT"), str(e)))
-			sys.stderr.flush()
 			raise Exit(250)
 		except SystemExit as exit:
 			# Explicit exit request.
