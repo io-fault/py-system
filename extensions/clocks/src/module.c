@@ -243,31 +243,24 @@ Monotonic_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 #define MODULE_FUNCTIONS()
 #include <fault/python/module.h>
 
-INIT("clock types for retrieving system time")
+INIT(module, PyDoc_STR("clock types for retrieving system time"))
 {
-	PyObj mod = NULL;
-
-	CREATE_MODULE(&mod);
-	if (mod == NULL)
-		return(NULL);
-
 	if (PyType_Ready(&ClockworkType) != 0)
 		goto error;
-	PyModule_AddObject(mod, "Clockwork", (PyObj) (&ClockworkType));
+	PyModule_AddObject(module, "Clockwork", (PyObj) (&ClockworkType));
 
 	if (PyType_Ready(&RealClockType) != 0)
 		goto error;
-	PyModule_AddObject(mod, "Real", (PyObj) (&RealClockType));
+	PyModule_AddObject(module, "Real", (PyObj) (&RealClockType));
 
 	if (PyType_Ready(&MonotonicClockType) != 0)
 		goto error;
-	PyModule_AddObject(mod, "Monotonic", (PyObj) (&MonotonicClockType));
+	PyModule_AddObject(module, "Monotonic", (PyObj) (&MonotonicClockType));
 
-	return(mod);
+	return(0);
 
 	error:
 	{
-		DROP_MODULE(mod);
-		return(NULL);
+		return(-1);
 	}
 }

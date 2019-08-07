@@ -5208,10 +5208,8 @@ _init_array_rallocation(void)
 
 #include <fault/python/module.h>
 
-INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
+INIT(module, PyDoc_STR("Asynchronous System I/O implementation.\n"))
 {
-	PyObj mod = NULL;
-
 	if (new_array == NULL)
 	{
 		/*
@@ -5219,26 +5217,19 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 		*/
 		new_array = _init_intarray();
 		if (new_array == NULL)
-			return(NULL);
+			return(-1);
 	}
 
-	CREATE_MODULE(&mod);
+	polarity_objects[0] = PyLong_FromLong(1);
+	polarity_objects[1] = PyLong_FromLong(-1);
 
-	if (mod == NULL)
-		return(NULL);
-	else
+	if (polarity_objects[0] == NULL || polarity_objects[1] == NULL)
 	{
-		polarity_objects[0] = PyLong_FromLong(1);
-		polarity_objects[1] = PyLong_FromLong(-1);
-
-		if (polarity_objects[0] == NULL || polarity_objects[1] == NULL)
-		{
-			Py_XDECREF(polarity_objects[0]);
-			Py_XDECREF(polarity_objects[1]);
-			polarity_objects[0] = NULL;
-			polarity_objects[1] = NULL;
-			goto error;
-		}
+		Py_XDECREF(polarity_objects[0]);
+		Py_XDECREF(polarity_objects[1]);
+		polarity_objects[0] = NULL;
+		polarity_objects[1] = NULL;
+		goto error;
 	}
 
 	#if FV_INJECTIONS()
@@ -5246,9 +5237,9 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 			// Need this to help with the skip condition in the tests.
 		*/
 		#ifdef F_SETNOSIGPIPE
-			PyModule_AddIntConstant(mod, "F_SETNOSIGPIPE", 1);
+			PyModule_AddIntConstant(module, "F_SETNOSIGPIPE", 1);
 		#else
-			PyModule_AddIntConstant(mod, "F_SETNOSIGPIPE", 0);
+			PyModule_AddIntConstant(module, "F_SETNOSIGPIPE", 0);
 		#endif
 	#endif
 
@@ -5261,7 +5252,7 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 	#define ID(NAME, IGNORED) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
 			goto error; \
-		if (PyModule_AddObject(mod, #NAME, (PyObj) &( NAME##Type )) < 0) \
+		if (PyModule_AddObject(module, #NAME, (PyObj) &( NAME##Type )) < 0) \
 			goto error;
 		CHANNEL_TYPES()
 		PY_TYPES()
@@ -5283,7 +5274,7 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 		if (PyExc_TransitionViolation == NULL)
 			goto error;
 
-		if (PyModule_AddObject(mod, "TransitionViolation", PyExc_TransitionViolation) < 0)
+		if (PyModule_AddObject(module, "TransitionViolation", PyExc_TransitionViolation) < 0)
 		{
 			Py_DECREF(PyExc_TransitionViolation);
 			PyExc_TransitionViolation = NULL;
@@ -5291,11 +5282,10 @@ INIT(PyDoc_STR("Asynchronous System I/O implementation.\n"))
 		}
 	}
 
-	return(mod);
+	return(0);
 
 	error:
 	{
-		DROP_MODULE(mod);
-		return(NULL);
+		return(-1);
 	}
 }

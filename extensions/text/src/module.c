@@ -119,17 +119,7 @@ get_encoding(PyObj self)
 		"limited setlocale(2) interface providing access to setting the native environment locale.")
 
 #include <fault/python/module.h>
-INIT("interfaces to system text services: wcswidth and setlocale.")
+INIT(module, PyDoc_STR("interfaces to system text services: wcswidth and setlocale."))
 {
-	PyObj mod = NULL;
-
-	CREATE_MODULE(&mod);
-	if (mod == NULL)
-		return(NULL);
-
-	return(mod);
-
-	fail:
-		DROP_MODULE(mod);
-		return(NULL);
+	return(0);
 }

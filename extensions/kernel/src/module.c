@@ -836,32 +836,25 @@ initialize(PyObj mod, PyObj ctx)
 			"Called once by &.process. Do not use.")
 
 #include <fault/python/module.h>
-INIT(PyDoc_STR("Interfaces for the operating system.\n"))
+INIT(module, PyDoc_STR("Interfaces for the operating system.\n"))
 {
-	PyObj mod = NULL;
-
-	CREATE_MODULE(&mod);
-	if (mod == NULL)
-		return(NULL);
-
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
 			goto error; \
-		if (PyModule_AddObject(mod, #NAME, (PyObj) &( NAME##Type )) < 0) \
+		if (PyModule_AddObject(module, #NAME, (PyObj) &( NAME##Type )) < 0) \
 			goto error;
 		PYTHON_TYPES()
 	#undef ID
 
-	if (PyModule_AddStringConstant(mod, "fci_architecture", F_TARGET_ARCHITECTURE_STR))
+	if (PyModule_AddStringConstant(module, "fci_architecture", F_TARGET_ARCHITECTURE_STR))
 		goto error;
-	if (PyModule_AddStringConstant(mod, "fci_system", F_SYSTEM_STR))
+	if (PyModule_AddStringConstant(module, "fci_system", F_SYSTEM_STR))
 		goto error;
 
-	return(mod);
+	return(0);
 
 	error:
 	{
-		DROP_MODULE(mod);
-		return(NULL);
+		return(-1);
 	}
 }

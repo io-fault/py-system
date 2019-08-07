@@ -413,26 +413,20 @@ DeviceType = {
 #define MODULE_FUNCTIONS()
 
 #include <fault/python/module.h>
-INIT(PyDoc_STR("tty device controls"))
+INIT(module, PyDoc_STR("tty device controls"))
 {
-	PyObj mod = NULL;
-
-	CREATE_MODULE(&mod);
-	if (mod == NULL)
-		return(NULL);
-
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
 			goto error; \
-		if (PyModule_AddObject(mod, #NAME, (PyObj) &( NAME##Type )) < 0) \
+		if (PyModule_AddObject(module, #NAME, (PyObj) &( NAME##Type )) < 0) \
 			goto error;
 		PYTHON_TYPES()
 	#undef ID
 
-	return(mod);
+	return(0);
 
 	error:
-		DROP_MODULE(mod);
-
-	return(NULL);
+	{
+		return(-1);
+	}
 }
