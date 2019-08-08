@@ -243,7 +243,7 @@ Monotonic_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 #define MODULE_FUNCTIONS()
 #include <fault/python/module.h>
 
-INIT(module, PyDoc_STR("clock types for retrieving system time"))
+INIT(module, 0, PyDoc_STR("clock types for retrieving system time"))
 {
 	if (PyType_Ready(&ClockworkType) != 0)
 		goto error;

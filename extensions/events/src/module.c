@@ -1409,7 +1409,7 @@ InterfaceType = {
 	ID(Interface)
 
 #include <fault/python/module.h>
-INIT(module, PyDoc_STR("Kernel interfaces for supporting nucleus based process management.\n"))
+INIT(module, 0, PyDoc_STR("Kernel interfaces for supporting nucleus based process management.\n"))
 {
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \

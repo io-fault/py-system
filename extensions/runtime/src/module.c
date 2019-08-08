@@ -162,7 +162,7 @@ interrupt(PyObj self, PyObj args)
 			"Normally used by Context injections that take over the process for debugging.")
 
 #include <fault/python/module.h>
-INIT(module, PyDoc_STR("Runtime control interfaces.\n"))
+INIT(module, 0, PyDoc_STR("Runtime control interfaces.\n"))
 {
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \

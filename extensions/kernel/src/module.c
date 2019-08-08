@@ -836,7 +836,7 @@ initialize(PyObj mod, PyObj ctx)
 			"Called once by &.process. Do not use.")
 
 #include <fault/python/module.h>
-INIT(module, PyDoc_STR("Interfaces for the operating system.\n"))
+INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
 {
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \

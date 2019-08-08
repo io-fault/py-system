@@ -425,7 +425,7 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 			"Identify the interfaces to use for the service using (system/manual)`getaddrinfo`.") \
 
 #include <fault/python/module.h>
-INIT(module, PyDoc_STR("System network interfaces.\n"))
+INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
 {
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \

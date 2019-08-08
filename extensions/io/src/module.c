@@ -5208,7 +5208,7 @@ _init_array_rallocation(void)
 
 #include <fault/python/module.h>
 
-INIT(module, PyDoc_STR("Asynchronous System I/O implementation.\n"))
+INIT(module, 0, PyDoc_STR("Asynchronous System I/O implementation.\n"))
 {
 	if (new_array == NULL)
 	{

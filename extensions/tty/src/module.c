@@ -413,7 +413,7 @@ DeviceType = {
 #define MODULE_FUNCTIONS()
 
 #include <fault/python/module.h>
-INIT(module, PyDoc_STR("tty device controls"))
+INIT(module, 0, PyDoc_STR("tty device controls"))
 {
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
