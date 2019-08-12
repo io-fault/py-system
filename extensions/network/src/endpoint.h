@@ -15,7 +15,6 @@ struct Endpoint {
 	PyObject_VAR_HEAD
 	socklen_t len;
 	if_addr_t data[0];
-	/* Use itemsize to allocate an endpoint of an appropriate size */
 };
 
 typedef struct Endpoint *Endpoint;

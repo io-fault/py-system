@@ -7,18 +7,12 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include <unistd.h>
-
-/* file descriptor transfers */
-#include <sys/param.h>
 
 #include <fault/libc.h>
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
 
 #include "endpoint.h"
-
-#define errpf(...) fprintf(stderr, __VA_ARGS__)
 
 #ifndef HAVE_STDINT_H
 	/* relying on Python's checks */
