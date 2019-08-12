@@ -20,6 +20,8 @@
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 
+#include "endpoint.h"
+
 /**
 	// The failure structure prefers to have a name with the code.
 */
@@ -415,7 +417,9 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 	return(nw_getaddrinfo("sockets", NULL, portstr, socktype, AI_CANONNAME|AI_PASSIVE|AI_ADDRCONFIG));
 }
 
-#define PYTHON_TYPES()
+#define PYTHON_TYPES() \
+	ID(Endpoint)
+
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
 		select_transports, nw_select_transports_gai, METH_VARARGS, \
