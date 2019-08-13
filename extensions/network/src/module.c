@@ -21,7 +21,7 @@
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
 
-#include "endpoint.h"
+#include <endpoint.h>
 
 /*
 	// Manage retry state for limiting the number of times we'll accept EINTR.

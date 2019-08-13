@@ -13,7 +13,7 @@
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
 
-#include "endpoint.h"
+#include <endpoint.h>
 
 #ifndef HAVE_STDINT_H
 	/* relying on Python's checks */
