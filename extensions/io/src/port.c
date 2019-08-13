@@ -50,7 +50,7 @@
 #endif
 
 int
-socket_receive_buffer(kpoint_t kp)
+socket_receive_buffer(kport_t kp)
 {
 	int size = -1;
 	socklen_t ssize = sizeof(size);
@@ -59,7 +59,7 @@ socket_receive_buffer(kpoint_t kp)
 }
 
 int
-socket_send_buffer(kpoint_t kp)
+socket_send_buffer(kport_t kp)
 {
 	int size = -1;
 	socklen_t ssize = sizeof(size);
@@ -71,7 +71,7 @@ int
 port_open(Port p, char *path, int oflags)
 {
 	RETRY_STATE_INIT;
-	kpoint_t kp;
+	kport_t kp;
 
 	RETRY_SYSCALL:
 	{
@@ -104,7 +104,7 @@ port_seek(Port p, off_t off, int whence)
 {
 	RETRY_STATE_INIT;
 	int r;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 
 	RETRY_SYSCALL:
 	{
@@ -162,7 +162,7 @@ port_identify_type(Port p)
 {
 	RETRY_STATE_INIT;
 	int r;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 
 	struct stat st;
 
@@ -207,7 +207,7 @@ port_getpeername(Port p, if_addr_ref_t addr, socklen_t *addrlen)
 {
 	RETRY_STATE_INIT;
 	int r;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 
 	RETRY_SYSCALL:
 	ERRNO_RECEPTACLE(-1, &r, getpeername, kp, addr, addrlen);
@@ -240,7 +240,7 @@ port_getsockname(Port p, if_addr_ref_t addr, socklen_t *addrlen)
 {
 	RETRY_STATE_INIT;
 	int r;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 
 	RETRY_SYSCALL:
 	ERRNO_RECEPTACLE(-1, &r, getsockname, kp, addr, addrlen);
@@ -307,7 +307,7 @@ port_socket(Port p, int domain, int socktype, int protocol)
 {
 	RETRY_STATE_INIT;
 	int r;
-	kpoint_t kp;
+	kport_t kp;
 
 	RETRY_SYSCALL:
 	ERRNO_RECEPTACLE(kp_invalid, &kp, socket, domain, socktype, protocol);
@@ -406,7 +406,7 @@ int
 port_dup(Port p, int fd)
 {
 	RETRY_STATE_INIT;
-	kpoint_t kp;
+	kport_t kp;
 
 	RETRY_SYSCALL:
 	ERRNO_RECEPTACLE(kp_invalid, &kp, dup, fd);
@@ -433,7 +433,7 @@ int
 port_bind(Port p, if_addr_ref_t addr, socklen_t addrlen)
 {
 	RETRY_STATE_INIT;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 	int r;
 
 	RETRY_SYSCALL:
@@ -640,7 +640,7 @@ int
 port_connect(Port p, if_addr_ref_t addr, socklen_t addrlen)
 {
 	RETRY_STATE_INIT;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 	int r;
 
 	RETRY_SYSCALL:
@@ -676,7 +676,7 @@ int
 port_listen(Port p, int backlog)
 {
 	RETRY_STATE_INIT;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 	int r = -1;
 
 	RETRY_SYSCALL:
@@ -704,7 +704,7 @@ port_listen(Port p, int backlog)
 	// XXX: socket option warnings may be useful.
 **/
 static void
-init_socket(kpoint_t kp)
+init_socket(kport_t kp)
 {
 	static int true_indicator = 1;
 
@@ -748,7 +748,7 @@ init_socket(kpoint_t kp)
 	// setsockopt's and run init_kpoint
 **/
 static void
-init_listening_socket(kpoint_t kp)
+init_listening_socket(kport_t kp)
 {
 	#ifdef SO_ACCEPTFILTER
 	{
@@ -790,7 +790,7 @@ port_init_listening_socket(Port p)
 	port_nosigpipe(Port p)
 	{
 		RETRY_STATE_INIT;
-		kpoint_t kp = p->point;
+		kport_t kp = p->point;
 		int r;
 
 		RETRY_SYSCALL:
@@ -818,7 +818,7 @@ int
 port_noblocking(Port p)
 {
 	RETRY_STATE_INIT;
-	kpoint_t kp = p->point;
+	kport_t kp = p->point;
 	int r;
 
 	RETRY_SYSCALL:
@@ -1740,7 +1740,7 @@ ports_identify_output(Port p)
 }
 
 int
-ports_clone_input(Port p, kpoint_t reader)
+ports_clone_input(Port p, kport_t reader)
 {
 	if (port_dup(p, reader))
 		goto exit;
@@ -1758,7 +1758,7 @@ ports_clone_input(Port p, kpoint_t reader)
 }
 
 int
-ports_clone_output(Port p, kpoint_t writer)
+ports_clone_output(Port p, kport_t writer)
 {
 	if (port_dup(p, writer))
 		goto exit;
@@ -1783,7 +1783,7 @@ ports_clone_output(Port p, kpoint_t writer)
 }
 
 int
-ports_clone_pair(Port p[], kpoint_t reader, kpoint_t writer)
+ports_clone_pair(Port p[], kport_t reader, kport_t writer)
 {
 	return(ports_clone_input(p[0], reader) << 1 | ports_clone_output(p[1], writer));
 }

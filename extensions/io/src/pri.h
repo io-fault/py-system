@@ -105,8 +105,8 @@ local_port(struct aport_t *port, size_t dstsize, local_addr_t *addr)
 #define spawn_from_object(...) 1
 
 typedef char spawn_addr_t;
-typedef kpoint_t acquire_addr_t;
-typedef kpoint_t clone_addr_t;
+typedef kport_t acquire_addr_t;
+typedef kport_t clone_addr_t;
 
 /**
 	// File addresses are not usually passed around this way, so don't
@@ -130,7 +130,7 @@ typedef struct {
 #define file_casted(NAME, src)        file_addr_t * NAME = (file_addr_t *) src
 
 /**
-	// Macros provided for building out functions for creating kpoint_t's.
+	// Macros provided for building out functions for creating kport_t's.
 */
 #define ADDRESSING() \
 	A(ip4) \

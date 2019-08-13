@@ -249,7 +249,7 @@ int
 acquire_from_object(PyObj args, void *out)
 {
 	long fd;
-	kpoint_t *kp = out;
+	kport_t *kp = out;
 
 	fd = PyLong_AsLong(args);
 	if (PyErr_Occurred())

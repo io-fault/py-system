@@ -138,8 +138,8 @@ typedef struct {
 #define spawn_from_object(...) 1
 
 typedef char spawn_addr_t;
-typedef kpoint_t acquire_addr_t;
-typedef kpoint_t clone_addr_t;
+typedef kport_t acquire_addr_t;
+typedef kport_t clone_addr_t;
 
 int ip4_from_object(PyObj ob, void *out);
 int ip6_from_object(PyObj ob, void *out);

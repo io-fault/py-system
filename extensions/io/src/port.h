@@ -1,64 +1,7 @@
 #ifndef _SYSTEM_IO_PORT_H_included_
 #define _SYSTEM_IO_PORT_H_included_
 
-/**
-	// Type used to represent file descriptors.
-*/
-typedef int kpoint_t;
-
-/**
-	// Type used to represent recoreded errno's.
-*/
-typedef int kerror_t;
-
-/**
-	// Datatype for representing
-*/
-typedef uint8_t kcall_t; /* the contrived kcall type */
-
-/**
-	// Preprocessor macro listing of syscalls used.
-*/
-#define KCALLS() \
-	KC(pyalloc) KC(none) \
-	KC(leak) KC(shatter) KC(eof) KC(void) KC(identify) \
-	KC(kqueue) \
-	KC(kevent) \
-	\
-	KC(read) KC(write) \
-	KC(send) KC(recv) \
-	\
-	KC(recvfrom) KC(sendto) \
-	KC(sendmsg) KC(recvmsg) \
-	\
-	KC(setsockopt) KC(getsockopt) \
-	KC(fcntl) KC(fstat) KC(isatty) \
-	KC(getsockname) KC(getpeername) \
-	\
-	KC(socketpair) KC(pipe) \
-	\
-	KC(open) KC(close) \
-	\
-	KC(lseek) \
-	KC(socket) KC(bind) \
-	KC(connect) KC(shutdown) \
-	KC(listen) KC(accept) \
-	KC(dup) KC(dup2) \
-	/* linux specific */ \
-	KC(epoll_create) \
-	KC(epoll_ctl) \
-	KC(epoll_wait) \
-	KC(eventfd) \
-	KC(INVALID)
-
-/**
-	// Enum for &kcall_t.
-*/
-enum kcall {
-	#define KC(x) kc_##x ,
-		KCALLS()
-	#undef KC
-};
+#include <kcore.h>
 
 /**
 	// Beware. Abstractions for the socket interfaces ahead.
@@ -78,16 +21,7 @@ typedef struct sockaddr * if_addr_ref_t;
 
 #include "datagram.h"
 
-#define kp_invalid (-1)
 #define DEFAULT_BACKLOG 64
-
-#ifndef CONFIG_SYSCALL_RETRY
-	#define CONFIG_SYSCALL_RETRY 64
-#elif CONFIG_SYSCALL_RETRY < 8
-	#undef CONFIG_SYSCALL_RETRY
-	#define CONFIG_SYSCALL_RETRY 16
-	#warning CONFIG_SYSCALL_RETRY set to 16.
-#endif
 
 #ifndef CONFIG_OPEN_FLAGS
 	#define CONFIG_OPEN_FLAGS 0
@@ -107,7 +41,7 @@ typedef struct sockaddr * if_addr_ref_t;
 
 /**
 	// These are the same on OS X and probably other platforms.
-	// Traffic treats them the same, so be sure to handle platforms
+	// io treats them the same, so be sure to handle platforms
 	// that have distinct values for EAGAIN/EWOULDBLOCK.
 */
 #ifdef EWOULDBLOCK
@@ -205,7 +139,7 @@ typedef enum io_status {
 struct Port {
 	OBJSYS_HEAD()
 
-	kpoint_t point;
+	kport_t point;
 	kerror_t error;
 
 	uint8_t cause;   /* kcall_t */
@@ -264,9 +198,9 @@ int port_identify_type(Port p);
 int ports_identify_socket(Port p);
 int ports_identify_input(Port p);
 int ports_identify_output(Port p);
-int ports_clone_input(Port p, kpoint_t reader);
-int ports_clone_output(Port p, kpoint_t writer);
-int ports_clone_pair(Port p[], kpoint_t reader, kpoint_t writer);
+int ports_clone_input(Port p, kport_t reader);
+int ports_clone_output(Port p, kport_t writer);
+int ports_clone_pair(Port p[], kport_t reader, kport_t writer);
 int ports_open(Port p, char *path, int oflags);
 int ports_pipe(Port p[]);
 int ports_socketpair(Port p[]);

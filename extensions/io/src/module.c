@@ -277,7 +277,7 @@ static PyObj polarity_objects[2] = {NULL,NULL};
 	PyErr_SetString(PyExc_TransitionViolation, "resource already present")
 
 static int
-socket_receive_buffer(kpoint_t kp)
+socket_receive_buffer(kport_t kp)
 {
 	int size = -1;
 	socklen_t ssize = sizeof(size);
@@ -286,7 +286,7 @@ socket_receive_buffer(kpoint_t kp)
 }
 
 static int
-socket_send_buffer(kpoint_t kp)
+socket_send_buffer(kport_t kp)
 {
 	int size = -1;
 	socklen_t ssize = sizeof(size);
@@ -295,7 +295,7 @@ socket_send_buffer(kpoint_t kp)
 }
 
 static PyObj
-path(kpoint_t kp)
+path(kport_t kp)
 {
 	#ifdef F_GETPATH
 		char fp[PATH_MAX];
@@ -603,7 +603,7 @@ port_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	PyObj rob;
 	Port p;
 	int err = -1;
-	kpoint_t kid = -1;
+	kport_t kid = -1;
 	char *freight = "unknown";
 	char *kcstr = "none";
 
@@ -1729,7 +1729,7 @@ static PyObj
 channel_endpoint(PyObj self)
 {
 	Channel t = (Channel) self;
-	kpoint_t kp = Channel_GetKPoint(t);
+	kport_t kp = Channel_GetKPoint(t);
 	any_addr_t addr;
 	int r;
 
