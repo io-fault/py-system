@@ -86,33 +86,13 @@ construct_error(int code)
 	char buf[16];
 	PyObj rob = NULL;
 
-	if (code == EAI_SYSTEM)
-	{
-		rob = PyList_New(3);
-		if (rob == NULL)
-			return(NULL);
-
-		snprintf(buf, sizeof(buf), "%d", (int) errno);
-		PyList_SET_ITEM(rob, 2, Py_BuildValue("ssss", "error", "errno", "EUNKNOWN", buf));
-		errno = 0;
-
-		if (PyList_GET_ITEM(rob, 2) == NULL)
-			goto error;
-	}
-	else
-	{
-		rob = PyList_New(2);
-		if (rob == NULL)
-			return(NULL);
-	}
-
-	PyList_SET_ITEM(rob, 0, Py_BuildValue("ssss", "error", "call", "system", "getaddrinfo"));
-	if (PyList_GET_ITEM(rob, 0) == NULL)
-		goto error;
+	rob = PyList_New(1);
+	if (rob == NULL)
+		return(NULL);
 
 	snprintf(buf, sizeof(buf), "%d", code);
-	PyList_SET_ITEM(rob, 1, Py_BuildValue("ssss", "error", "eai", error_name_gai(code), buf));
-	if (PyList_GET_ITEM(rob, 1) == NULL)
+	PyList_SET_ITEM(rob, 0, Py_BuildValue("ssss", "error", error_name_gai(code), buf, gai_strerror(code)));
+	if (PyList_GET_ITEM(rob, 0) == NULL)
 		goto error;
 
 	return(rob);
@@ -163,6 +143,11 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 						case EAGAIN:
 						case EINTR:
 							Py_RETURN_NONE;
+						break;
+
+						default:
+							PyErr_SetFromErrno(PyExc_OSError);
+							return(NULL);
 						break;
 					}
 				}
@@ -270,6 +255,105 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 	return(nw_getaddrinfo("sockets", NULL, portstr, socktype, AI_CANONNAME|AI_PASSIVE|AI_ADDRCONFIG));
 }
 
+static PyObj
+nw_service_endpoint(Endpoint ep, int backlog)
+{
+	PyObj rob;
+	int fd = -1, err = 0;
+
+	Py_BEGIN_ALLOW_THREADS
+	{
+		fd = socket(Endpoint_GetFamily(ep), SOCK_STREAM, ep->transport);
+		if (fd == -1)
+			err = 1;
+		else if (bind(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
+		{
+			close(fd);
+			err = 1;
+		}
+		else if (listen(fd, backlog))
+		{
+			close(fd);
+			err = 1;
+		}
+	}
+	Py_END_ALLOW_THREADS
+
+	if (err)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	rob = PyLong_FromLong(fd);
+	if (rob == NULL)
+		close(fd);
+
+	return(rob);
+}
+
+static PyObj
+nw_connect_endpoint(Endpoint ep)
+{
+	PyObj rob;
+	int fd = -1, err = 0;
+
+	Py_BEGIN_ALLOW_THREADS
+	{
+		fd = socket(Endpoint_GetFamily(ep), ep->type, ep->transport);
+		if (fd == -1)
+			err = 1;
+		else if (connect(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
+		{
+			close(fd);
+			err = 1;
+		}
+	}
+	Py_END_ALLOW_THREADS
+
+	if (err)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	rob = PyLong_FromLong(fd);
+	if (rob == NULL)
+		close(fd);
+
+	return(rob);
+}
+
+static PyObj
+nw_connect(PyObj module, PyObj args)
+{
+	PyObj ob;
+
+	if (!PyArg_ParseTuple(args, "O", &ob))
+		return(NULL);
+
+	if (Endpoint_Check(ob) < 0)
+		return(NULL);
+
+	return(nw_connect_endpoint((Endpoint) ob));
+}
+
+static PyObj
+nw_service(PyObj module, PyObj args, PyObj kw)
+{
+	PyObj ob;
+	static char *kwlist[] = {"endpoint", "backlog", NULL};
+	int backlog = 16;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|i", &kwlist, &ob, &backlog))
+		return(NULL);
+
+	if (Endpoint_Check(ob) < 0)
+		return(NULL);
+
+	return(nw_service_endpoint((Endpoint) ob, backlog));
+}
+
 #define PYTHON_TYPES() \
 	ID(Endpoint)
 
@@ -280,6 +364,12 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 	PYMETHOD( \
 		select_interfaces, nw_select_interfaces_gai, METH_VARARGS, \
 			"Identify the interfaces to use for the service using (system/manual)`getaddrinfo`.") \
+	PYMETHOD( \
+		connect, nw_connect, METH_VARARGS, \
+			"Connect new sockets using the given endpoints.") \
+	PYMETHOD( \
+		service, nw_service, METH_VARARGS|METH_KEYWORDS, \
+			"Create a listening socket using the given endpoint as the interface.") \
 
 #include <fault/python/module.h>
 INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
