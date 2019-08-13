@@ -19,8 +19,27 @@
 #include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
+#include <fault/python/injection.h>
 
 #include "endpoint.h"
+
+/*
+	// Manage retry state for limiting the number of times we'll accept EINTR.
+*/
+#ifndef CONFIG_SYSCALL_RETRY
+	#define CONFIG_SYSCALL_RETRY 16
+#endif
+#define _RETRY_STATE _avail_retries
+#define RETRY_STATE_INIT int _RETRY_STATE = CONFIG_SYSCALL_RETRY
+#define LIMITED_RETRY() \
+	do { \
+		if (_RETRY_STATE > 0) { \
+			errno = 0; \
+			--_RETRY_STATE; \
+			goto RETRY_SYSCALL; \
+		} \
+	} while(0);
+#define UNLIMITED_RETRY() errno = 0; goto RETRY_SYSCALL;
 
 /**
 	// The failure structure prefers to have a name with the code.
@@ -264,8 +283,14 @@ nw_service_endpoint(Endpoint ep, int backlog)
 	Py_BEGIN_ALLOW_THREADS
 	{
 		fd = socket(Endpoint_GetFamily(ep), SOCK_STREAM, ep->transport);
+
 		if (fd == -1)
 			err = 1;
+		else if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+		{
+			close(fd);
+			err = 1;
+		}
 		else if (bind(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
 		{
 			close(fd);
@@ -292,6 +317,36 @@ nw_service_endpoint(Endpoint ep, int backlog)
 	return(rob);
 }
 
+static int
+i_connect(int fd, if_addr_ref_t addr, socklen_t addrlen)
+{
+	RETRY_STATE_INIT;
+	int r;
+
+	RETRY_SYSCALL:
+	ERRNO_RECEPTACLE(-1, &r, connect, fd, addr, addrlen);
+
+	if (r)
+	{
+		switch (errno)
+		{
+			case EWOULDBLOCK:
+			case EINPROGRESS:
+			case EISCONN:
+				errno = 0;
+			break;
+
+			case EINTR:
+				LIMITED_RETRY()
+			default:
+				return(-1);
+			break;
+		}
+	}
+
+	return(0);
+}
+
 static PyObj
 nw_connect_endpoint(Endpoint ep)
 {
@@ -301,9 +356,15 @@ nw_connect_endpoint(Endpoint ep)
 	Py_BEGIN_ALLOW_THREADS
 	{
 		fd = socket(Endpoint_GetFamily(ep), ep->type, ep->transport);
+
 		if (fd == -1)
 			err = 1;
-		else if (connect(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
+		else if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+		{
+			close(fd);
+			err = 1;
+		}
+		else if (i_connect(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
 		{
 			close(fd);
 			err = 1;
