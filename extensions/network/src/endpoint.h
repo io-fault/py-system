@@ -120,4 +120,9 @@ int local_from_object(PyObj ob, void *out);
 extern PyTypeObject EndpointType;
 int nw_socket_type(const char *);
 Endpoint endpoint_create(int, int, if_addr_ref_t, socklen_t);
+
+struct EndpointAPI {
+	PyTypeObject *type;
+	Endpoint (*create)(int, int, if_addr_ref_t, socklen_t);
+};
 #endif

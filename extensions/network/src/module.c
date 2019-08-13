@@ -354,6 +354,11 @@ nw_service(PyObj module, PyObj args, PyObj kw)
 	return(nw_service_endpoint((Endpoint) ob, backlog));
 }
 
+/*
+	// Works with statically defined types.
+*/
+struct EndpointAPI _ep_apis = {&EndpointType, endpoint_create};
+
 #define PYTHON_TYPES() \
 	ID(Endpoint)
 
@@ -374,6 +379,8 @@ nw_service(PyObj module, PyObj args, PyObj kw)
 #include <fault/python/module.h>
 INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
 {
+	PyObj api_ob;
+
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
 			goto error; \
@@ -381,6 +388,16 @@ INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
 			goto error;
 		PYTHON_TYPES()
 	#undef ID
+
+	api_ob = PyCapsule_New(&_ep_apis, PYTHON_MODULE_PATH("_api"), NULL);
+	if (api_ob == NULL)
+		return(-1);
+
+	if (PyModule_AddObject(module, "_api", api_ob))
+	{
+		Py_DECREF(api_ob);
+		return(-1);
+	}
 
 	return(0);
 
