@@ -13,14 +13,18 @@ typedef struct sockaddr * if_addr_ref_t;
 */
 struct Endpoint {
 	PyObject_VAR_HEAD
+	int type;
+	int transport;
 	socklen_t len;
 	if_addr_t data[0];
 };
 
 typedef struct Endpoint *Endpoint;
 
+#define Endpoint_Check(E) (PyObject_IsInstance(E, (PyObj) &EndpointType))
 #define Endpoint_GetAddress(E) ((any_addr_t *) &((*E).data))
 #define Endpoint_GetLength(E) (E->len)
+#define Endpoint_GetFamily(E) (Endpoint_GetAddress(E)->ss_family)
 
 /**
 	// These port structures should only be allocated on the stack.
@@ -114,4 +118,6 @@ int local_from_object(PyObj ob, void *out);
 	A(local)
 
 extern PyTypeObject EndpointType;
+int nw_socket_type(const char *);
+Endpoint endpoint_create(int, int, if_addr_ref_t, socklen_t);
 #endif

@@ -7,6 +7,7 @@
 #include <sys/un.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
+#include <netdb.h>
 
 #include <fault/libc.h>
 #include <fault/python/environ.h>
@@ -18,6 +19,155 @@
 	/* relying on Python's checks */
 	#include <stdint.h>
 #endif
+
+static const char *
+transport_type_string(int socktype)
+{
+	switch (socktype)
+	{
+		case SOCK_STREAM:
+			return("octets");
+		break;
+
+		case SOCK_DGRAM:
+			return("datagrams");
+		break;
+
+		#ifdef SOCK_SEQPACKET
+			case SOCK_SEQPACKET:
+				return("packets");
+			break;
+		#endif
+
+		default:
+			return("unknown");
+		break;
+	}
+
+	return("error");
+}
+
+/**
+	// [ Engineering ]
+	// Use a real hash.
+*/
+int
+nw_socket_type(const char *identifier)
+{
+	int max = 9;
+	char hash = 0, *p;
+
+	for (p=(char *)identifier; *p && max > 0; ++p)
+	{
+		hash ^= *p;
+		--max;
+	}
+
+	switch(hash)
+	{
+		case ('o'^'c'^'t'^'e'^'t'^'s'):
+			if (strcmp("octets", identifier) != 0)
+				return(-1);
+			return(SOCK_STREAM);
+		break;
+
+		case ('d'^'a'^'t'^'a'^'g'^'r'^'a'^'m'^'s'):
+			if (strcmp("datagrams", identifier) != 0)
+				return(-1);
+			return(SOCK_DGRAM);
+		break;
+
+		#ifdef SOCK_RAW
+			case ('r'^'a'^'w'):
+				if (strcmp("raw", identifier) != 0)
+					return(-1);
+				return(SOCK_RAW);
+			break;
+		#endif
+
+		#ifdef SOCK_SEQPACKETS
+			case ('p'^'a'^'c'^'k'^'e'^'t'^'s'):
+				if (strcmp("packets", identifier) != 0)
+					return(-1);
+				return(SOCK_SEQPACKETS);
+			break;
+		#endif
+
+		/* for interface binds */
+		case ('s'^'o'^'c'^'k'^'e'^'t'^'s'):
+			if (strcmp("sockets", identifier) != 0)
+				return(-1);
+			return(SOCK_STREAM);
+		break;
+
+		default:
+			return(-1);
+		break;
+	}
+
+	return(-2);
+}
+
+static int
+interpret_transport(PyObj ob, int *out)
+{
+	if (ob == Py_None)
+	{
+		*out = 0;
+		return(0);
+	}
+	if (PyLong_Check(ob))
+	{
+		*out = PyLong_AsLong(ob);
+		if (PyErr_Occurred())
+			return(-2);
+	}
+	else if (PyUnicode_Check(ob))
+	{
+		PyObj name;
+
+		if (!PyUnicode_FSConverter(ob, &name))
+			return(-2);
+
+		*out = getprotobyname(PyBytes_AS_STRING(name))->p_proto;
+		Py_DECREF(name);
+	}
+	else
+	{
+		PyErr_SetString(PyExc_ValueError, "transport identifier is not recognized");
+		return(-1);
+	}
+
+	return(0);
+}
+
+static int
+interpret_type(PyObj ob, int *out)
+{
+	if (PyLong_Check(ob))
+	{
+		*out = PyLong_AsLong(ob);
+		if (PyErr_Occurred())
+			return(-2);
+	}
+	else if (PyUnicode_Check(ob))
+	{
+		PyObj name;
+
+		if (!PyUnicode_FSConverter(ob, &name))
+			return(-2);
+
+		*out = nw_socket_type(PyBytes_AS_STRING(name));
+		Py_DECREF(name);
+	}
+	else
+	{
+		PyErr_SetString(PyExc_ValueError, "socket type identifier is not recognized");
+		return(-1);
+	}
+
+	return(0);
+}
 
 static int
 inet6_from_pyint(void *out, PyObj ob)
@@ -308,7 +458,7 @@ local_from_object(PyObj ob, void *out)
 	return(1);
 }
 
-#define A(AF) static PyObj endpoint_new_##AF(PyTypeObject *, PyObj);
+#define A(AF) static PyObj endpoint_new_##AF(PyTypeObject *, PyObj, PyObj);
 	ADDRESSING()
 #undef A
 
@@ -316,7 +466,7 @@ static PyMethodDef endpoint_methods[] = {
 	#define A(AF) \
 		{"from_" #AF, \
 			(PyCFunction) endpoint_new_##AF , \
-			METH_O|METH_CLASS, \
+			METH_VARARGS|METH_KEYWORDS|METH_CLASS, \
 			PyDoc_STR("Direct constructor for the address family identified by the method name.") \
 		},
 
@@ -325,6 +475,13 @@ static PyMethodDef endpoint_methods[] = {
 
 	{NULL,}
 };
+
+static PyObj
+endpoint_get_address_family(PyObj self, void *_)
+{
+	Endpoint E = (Endpoint) self;
+	return(PyLong_FromLong(Endpoint_GetAddress(E)->ss_family));
+}
 
 static PyObj
 endpoint_get_address_type(PyObj self, void *_)
@@ -410,6 +567,11 @@ endpoint_get_pair(PyObj self, void *_)
 
 static PyGetSetDef
 endpoint_getset[] = {
+	{"address_family", endpoint_get_address_family, NULL,
+		PyDoc_STR(
+			"The system address family identifier.")
+	},
+
 	{"address_type", endpoint_get_address_type, NULL,
 		PyDoc_STR(
 			"The type of addressing used to reference the endpoint.\n"
@@ -426,6 +588,18 @@ endpoint_getset[] = {
 
 	{"pair", endpoint_get_pair, NULL,
 		PyDoc_STR("A newly constructed tuple consisting of the address and port attributes.")
+	},
+
+	{NULL,},
+};
+
+static PyMemberDef endpoint_members[] = {
+	{"transport", T_INT, offsetof(struct Endpoint, transport), READONLY,
+		PyDoc_STR("The transport protocol that should be used when connecting.")
+	},
+
+	{"type", T_INT, offsetof(struct Endpoint, type), READONLY,
+		PyDoc_STR("The socket type to allocate when connecting.")
 	},
 
 	{NULL,},
@@ -451,8 +625,8 @@ endpoint_richcompare(PyObj self, PyObj x, int op)
 
 			if (Endpoint_GetLength(a) == Endpoint_GetLength(b))
 			{
-				char *amb = Endpoint_GetAddress(a);
-				char *bmb = Endpoint_GetAddress(b);
+				char *amb = (char *) Endpoint_GetAddress(a);
+				char *bmb = (char *) Endpoint_GetAddress(b);
 				if (memcmp(amb, bmb, Endpoint_GetLength(a)) == 0)
 				{
 					rob = Py_True;
@@ -514,11 +688,8 @@ endpoint_str(PyObj self)
 }
 
 #define A(DOMAIN) \
-/**\
-	// Constructor.\
-*/\
 static PyObj \
-endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
+endpoint_new_internal_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
 { \
 	const int addrlen = sizeof(DOMAIN##_addr_t); \
 	int r; \
@@ -534,6 +705,8 @@ endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
 	if (rob == NULL) \
 		return(NULL); \
 	E = (Endpoint) rob; \
+	E->type = -1; \
+	E->transport = -1; \
 	\
 	if (! (DOMAIN##_from_object(rep, (DOMAIN##_addr_t *) Endpoint_GetAddress(E)))) \
 	{ \
@@ -543,13 +716,39 @@ endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
 	E->len = addrlen; \
 	\
 	return(rob); \
+} \
+\
+static PyObj \
+endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj args, PyObj kw) \
+{ \
+	PyObj address, transport, type; \
+	static char *kwlist[] = {"address", "transport", "type", NULL}; \
+	Endpoint E; \
+	\
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|OO", kwlist, &address, &transport, &type)) \
+		return(NULL); \
+	\
+	E = (Endpoint) endpoint_new_internal_##DOMAIN(subtype, address); \
+	if (E == NULL) \
+		return(NULL); \
+	if (interpret_transport(transport, &(E->transport))) \
+		goto error; \
+	if (interpret_type(type, &(E->type))) \
+		goto error; \
+	\
+	return((PyObj) E); \
+	error: \
+	{ \
+		Py_DECREF(E); \
+		return(NULL); \
+	} \
 }
 
 ADDRESSING()
 #undef A
 
-static Endpoint
-endpoint_create(if_addr_ref_t addr, socklen_t addrlen)
+Endpoint
+endpoint_create(int type, int transport, if_addr_ref_t addr, socklen_t addrlen)
 {
 	#define endpoint_alloc(x) EndpointType.tp_alloc(&EndpointType, x)
 
@@ -567,6 +766,8 @@ endpoint_create(if_addr_ref_t addr, socklen_t addrlen)
 
 	E->len = addrlen;
 	memcpy(Endpoint_GetAddress(E), addr, addrlen);
+	E->type = type;
+	E->transport = transport;
 
 	return(E);
 
@@ -589,7 +790,7 @@ endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	if (0) ;
 	#define A(DOMAIN) \
 		else if (strcmp(domain, #DOMAIN) == 0) \
-			rob = endpoint_new_##DOMAIN(subtype, address);
+			rob = endpoint_new_internal_##DOMAIN(subtype, address);
 		ADDRESSING()
 	#undef A
 	else
@@ -632,7 +833,7 @@ EndpointType = {
 	NULL,                           /* tp_iter */
 	NULL,                           /* tp_iternext */
 	endpoint_methods,               /* tp_methods */
-	NULL,                           /* tp_members */
+	endpoint_members,               /* tp_members */
 	endpoint_getset,                /* tp_getset */
 	NULL,                           /* tp_base */
 	NULL,                           /* tp_dict */
