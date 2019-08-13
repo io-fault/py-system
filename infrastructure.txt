@@ -6,6 +6,9 @@
 	- &<http://fault.io/proxy/python#extension>
 	- &<http://fault.io/proxy/python#c-interfaces>
 
+/project-c-interfaces/
+	- &.include
+
 /bsd/
 	Abstract symbol used to refer to BSD conventions and interfaces.
 	This is intended to be the override point used to compensate
