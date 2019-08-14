@@ -6,7 +6,6 @@ def test_module_protocol(test):
 	from ... import io
 
 	"Port" in test/dir(io)
-	"Endpoint" in test/dir(io)
 
 	"Channel" in test/dir(io)
 	"Octets" in test/dir(io)
