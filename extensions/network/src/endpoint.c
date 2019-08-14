@@ -116,7 +116,7 @@ interpret_transport(PyObj ob, int *out)
 		*out = 0;
 		return(0);
 	}
-	if (PyLong_Check(ob))
+	else if (PyLong_Check(ob))
 	{
 		*out = PyLong_AsLong(ob);
 		if (PyErr_Occurred())
@@ -144,7 +144,7 @@ interpret_transport(PyObj ob, int *out)
 static int
 interpret_type(PyObj ob, int *out)
 {
-	if (ob == NULL)
+	if (ob == Py_None || ob == NULL)
 	{
 		*out = SOCK_STREAM;
 	}
@@ -725,7 +725,7 @@ endpoint_new_internal_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
 static PyObj \
 endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj args, PyObj kw) \
 { \
-	PyObj address, transport, type; \
+	PyObj address, transport = NULL, type = NULL; \
 	static char *kwlist[] = {"address", "transport", "type", NULL}; \
 	Endpoint E; \
 	\
