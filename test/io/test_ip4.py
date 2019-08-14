@@ -1,6 +1,7 @@
 import os
 import errno
 from ... import io
+from ... import network
 from . import common
 
 localhost = ('127.0.0.1', 0)
@@ -137,10 +138,6 @@ def test_number_based_ip(test):
 	# validate overflow occurs
 	with test/OverflowError as exc:
 		accept_stream_ip4((2**33, 0))
-
-def test_ipaddress_objects(test):
-	import ipaddress
-	addr = (ipaddress.ip_address("127.0.0.1"), 0)
 
 if __name__ == '__main__':
 	import sys; from ....test import library as libtest

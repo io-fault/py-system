@@ -71,6 +71,12 @@ def test_endpoint_only_equals(test):
 	with test/TypeError:
 		e >= e
 
+def test_endpoint_number_based_ip(test):
+	return
+	# validate overflow occurs
+	with test/OverflowError as exc:
+		module.Endpoint.from_ip4((2**33, 0))
+
 if __name__ == '__main__':
 	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

@@ -111,7 +111,7 @@ nw_socket_type(const char *identifier)
 static int
 interpret_transport(PyObj ob, int *out)
 {
-	if (ob == Py_None)
+	if (ob == Py_None || ob == NULL)
 	{
 		*out = 0;
 		return(0);
@@ -144,7 +144,11 @@ interpret_transport(PyObj ob, int *out)
 static int
 interpret_type(PyObj ob, int *out)
 {
-	if (PyLong_Check(ob))
+	if (ob == NULL)
+	{
+		*out = SOCK_STREAM;
+	}
+	else if (PyLong_Check(ob))
 	{
 		*out = PyLong_AsLong(ob);
 		if (PyErr_Occurred())
@@ -286,7 +290,7 @@ ip4_from_object(PyObj ob, void *out)
 
 		if (Endpoint_GetAddress(E)->ss_family != ip4_pf)
 		{
-			PyErr_SetString(PyExc_TypeError, "given endpoint is not an IPv4 endpoint");
+			PyErr_SetString(PyExc_TypeError, "address is not an IPv4 endpoint");
 			return(0);
 		}
 
@@ -777,16 +781,14 @@ endpoint_create(int type, int transport, if_addr_ref_t addr, socklen_t addrlen)
 static PyObj
 endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
-	static char *kwlist[] = {"domain", "address", NULL};
+	static char *kwlist[] = {"domain", "address", "transport", "type", NULL};
 	char *domain;
-	PyObj rob = NULL, address;
+	PyObj rob = NULL, address, transport = NULL, type = NULL;
+	Endpoint E;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "sO", kwlist, &domain, &address))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "sO|OO", kwlist, &domain, &address, &transport, &type))
 		return(NULL);
 
-	/*
-		// XXX: While it's not expected for endpoint_new to occur often, this should be a hash.
-	*/
 	if (0) ;
 	#define A(DOMAIN) \
 		else if (strcmp(domain, #DOMAIN) == 0) \
@@ -796,9 +798,25 @@ endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	else
 	{
 		PyErr_Format(PyExc_ValueError, "unknown address domain: %s", domain);
+		return(NULL);
 	}
 
+	if (rob == NULL)
+		return(NULL);
+
+	E = (Endpoint) rob;
+	if (interpret_transport(transport, &(E->transport)))
+		goto error;
+	if (interpret_type(type, &(E->type)))
+		goto error;
+
 	return(rob);
+
+	error:
+	{
+		Py_DECREF(rob);
+		return(NULL);
+	}
 }
 
 PyDoc_STRVAR(endpoint_doc, "Endpoint(domain, address)\n\n""\n");
