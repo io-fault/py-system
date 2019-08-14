@@ -7,6 +7,7 @@ import pickle
 import threading
 import contextlib
 from ... import io
+from ... import network
 
 class Terminated(Exception):
 	pass
@@ -564,7 +565,10 @@ object_transfer_cases = [
 
 def stream_listening_connection(test, version, address, port = None):
 	am = ArrayActionManager()
-	s = am.array.rallocate(('sockets', version), address)
+	if_p = network.Endpoint(version, address, None, 'octets')
+	fd = network.service(if_p)
+	s = am.array.rallocate(('sockets', 'acquire'), fd)
+
 	# check for initial failures
 	s.port.raised()
 	with test/TypeError:
@@ -593,7 +597,10 @@ def stream_listening_connection(test, version, address, port = None):
 	with am.thread(), am.manage(listen):
 
 		for exchange in transfer_cases:
-			client_channels = am.array.rallocate(('octets', version), full_address)
+			peer_ep = network.Endpoint(version, full_address, None, 'octets')
+			pfd = network.connect(peer_ep)
+			client_channels = am.array.rallocate(('octets', 'acquire', 'socket'), pfd)
+
 			client_channels[0].port.raised()
 			client_channels[0].resize_exoresource(1024 * 32)
 			client_channels[1].resize_exoresource(1024 * 32)
