@@ -276,6 +276,63 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 }
 
 static kport_t
+bind_sequence(Endpoint ep)
+{
+	kcall_t kc;
+	kport_t kp;
+	kp = socket(Endpoint_GetFamily(ep), ep->type, ep->transport);
+
+	if (kp == -1)
+		return(-kc_socket);
+
+	if (fcntl(kp, F_SETFL, O_NONBLOCK) == -1)
+	{
+		kc = kc_fcntl;
+		goto error;
+	}
+
+	if (bind(kp, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
+	{
+		kc = kc_bind;
+		goto error;
+	}
+
+	return(kp);
+
+	error:
+	{
+		close(kp);
+	}
+
+	return(-kc);
+}
+
+static PyObj
+nw_bind_endpoint(Endpoint ep)
+{
+	PyObj rob;
+	kport_t kp = -1;
+
+	Py_BEGIN_ALLOW_THREADS
+	{
+		kp = bind_sequence(ep);
+	}
+	Py_END_ALLOW_THREADS
+
+	if (kp < 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	rob = PyLong_FromLong(kp);
+	if (rob == NULL)
+		close(kp);
+
+	return(rob);
+}
+
+static kport_t
 service_sequence(Endpoint ep, int backlog)
 {
 	kcall_t kc;
@@ -318,7 +375,6 @@ nw_service_endpoint(Endpoint ep, int backlog)
 {
 	PyObj rob;
 	kport_t kp = -1;
-	kerror_t err = 0;
 
 	Py_BEGIN_ALLOW_THREADS
 	{
@@ -328,7 +384,6 @@ nw_service_endpoint(Endpoint ep, int backlog)
 
 	if (kp < 0)
 	{
-		errno = err;
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
 	}
@@ -407,7 +462,6 @@ static PyObj
 nw_connect_endpoint(Endpoint ep)
 {
 	PyObj rob;
-	kerror_t err = 0;
 	kport_t kp = -1;
 
 	Py_BEGIN_ALLOW_THREADS
@@ -430,11 +484,12 @@ nw_connect_endpoint(Endpoint ep)
 }
 
 static PyObj
-nw_connect(PyObj module, PyObj args)
+nw_connect(PyObj module, PyObj args, PyObj kw)
 {
 	PyObj ob;
+	static char *kwlist[] = {"address", "interface", NULL};
 
-	if (!PyArg_ParseTuple(args, "O", &ob))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O", kwlist, &ob))
 		return(NULL);
 
 	if (Endpoint_Check(ob) < 0)
@@ -447,16 +502,31 @@ static PyObj
 nw_service(PyObj module, PyObj args, PyObj kw)
 {
 	PyObj ob;
-	static char *kwlist[] = {"endpoint", "backlog", NULL};
+	static char *kwlist[] = {"interface", "backlog", NULL};
 	int backlog = 16;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|i", &kwlist, &ob, &backlog))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|i", kwlist, &ob, &backlog))
 		return(NULL);
 
 	if (Endpoint_Check(ob) < 0)
 		return(NULL);
 
 	return(nw_service_endpoint((Endpoint) ob, backlog));
+}
+
+static PyObj
+nw_bind(PyObj module, PyObj args, PyObj kw)
+{
+	PyObj ob;
+	static char *kwlist[] = {"interface", NULL};
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O", kwlist, &ob))
+		return(NULL);
+
+	if (Endpoint_Check(ob) < 0)
+		return(NULL);
+
+	return(nw_bind_endpoint((Endpoint) ob));
 }
 
 /*
@@ -475,11 +545,14 @@ struct EndpointAPI _ep_apis = {&EndpointType, endpoint_create};
 		select_interfaces, nw_select_interfaces_gai, METH_VARARGS, \
 			"Identify the interfaces to use for the service using (system/manual)`getaddrinfo`.") \
 	PYMETHOD( \
-		connect, nw_connect, METH_VARARGS, \
+		connect, nw_connect, METH_VARARGS|METH_KEYWORDS, \
 			"Connect new sockets using the given endpoints.") \
 	PYMETHOD( \
 		service, nw_service, METH_VARARGS|METH_KEYWORDS, \
 			"Create a listening socket using the given endpoint as the interface.") \
+	PYMETHOD( \
+		bind, nw_bind, METH_VARARGS|METH_KEYWORDS, \
+			"Create and bind a socket to an interface; usually for connection-less communication.") \
 
 #include <fault/python/module.h>
 INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
