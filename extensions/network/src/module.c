@@ -22,6 +22,7 @@
 #include <fault/python/injection.h>
 
 #include <endpoint.h>
+#include <kcore.h>
 
 /*
 	// Manage retry state for limiting the number of times we'll accept EINTR.
@@ -274,45 +275,67 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 	return(nw_getaddrinfo("sockets", NULL, portstr, socktype, AI_CANONNAME|AI_PASSIVE|AI_ADDRCONFIG));
 }
 
+static kport_t
+service_sequence(Endpoint ep, int backlog)
+{
+	kcall_t kc;
+	kport_t kp;
+	kp = socket(Endpoint_GetFamily(ep), SOCK_STREAM, ep->transport);
+
+	if (kp == -1)
+		return(-kc_socket);
+
+	if (fcntl(kp, F_SETFL, O_NONBLOCK) == -1)
+	{
+		kc = kc_fcntl;
+		goto error;
+	}
+
+	if (bind(kp, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
+	{
+		kc = kc_bind;
+		goto error;
+	}
+
+	if (listen(kp, backlog))
+	{
+		kc = kc_listen;
+		goto error;
+	}
+
+	return(kp);
+
+	error:
+	{
+		close(kp);
+	}
+
+	return(-kc);
+}
+
 static PyObj
 nw_service_endpoint(Endpoint ep, int backlog)
 {
 	PyObj rob;
-	int fd = -1, err = 0;
+	kport_t kp = -1;
+	kerror_t err = 0;
 
 	Py_BEGIN_ALLOW_THREADS
 	{
-		fd = socket(Endpoint_GetFamily(ep), SOCK_STREAM, ep->transport);
-
-		if (fd == -1)
-			err = 1;
-		else if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
-		{
-			close(fd);
-			err = 1;
-		}
-		else if (bind(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
-		{
-			close(fd);
-			err = 1;
-		}
-		else if (listen(fd, backlog))
-		{
-			close(fd);
-			err = 1;
-		}
+		kp = service_sequence(ep, backlog);
 	}
 	Py_END_ALLOW_THREADS
 
-	if (err)
+	if (kp < 0)
 	{
+		errno = err;
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
 	}
 
-	rob = PyLong_FromLong(fd);
+	rob = PyLong_FromLong(kp);
 	if (rob == NULL)
-		close(fd);
+		close(kp);
 
 	return(rob);
 }
@@ -347,40 +370,61 @@ i_connect(int fd, if_addr_ref_t addr, socklen_t addrlen)
 	return(0);
 }
 
+static kport_t
+connect_sequence(Endpoint ep)
+{
+	kcall_t kc = 0;
+	kport_t kp;
+
+	kp = socket(Endpoint_GetFamily(ep), ep->type, ep->transport);
+
+	if (kp == -1)
+		return(-kc_socket);
+
+	if (fcntl(kp, F_SETFL, O_NONBLOCK) == -1)
+	{
+		kc = kc_fcntl;
+		goto error;
+	}
+
+	if (i_connect(kp, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
+	{
+		kc = kc_connect;
+		goto error;
+	}
+
+	return(kp);
+
+	error:
+	{
+		close(kp);
+	}
+
+	return(-kc);
+}
+
 static PyObj
 nw_connect_endpoint(Endpoint ep)
 {
 	PyObj rob;
-	int fd = -1, err = 0;
+	kerror_t err = 0;
+	kport_t kp = -1;
 
 	Py_BEGIN_ALLOW_THREADS
 	{
-		fd = socket(Endpoint_GetFamily(ep), ep->type, ep->transport);
-
-		if (fd == -1)
-			err = 1;
-		else if (fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
-		{
-			close(fd);
-			err = 1;
-		}
-		else if (i_connect(fd, Endpoint_GetAddress(ep), Endpoint_GetLength(ep)))
-		{
-			close(fd);
-			err = 1;
-		}
+		kp = connect_sequence(ep);
 	}
 	Py_END_ALLOW_THREADS
 
-	if (err)
+	if (kp < 0)
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
 	}
 
-	rob = PyLong_FromLong(fd);
+	rob = PyLong_FromLong(kp);
 	if (rob == NULL)
-		close(fd);
+		close(kp);
 
 	return(rob);
 }
