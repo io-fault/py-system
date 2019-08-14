@@ -567,7 +567,7 @@ INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
 		PYTHON_TYPES()
 	#undef ID
 
-	api_ob = PyCapsule_New(&_ep_apis, PYTHON_MODULE_PATH("_api"), NULL);
+	api_ob = PyCapsule_New(&_ep_apis, PYTHON_MODULE_PATH("_endpoint_api"), NULL);
 	if (api_ob == NULL)
 		return(-1);
 
