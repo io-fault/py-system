@@ -17,7 +17,6 @@
 #include <fault/python/injection.h>
 
 #include "module.h"
-#include "python.h"
 #include "port.h"
 #include "endpoint.h"
 

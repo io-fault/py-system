@@ -137,7 +137,7 @@ typedef enum io_status {
 	// but this easier and provides utility beyond that necessity. (port specific introspection)
 */
 struct Port {
-	OBJSYS_HEAD()
+	PyObject_HEAD
 
 	kport_t point;
 	kerror_t error;
@@ -146,8 +146,6 @@ struct Port {
 	uint8_t type;    /* ktype_t */
 	uint8_t freight; /* freight_t */
 	uint8_t latches; /* latches */
-
-	OBJSYS_TAIL()
 };
 
 typedef struct Port * Port;
