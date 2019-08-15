@@ -487,7 +487,7 @@ static PyObj
 nw_connect(PyObj module, PyObj args, PyObj kw)
 {
 	PyObj ob;
-	static char *kwlist[] = {"address", "interface", NULL};
+	static char *kwlist[] = {"address", NULL};
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "O", kwlist, &ob))
 		return(NULL);

@@ -1259,6 +1259,8 @@ ki_dealloc(PyObj self)
 	}
 
 	kif->kif_executing = kif->kif_loading = kif->kif_tail = NULL;
+
+	Py_TYPE(self)->tp_free(self);
 }
 
 static int

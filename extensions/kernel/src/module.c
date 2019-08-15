@@ -419,6 +419,8 @@ invocation_dealloc(PyObj self)
 			 */
 		}
 	}
+
+	Py_TYPE(self)->tp_free(self);
 }
 
 static PyMethodDef

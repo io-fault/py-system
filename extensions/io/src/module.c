@@ -645,6 +645,8 @@ port_dealloc(PyObj self)
 		PyErr_WarnFormat(PyExc_ResourceWarning, 0, "port was latched at deallocation");
 		#endif
 	}
+
+	Py_TYPE(self)->tp_free(self);
 }
 
 PyTypeObject
@@ -1456,6 +1458,7 @@ jxi_dealloc(PyObj self)
 	Py_XDECREF(i->t);
 	i->J = NULL;
 	i->t = NULL;
+	Py_TYPE(self)->tp_free(self);
 }
 
 static PyObj
@@ -1984,6 +1987,8 @@ channel_dealloc(PyObj self)
 
 	Py_XDECREF(Channel_GetLink(t)); /* Alloc and init ports *before* using Channels. */
 	Channel_SetLink(t, NULL);
+
+	Py_TYPE(self)->tp_free(self);
 }
 
 static PyObj
@@ -3310,6 +3315,8 @@ datagramarray_dealloc(PyObj self)
 	DatagramArray dga = (DatagramArray) self;
 	if (dga->data.obj != NULL)
 		PyBuffer_Release(&(dga->data));
+
+	Py_TYPE(self)->tp_free(self);
 }
 
 PyDoc_STRVAR(datagramarray_doc, "A mutable buffer object for sending and receiving Datagrams; octets coupled with an IP address.");
@@ -5208,7 +5215,7 @@ _init_array_rallocation(void)
 
 #include <fault/python/module.h>
 
-INIT(module, 0, PyDoc_STR("Asynchronous System I/O implementation.\n"))
+INIT(module, 0, PyDoc_STR("Asynchronous System I/O\n"))
 {
 	if (new_array == NULL)
 	{
