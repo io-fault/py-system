@@ -425,7 +425,7 @@ static PyMethodDef port_methods[] = {
 };
 
 static PyMemberDef port_members[] = {
-	{"id", T_KPOINT, offsetof(struct Port, point), READONLY,
+	{"id", T_KPORT, offsetof(struct Port, point), READONLY,
 		PyDoc_STR(
 			"The identifier of the port used to communicate with the kernel."
 	)},
@@ -438,7 +438,7 @@ static PyMemberDef port_members[] = {
 		// Some aliases to lend toward convention.
 	*/
 
-	{"fileno", T_KPOINT, offsetof(struct Port, point), READONLY,
+	{"fileno", T_KPORT, offsetof(struct Port, point), READONLY,
 		PyDoc_STR("Alias to &id. Included for convention.")},
 	{"errno", T_KERROR, offsetof(struct Port, error), READONLY,
 		PyDoc_STR("Alias to &error_code. Included for convention.")},

@@ -1,9 +1,6 @@
 #ifndef _SYSTEM_KCORE_H_included_
 #define _SYSTEM_KCORE_H_included_
 
-#define T_KPORT T_INT
-#define T_KERROR T_INT
-
 /**
 	// Type used to represent file descriptors.
 */
