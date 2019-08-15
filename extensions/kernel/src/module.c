@@ -9,6 +9,9 @@
 #include <fault/python/environ.h>
 #include <frameobject.h>
 
+#include <kcore.h>
+#include <kports.h>
+
 extern char **environ;
 
 /*
@@ -814,7 +817,8 @@ initialize(PyObj mod, PyObj ctx)
 }
 
 #define PYTHON_TYPES() \
-	ID(Invocation)
+	ID(Invocation) \
+	ID(KPorts)
 
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
@@ -835,9 +839,20 @@ initialize(PyObj mod, PyObj ctx)
 			"Initialize the after fork callbacks. " \
 			"Called once by &.process. Do not use.")
 
+extern PyTypeObject KPortsType;
+KPorts kports_alloc(kport_t, ssize_t);
+KPorts kports_create(kport_t[], ssize_t);
+static struct KPortsAPI _kp_apis = {
+	&KPortsType,
+	kports_alloc,
+	kports_create,
+};
+
 #include <fault/python/module.h>
 INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
 {
+	PyObj kp_api_ob;
+
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
 			goto error; \
@@ -850,6 +865,16 @@ INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
 		goto error;
 	if (PyModule_AddStringConstant(module, "fci_system", F_SYSTEM_STR))
 		goto error;
+
+	kp_api_ob = PyCapsule_New(&_kp_apis, PYTHON_MODULE_PATH("_kport_api"), NULL);
+	if (kp_api_ob == NULL)
+		goto error;
+
+	if (PyModule_AddObject(module, "_kports_api", kp_api_ob))
+	{
+		Py_DECREF(kp_api_ob);
+		goto error;
+	}
 
 	return(0);
 
