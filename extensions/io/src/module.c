@@ -20,10 +20,15 @@
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
 
+#include <kcore.h>
+#include <kports.h>
+
 #include "module.h"
 #include "python.h"
 #include "port.h"
 #include "endpoint.h"
+
+struct KPortsAPI *KP = NULL;
 
 /* Number of kevent structs to allocate when working with kevent(). */
 #ifndef CONFIG_DEFAULT_ARRAY_SIZE
@@ -268,7 +273,6 @@ kcall_identifier(kcall_t kc)
 	return("INVALID");
 }
 
-static PyObj new_array = NULL; /* array.array("i", [-1]).__mul__ */
 static PyObj polarity_objects[2] = {NULL,NULL};
 
 #define PyErr_SetChannelTerminatedError(t) \
@@ -2621,9 +2625,15 @@ sockets_set_accept_filter(PyObj self, PyObj args)
 }
 
 static PyObj
-allocate_array(PyObj subtype, PyObj args)
+allocate_array(PyTypeObject *subtype, PyObj ob)
 {
-	return(PyObject_Call(new_array, args, NULL));
+	Py_ssize_t size = 0;
+
+	size = PyLong_AsSsize_t(ob);
+	if (size == -1 && PyErr_Occurred())
+		return(NULL);
+
+	return((PyObj) KP->alloc(-1, size));
 }
 
 static PyObj
@@ -2652,7 +2662,7 @@ sockets_resize_exoresource(PyObj self, PyObj args)
 static PyMethodDef sockets_methods[] = {
 	{"rallocate",
 		(PyCFunction) allocate_array,
-		METH_VARARGS|METH_CLASS,
+		METH_O|METH_CLASS,
 		PyDoc_STR(
 			"Create a mutable resource capable of being written into by a Sockets instance.\n"
 			"\n"
@@ -2761,7 +2771,7 @@ static PyMethodDef
 ports_methods[] = {
 	{"rallocate",
 		(PyCFunction) allocate_array,
-		METH_VARARGS|METH_CLASS,
+		METH_O|METH_CLASS,
 		PyDoc_STR(
 			"Create a mutable resource capable of being written into by a Ports instance.\n"
 			"\n[Parameters]\n"
@@ -4819,59 +4829,6 @@ ArrayType = {{
 };
 
 /**
-	// Build out the array.array("i", (-1,)).__mul__ object
-	// for use in Sockets.rallocate(n)
-*/
-static PyObj
-_init_intarray(void)
-{
-	PyObj rob = NULL; /* array.array("i", (-1,)).__mul__ */
-	PyObj args, typ, vals; /* args to array.array() */
-	PyObj mod, at, ai; /* array mod, array type, array instance */
-
-	args = alloc_pair();
-	if (args == NULL)
-		return(NULL);
-
-	typ = PyUnicode_FromString("i");
-	if (typ == NULL)
-		goto d_args;
-	PyTuple_SET_ITEM(args, 0, typ);
-
-	vals = PyTuple_New(1);
-	if (vals == NULL)
-		goto d_args;
-	PyTuple_SET_ITEM(args, 1, vals);
-
-	PyTuple_SET_ITEM(vals, 0, PyLong_FromLong(-1));
-	if (PyTuple_GET_ITEM(vals, 0) == NULL)
-		goto d_args;
-
-	mod = PyImport_ImportModule("array");
-	if (mod == NULL)
-		goto d_args;
-
-	at = PyObject_GetAttrString(mod, "array");
-	if (at == NULL)
-		goto d_mod;
-
-	ai = PyObject_CallObject(at, args);
-	if (ai == NULL)
-		goto d_at;
-
-	rob = PyObject_GetAttrString(ai, "__mul__");
-
-	Py_DECREF(ai);
-	d_at:
-		Py_DECREF(at);
-	d_mod:
-		Py_DECREF(mod);
-	d_args:
-		Py_DECREF(args);
-	return(rob);
-}
-
-/**
 	// The initial parameter designates the allocation type to support the new channels.
 	// The second parameter defines the freight type and the Python type used.
 	// The third parameter is the domain/address family.
@@ -5217,14 +5174,20 @@ _init_array_rallocation(void)
 
 INIT(module, 0, PyDoc_STR("Asynchronous System I/O\n"))
 {
-	if (new_array == NULL)
+	/*
+		// Safely shared by subinterpreters.
+	*/
+	if (KP == NULL)
 	{
-		/*
-			// For Sockets rallocate.
-		*/
-		new_array = _init_intarray();
-		if (new_array == NULL)
-			return(-1);
+		PyObj cap;
+		cap = PyImport_ImportAdjacentEx(module, "kernel", "_kports_api");
+		if (cap == NULL)
+			goto error;
+
+		KP = PyCapsule_GetPointer(cap, "_kports_api");
+		Py_DECREF(cap);
+		if (KP == NULL)
+			goto error;
 	}
 
 	polarity_objects[0] = PyLong_FromLong(1);

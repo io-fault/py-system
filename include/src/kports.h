@@ -20,7 +20,7 @@ extern PyTypeObject KPortsType;
 
 struct KPortsAPI {
 	PyTypeObject *type;
-	KPorts (*create)(kport_t[], Py_ssize_t);
 	KPorts (*alloc)(kport_t, Py_ssize_t);
+	KPorts (*create)(kport_t[], Py_ssize_t);
 };
 #endif
