@@ -266,6 +266,19 @@ kports_as_sequence = {
 	kports_setitem,
 };
 
+static int
+kports_getbuffer(PyObj self, Py_buffer *view, int flags)
+{
+	KPorts kp = (KPorts) self;
+	return(PyBuffer_FillInfo(view, self, KPorts_GetArray(kp), Py_SIZE(self) * sizeof(kport_t), 0, flags));
+}
+
+static PyBufferProcs
+kports_buffer = {
+	kports_getbuffer,
+	NULL,
+};
+
 static PyObj
 kports_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
@@ -359,7 +372,7 @@ KPortsType = {
 	NULL,                           /* tp_str */
 	NULL,                           /* tp_getattro */
 	NULL,                           /* tp_setattro */
-	NULL,                           /* tp_as_buffer */
+	&kports_buffer,                 /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT,             /* tp_flags */
 	kports_doc,                     /* tp_doc */
 	NULL,                           /* tp_traverse */
