@@ -273,8 +273,6 @@ kcall_identifier(kcall_t kc)
 	return("INVALID");
 }
 
-static PyObj polarity_objects[2] = {NULL,NULL};
-
 #define PyErr_SetChannelTerminatedError(t) \
 	PyErr_SetString(PyExc_TransitionViolation, "already terminated")
 #define PyErr_SetChannelResourceError(t) \
@@ -1999,16 +1997,13 @@ static PyObj
 channel_get_polarity(PyObj self, void *_)
 {
 	Channel t = (Channel) self;
-	PyObj rob;
 
-	/*
-		// The polarity of a Channel may be often accessed, so
-		// avoid creating new objects.
-	*/
-	rob = polarity_objects[!Channel_GetControl(t, ctl_polarity)];
-	Py_INCREF(rob);
+	if (!Channel_GetControl(t, ctl_polarity))
+		return(PyLong_FromLong(-1));
+	else
+		return(PyLong_FromLong(1));
 
-	return(rob);
+	Py_RETURN_NONE;
 }
 
 static PyObj
@@ -5172,7 +5167,7 @@ _init_array_rallocation(void)
 
 #include <fault/python/module.h>
 
-INIT(module, 0, PyDoc_STR("Asynchronous System I/O\n"))
+INIT(module, 0, PyDoc_STR("Asynchronous System I/O"))
 {
 	/*
 		// Safely shared by subinterpreters.
@@ -5188,18 +5183,6 @@ INIT(module, 0, PyDoc_STR("Asynchronous System I/O\n"))
 		Py_DECREF(cap);
 		if (KP == NULL)
 			goto error;
-	}
-
-	polarity_objects[0] = PyLong_FromLong(1);
-	polarity_objects[1] = PyLong_FromLong(-1);
-
-	if (polarity_objects[0] == NULL || polarity_objects[1] == NULL)
-	{
-		Py_XDECREF(polarity_objects[0]);
-		Py_XDECREF(polarity_objects[1]);
-		polarity_objects[0] = NULL;
-		polarity_objects[1] = NULL;
-		goto error;
 	}
 
 	#if FV_INJECTIONS()
