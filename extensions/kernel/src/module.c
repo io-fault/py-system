@@ -842,8 +842,8 @@ initialize(PyObj mod, PyObj ctx)
 			"Called once by &.process. Do not use.")
 
 extern PyTypeObject KPortsType;
-KPorts kports_alloc(kport_t, ssize_t);
-KPorts kports_create(kport_t[], ssize_t);
+KPorts kports_alloc(kport_t, Py_ssize_t);
+KPorts kports_create(kport_t[], Py_ssize_t);
 static struct KPortsAPI _kp_apis = {
 	&KPortsType,
 	kports_alloc,
@@ -868,7 +868,7 @@ INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
 	if (PyModule_AddStringConstant(module, "fci_system", F_SYSTEM_STR))
 		goto error;
 
-	kp_api_ob = PyCapsule_New(&_kp_apis, PYTHON_MODULE_PATH("_kport_api"), NULL);
+	kp_api_ob = PyCapsule_New(&_kp_apis, "_kports_api", NULL);
 	if (kp_api_ob == NULL)
 		goto error;
 

@@ -266,6 +266,63 @@ kports_as_sequence = {
 	kports_setitem,
 };
 
+static PyObj
+kports_subscript(PyObj self, PyObj item)
+{
+	PyObj rob;
+	KPorts kp = (KPorts) self;
+
+	if (PyObject_IsInstance(item, (PyObj) &PySlice_Type))
+	{
+		KPorts skp;
+		Py_ssize_t start, stop, step, slen, i, ii = 0;
+		if (PySlice_GetIndicesEx(item, Py_SIZE(self), &start, &stop, &step, &slen))
+			return(NULL);
+
+		skp = kports_alloc(-1, slen);
+		if (skp == NULL)
+			return(NULL);
+		rob = skp;
+
+		for (i = start; i < stop; i += step)
+		{
+			KPorts_SetItem(skp, ii, KPorts_GetItem(kp, i));
+			++ii;
+		}
+	}
+	else
+	{
+		PyObj lo;
+		Py_ssize_t i;
+		lo = PyNumber_Long(item);
+		if (lo == NULL)
+			return(NULL);
+
+		i = PyLong_AsSsize_t(lo);
+		Py_DECREF(lo);
+
+		if (i < 0)
+			i = i + Py_SIZE(self);
+
+		if (i > Py_SIZE(self) || i < 0)
+		{
+			PyErr_SetString(PyExc_IndexError, "out of range");
+			rob = NULL;
+		}
+		else
+			rob = kports_getitem(self, i);
+	}
+
+	return(rob);
+}
+
+static PyMappingMethods
+kports_as_mapping = {
+	kports_length,
+	kports_subscript,
+	NULL,
+};
+
 static int
 kports_getbuffer(PyObj self, Py_buffer *view, int flags)
 {
@@ -366,7 +423,7 @@ KPortsType = {
 	NULL,                           /* tp_repr */
 	NULL,                           /* tp_as_number */
 	&kports_as_sequence,            /* tp_as_sequence */
-	NULL,                           /* tp_as_mapping */
+	&kports_as_mapping,             /* tp_as_mapping */
 	NULL,                           /* tp_hash */
 	NULL,                           /* tp_call */
 	NULL,                           /* tp_str */
