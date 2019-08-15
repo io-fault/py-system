@@ -736,16 +736,10 @@ exit_by_signal(PyObj mod, PyObj ob)
 	p = getpid();
 
 	if (exit_signal == -1 || exit_for_pid != p)
-	{
-		exit_for_pid = p;
-		exit_signal = signo;
 		atexit(_exit_by_signal);
-	}
-	else
-	{
-		PyErr_SetString(PyExc_RuntimeError, "exit_by_signal already called in this process");
-		return(NULL);
-	}
+
+	exit_for_pid = p;
+	exit_signal = signo;
 
 	Py_RETURN_NONE;
 }
