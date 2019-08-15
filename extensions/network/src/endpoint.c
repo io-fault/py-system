@@ -819,7 +819,7 @@ endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 }
 
-PyDoc_STRVAR(endpoint_doc, "Endpoint(domain, address)\n\n""\n");
+PyDoc_STRVAR(endpoint_doc, "System endpoint type for binding and connecting sockets.");
 
 PyTypeObject
 EndpointType = {
