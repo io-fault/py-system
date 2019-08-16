@@ -56,7 +56,6 @@ PyObj PyExc_TransitionViolation = NULL;
 	// pseudo domains
 */
 #define acquire_pf (SOCK_MAXADDRLEN - 2)
-#define clone_pf   (SOCK_MAXADDRLEN - 3)
 #define spawn_pf   (SOCK_MAXADDRLEN - 4)
 #define acquire_clear -1
 #define spawn_clear 0
@@ -65,7 +64,6 @@ PyObj PyExc_TransitionViolation = NULL;
 
 typedef char spawn_addr_t;
 typedef kport_t acquire_addr_t;
-typedef kport_t clone_addr_t;
 
 int
 acquire_from_object(PyObj args, void *out)

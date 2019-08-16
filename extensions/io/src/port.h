@@ -174,17 +174,11 @@ char freight_charcode(freight_t);
 const char * freight_identifier(freight_t);
 char * ktype_string(ktype_t);
 
-int port_open(Port p, char *path, int oflags);
-int port_seek(Port p, off_t off, int whence);
 int port_identify_type(Port p);
-
 int ports_identify_socket(Port p);
 int ports_identify_input(Port p);
 int ports_identify_output(Port p);
-int ports_clone_input(Port p, kport_t reader);
-int ports_clone_output(Port p, kport_t writer);
-int ports_clone_pair(Port p[], kport_t reader, kport_t writer);
-int ports_open(Port p, char *path, int oflags);
+
 int ports_pipe(Port p[]);
 int ports_socketpair(Port p[]);
 int ports_listen(Port p, int domain, if_addr_ref_t interface, size_t interface_size);
