@@ -4,7 +4,7 @@
 import time
 import errno
 import sys
-import os
+from . import common
 
 from ... import io
 
@@ -12,8 +12,7 @@ def test_array_already_acquired(test):
 	try:
 		J1 = io.Array()
 		J2 = io.Array()
-		rfd, wfd = os.pipe()
-		r = J1.rallocate('octets://acquire/input', rfd)
+		r, w = common.allocpipe(J1)
 		J1.acquire(r)
 		with test/io.TransitionViolation as exc:
 			J2.acquire(r)
@@ -61,10 +60,11 @@ def test_array_exceptions(test):
 	try:
 		J = io.Array()
 		with test/TypeError:
-			J.resize_exoresource("foobar") # need an unsigned integer
+			J.resize_exoresource("bad-type") # need an unsigned integer
 		with test/TypeError:
-			J.acquire("foobar") # not a channel
-		r, w = J.rallocate("octets://spawn/unidirectional")
+			J.acquire("bad-type") # not a channel
+
+		r, w = common.allocpipe(J)
 		r.terminate()
 		w.terminate()
 		J.acquire(r)
@@ -82,8 +82,7 @@ def test_array_terminated(test):
 	try:
 		J = io.Array()
 		J.terminate()
-		rfd, wfd = os.pipe()
-		f = J.rallocate('octets://acquire/input', rfd)
+		f, fw = common.allocpipe(J)
 
 		with J:
 			pass
@@ -126,14 +125,16 @@ def test_array_in_cycle(test):
 		J.void()
 
 def test_array_out_of_cycle(test):
-	'context manager to terminate on exit'
+	"""
+	# context manager to terminate on exit
+	"""
 	try:
 		J = io.Array()
 		test/J.sizeof_transfer() == 0
 		test/len(J.transfer()) == 0
 		test/J.port.exception() == None
 
-		r, w = J.rallocate('octets://spawn/unidirectional')
+		r, w = common.allocpipe(J)
 		J.acquire(w)
 		J.acquire(r)
 		w.acquire(b'')
@@ -157,23 +158,6 @@ def test_array_resize_exoresource(test):
 		J.terminate()
 		with J:
 			pass
-
-def test_array_rallocate_octets(test):
-	channels = set()
-	try:
-		J = io.Array()
-		connection = J.rallocate(('octets', 'spawn', 'bidirectional'))
-		three_four = J.rallocate(('octets', 'spawn', 'unidirectional'))
-		channels.update(connection)
-		channels.update(three_four)
-
-		for x in connection + three_four:
-			test.isinstance(x, io.Octets)
-	finally:
-		# don't leak
-		for x in channels:
-			x.terminate()
-		J.terminate()
 
 def test_array_new_failure(test):
 	test.skip(sys.platform == 'linux')
@@ -213,7 +197,7 @@ def test_array_collection_countdown(test):
 		data = b'SOME DATA'
 		bufs = []
 		for x in range(6):
-			channels = J.rallocate("octets://spawn/bidirectional")
+			channels = common.allocsockets(J)
 			reads = channels[0::2]
 			writes = channels[1::2]
 

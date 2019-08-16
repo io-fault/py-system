@@ -5,6 +5,7 @@
 import os
 import struct
 
+from . import common
 from ... import io
 
 def test_ports_rallocate(test):
@@ -28,7 +29,7 @@ def test_io(test):
 			for x in range(64)
 		]
 
-		channels = J.rallocate('ports://spawn/bidirectional')
+		channels = common.allocports(J)
 		for x in channels:
 			J.acquire(x)
 

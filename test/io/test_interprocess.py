@@ -55,17 +55,23 @@ def fork_and_circulate(test, am, channels):
 			test/parent.channels[0].transfer() == None
 			test/parent.channels[1].transfer() == None
 
-def test_bidirectional(test, req = ('octets', 'spawn', 'bidirectional')):
-	'Check for IPC via bidirectional spawns'
+def test_bidirectional(test):
+	"""
+	# Check for IPC via bidirectional spawns
+	"""
 	am = common.ArrayActionManager()
-	channels = am.array.rallocate(req)
+	channels = common.allocsockets(am.array)
 	fork_and_circulate(test, am, channels)
 
-def test_unidirectional(test, req = ('octets', 'spawn', 'unidirectional')):
-	'Check for IPC via unidirectional spawns'
+def test_unidirectional(test):
+	"""
+	# Check for IPC via unidirectional spawns
+	"""
 	am = common.ArrayActionManager()
-	r, w = am.array.rallocate(req)
-	rr, ww = am.array.rallocate(req)
+
+	r, w = common.allocpipe(am.array)
+	rr, ww = common.allocpipe(am.array)
+
 	channels = (r, ww, rr, w)
 	fork_and_circulate(test, am, channels)
 
@@ -73,7 +79,7 @@ def test_ports_files(test):
 	import tempfile
 	J = io.Array()
 	try:
-		pairs = J.rallocate('ports://spawn/bidirectional')
+		pairs = common.allocports(J)
 		parent, child = pairs[:2], pairs[2:]
 
 		with tempfile.TemporaryFile(mode='w+b') as resource:
@@ -125,7 +131,7 @@ def test_ports_sockets(test):
 	"""
 	am = common.ArrayActionManager()
 
-	channels = am.array.rallocate('ports://spawn/bidirectional')
+	channels = common.allocports(am.array)
 
 	pid = os.fork()
 	if pid == 0:
@@ -190,7 +196,7 @@ def test_ports_spawned_octets(test):
 	# It's as if the EV_CLEAR flag was ignored for a socket sent over the socketpair().
 	am = common.ArrayActionManager()
 
-	channels = am.array.rallocate('ports://spawn/bidirectional')
+	channels = common.allocports(am.array)
 
 	# fork
 	# spawn descriptors

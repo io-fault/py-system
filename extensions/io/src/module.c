@@ -56,13 +56,7 @@ PyObj PyExc_TransitionViolation = NULL;
 	// pseudo domains
 */
 #define acquire_pf (SOCK_MAXADDRLEN - 2)
-#define spawn_pf   (SOCK_MAXADDRLEN - 4)
 #define acquire_clear -1
-#define spawn_clear 0
-
-#define spawn_from_object(...) 1
-
-typedef char spawn_addr_t;
 typedef kport_t acquire_addr_t;
 
 int
@@ -4556,15 +4550,12 @@ ArrayType = {{
 	X(io,datagrams,ip6,udp) \
 
 #define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
-	X(iopair,octets,spawn,unidirectional) \
-	X(ioio,octets,spawn,bidirectional) \
 	X(io,octets,acquire,socket) \
 	X(i,octets,acquire,input) \
 	X(o,octets,acquire,output) \
 	\
 	X(i,sockets,acquire,socket) \
 	X(io,ports,acquire,socket) \
-	X(ioio,ports,spawn,bidirectional) \
 
 #define DEFAULT_REQUEST(IOF, FREIGHT, DOMAIN, ...) #FREIGHT, #DOMAIN
 #define PROTOCOL_REQUEST(IOF, FREIGHT, DOMAIN, PROTOCOL, ...) #FREIGHT, #DOMAIN, #PROTOCOL
@@ -4658,13 +4649,9 @@ ArrayType = {{
 
 #define ports_init_ports_acquire_socket ports_init_acquire_socket
 #define ports_init_ports_acquire_DEFAULT ports_init_acquire_socket
-#define ports_init_ports_spawn_bidirectional(P, x) ports_socketpair(P)
 
 #define ports_init_octets_acquire_input  ports_init_acquire_input
 #define ports_init_octets_acquire_output ports_init_acquire_output
-
-#define ports_init_octets_spawn_bidirectional(P, x)  ports_socketpair(P)
-#define ports_init_octets_spawn_unidirectional(P, x) ports_pipe(P)
 
 #define ports_init_octets_local_DEFAULT ports_init_octets_local
 #define ports_init_octets_ip4_DEFAULT ports_init_octets_ip4_tcp

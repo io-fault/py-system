@@ -21,7 +21,7 @@ def test_rallocate(test):
 def test_anonymous_endpoints_socketpair(test):
 	J = io.Array()
 	try:
-		channels = J.rallocate('octets://spawn/bidirectional')
+		channels = common.allocsockets(J)
 		try:
 			s = list(set([x.endpoint() for x in channels]))
 			test/len(s) == 1
@@ -38,7 +38,7 @@ def test_anonymous_endpoints_socketpair(test):
 def test_anonymous_endpoints_pipe(test):
 	J = io.Array()
 	try:
-		channels = J.rallocate('octets://spawn/unidirectional')
+		channels = common.allocpipe(J)
 		try:
 			for eps in [x.endpoint() for x in channels]:
 				test/eps == None
@@ -49,30 +49,30 @@ def test_anonymous_endpoints_pipe(test):
 		J.terminate()
 		common.cycle(J)
 
-def test_buffer_write_location(test, req = ('octets', 'spawn', 'unidirectional')):
+def test_buffer_write_location(test):
 	am = common.ArrayActionManager()
 	with am.thread():
 		# constructors
-		r, w = map(common.Events, am.array.rallocate(req))
+		r, w = map(common.Events, common.allocpipe(am.array))
 		ba = bytearray(512)
-		ba[:len('foobar!')] = b'\x00' * len('foobar!')
+		ba[:len('text!')] = b'\x00' * len('text!')
 		view = memoryview(ba)[256:]
 
 		with am.manage(r), am.manage(w):
 			# setup_read doesn't take buffers
 			r.channels[0].acquire(view)
 
-			w.setup_write(b'foobar!')
+			w.setup_write(b'text!')
 			for x in am.delta():
 				if w.exhaustions:
 					break
 			for x in am.delta():
-				if r.data == b'foobar!':
+				if r.data == b'text!':
 					break
 
 		# make sure the channel is writing into the proper offset
-		test/ba[0:len('foobar!')] != b'foobar!'
-		test/ba[256:256+len('foobar!')] == b'foobar!'
+		test/ba[0:len('text!')] != b'text!'
+		test/ba[256:256+len('text!')] == b'text!'
 	test/am.array.terminated == True
 
 def test_channel_force(test):
@@ -83,7 +83,7 @@ def test_channel_force(test):
 	# channel given that the channel's resource is not exhausted.
 	j = io.Array()
 	try:
-		channels = j.rallocate(('octets', 'spawn', 'bidirectional'))
+		channels = common.allocsockets(j)
 		for x in channels:
 			j.acquire(x)
 		channels[0].acquire(channels[0].rallocate(1))
@@ -107,7 +107,7 @@ def test_full_buffer_forced_write(test):
 	"""
 	am = common.ArrayActionManager()
 	with am.thread():
-		r, w = map(common.Events,am.array.rallocate(('octets', 'spawn', 'unidirectional')))
+		r, w = map(common.Events, common.allocpipe(am.array))
 		r.channels[0].resize_exoresource(64)
 		w.channels[0].resize_exoresource(64)
 
@@ -144,12 +144,12 @@ def test_multiple_arrays(test, number_to_check = 128):
 				test/x.terminated == True
 			test/x.terminated == True
 
-def test_objects(test, req = ('octets', 'spawn', 'bidirectional')):
+def test_objects(test):
 	am = common.ArrayActionManager()
 
 	with am.thread():
 		for exchange in common.object_transfer_cases:
-			cxn = am.array.rallocate(req)
+			cxn = common.allocsockets(am.array)
 			server = common.Objects(cxn[:2])
 			client = common.Objects(cxn[2:])
 
@@ -184,7 +184,7 @@ def test_array_void(test):
 		j.void()
 	test/j.terminated == False
 
-	quad = j.rallocate('octets://spawn/bidirectional')
+	quad = common.allocsockets(j)
 	for x in quad:
 		j.acquire(x)
 	test/j.volume == 4
@@ -211,7 +211,8 @@ def test_array_void(test):
 def test_octets_acquire_after_terminate(test):
 	j = io.Array()
 	test/j.sizeof_transfer() == 0
-	r, w = j.rallocate('octets://spawn/unidirectional')
+
+	r, w = common.allocpipe(j)
 	test/r.transfer() == None
 	test/w.transfer() == None
 	test/r.sizeof_transfer() == 0
@@ -227,7 +228,8 @@ def test_octets_acquire_after_terminate(test):
 
 def test_array_flush_release(test):
 	J = io.Array()
-	r, w = J.rallocate('octets://spawn/unidirectional')
+
+	r, w = common.allocpipe(J)
 	J.acquire(r)
 	J.acquire(w)
 	w.acquire(b'1')
@@ -262,7 +264,7 @@ def test_array_flush_release(test):
 
 def test_octets_resource_error(test):
 	j = io.Array()
-	r, w = j.rallocate('octets://spawn/unidirectional')
+	r, w = common.allocpipe(j)
 
 	# needs mutable buffer
 	with test/BufferError as exc:
@@ -289,7 +291,7 @@ def test_octets_resource_error(test):
 
 def test_terminating_exhaust(test):
 	j = io.Array()
-	r, w = j.rallocate('octets://spawn/unidirectional')
+	r, w = common.allocpipe(j)
 	r.terminate()
 	w.terminate()
 	test/r.exhausted == False
