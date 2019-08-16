@@ -335,17 +335,6 @@ def test_octets_acquire_badfd_detect(test):
 		os.close(w)
 		J.void()
 
-def test_octets_bind(test):
-	s = io.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
-	r, w = io.Array.rallocate(('octets', 'ip4', 'tcp', 'bind'), (s.endpoint(), ('127.0.0.1', 0)))
-	try:
-		test/r.port.error_code == 0
-		test/w.endpoint() == s.endpoint()
-	finally:
-		s.terminate()
-		r.terminate()
-		w.terminate()
-
 if __name__ == '__main__':
 	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

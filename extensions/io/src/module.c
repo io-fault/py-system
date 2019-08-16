@@ -4536,15 +4536,6 @@ ArrayType = {{
 	X(io,datagrams,ip4,DEFAULT) \
 	X(io,datagrams,ip6,DEFAULT) \
 
-/**
-	// Protocol explicitly stated.
-*/
-#define ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL() \
-	X(io,octets,ip4,tcp) \
-	X(io,octets,ip6,tcp) \
-	X(io,octets,ip4,udp) \
-	X(io,octets,ip6,udp) \
-
 #define ARRAY_RESOURCE_ALLOCATION_PROTOCOL() \
 	X(io,datagrams,ip4,udp) \
 	X(io,datagrams,ip6,udp) \
@@ -4694,39 +4685,8 @@ ALLOCFNAME(__VA_ARGS__)(PyObj J, PyObj param) \
 }
 
 ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 ARRAY_RESOURCE_ALLOCATION_SELECTION()
-#undef X
-
-/*
-	// Variant supporting bind.
-	// J.rallocate(('octets', 'ip4', 'tcp', 'bind'), (connect, bind))
-*/
-#define X(...) \
-	static PyObj \
-	ALLOCFNAME_BIND(__VA_ARGS__)(PyObj J, PyObj args) \
-	{ \
-		const PyObj typ = TYP(__VA_ARGS__); \
-		Port p; \
-		PyObj rob = NULL; \
-		\
-		PARAM_STORAGE(bind_param, __VA_ARGS__) = PARAM_CLEAR(__VA_ARGS__); \
-		PARAM_STORAGE(port_param, __VA_ARGS__) = PARAM_CLEAR(__VA_ARGS__); \
-		\
-		if (!PyArg_ParseTuple(args, "O&O&", CONVERTER(__VA_ARGS__), &port_param, CONVERTER(__VA_ARGS__), &bind_param)) \
-			return(NULL); \
-		rob = ALLOC(__VA_ARGS__)(typ, typ, &p); \
-		if (rob == NULL) \
-			return(NULL); \
-		p->freight = Type_GetInterface(typ)->ti_freight; \
-		INITPORTS_BIND(__VA_ARGS__)(p, (if_addr_ref_t) &port_param, sizeof(port_param), (if_addr_ref_t) &bind_param, sizeof(bind_param)); \
-		if (p->cause == kc_pyalloc) \
-			p->cause = kc_none; \
-		return(rob); \
-	}
-
-	ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 #undef X
 
 static PyObj
@@ -4741,14 +4701,8 @@ _init_array_rallocation(void)
 			OBNAME(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME(__VA_ARGS__))), NULL, NULL)
 
 			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-
-		#define X(...) , \
-			OBNAME_BIND(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME_BIND(__VA_ARGS__))), NULL, NULL)
-			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 		#undef X
 	;
 
@@ -4758,10 +4712,6 @@ _init_array_rallocation(void)
 		ARRAY_RESOURCE_ALLOCATION_SELECTION()
 	#undef X
 
-	#define X(...) if (OBNAME_BIND(__VA_ARGS__) == NULL) goto error;
-		ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
-	#undef X
-
 	rob = Py_BuildValue(
 		"{"
 			#define X(...) "(ss)O"
@@ -4769,19 +4719,13 @@ _init_array_rallocation(void)
 			#undef X
 
 			#define X(...) "(sss)O"
-				ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 				ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 				ARRAY_RESOURCE_ALLOCATION_SELECTION()
-			#undef X
-
-			#define X(...) "(ssss)O"
-				ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 			#undef X
 
 			#define X(...) "sO"
 				ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
 				ARRAY_RESOURCE_ALLOCATION_SELECTION()
-				ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 				ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			#undef X
 		"}"
@@ -4791,13 +4735,8 @@ _init_array_rallocation(void)
 		#undef X
 
 		#define X(...) , FIRST_THREE(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-
-		#define X(...) , FIRST_THREE(__VA_ARGS__), "bind", OBNAME_BIND(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 		#undef X
 
 		#define X(...) , FIRST_TWO_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
@@ -4809,7 +4748,6 @@ _init_array_rallocation(void)
 		#undef X
 
 		#define X(...) , FIRST_THREE_IRI_PORT(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 		#undef X
 	);
@@ -4820,9 +4758,6 @@ _init_array_rallocation(void)
 			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
 			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-		#define X(...) Py_DECREF(OBNAME_BIND(__VA_ARGS__));
-			ARRAY_RESOURCE_ALLOCATION_BIND_PROTOCOL()
 		#undef X
 	}
 
