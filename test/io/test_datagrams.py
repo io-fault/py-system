@@ -2,6 +2,10 @@ from . import common
 from ... import io
 from ... import network
 
+service_alloc = network.Endpoint.from_ip4(('127.0.0.1', 0), 'udp', 'datagrams')
+def mksrv():
+	return network.bind(service_alloc)
+
 def error_cases(test, dg, idx):
 	with test/IndexError:
 		dg[idx]
@@ -124,42 +128,29 @@ def test_DatagramArray(test):
 	for x, e in zip(range(5), endpoints):
 		test/five.endpoint(x) == e
 
-def test_rallocate(test):
-	J = io.Array()
-	try:
-		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
-		test/r.transfer() == None
-		test/w.transfer() == None
-		test.isinstance(r, io.Datagrams)
-		test.isinstance(w, io.Datagrams)
-		test.isinstance(r.rallocate(2, 512), io.DatagramArray)
-		test.isinstance(w.rallocate(2, 512), io.DatagramArray)
-		with test/TypeError:
-			r.rallocate("n")
-		test/len(memoryview(r.rallocate(2, 512))) == len(memoryview(io.DatagramArray("ip4", 512, 2)))
-		r.terminate()
-		w.terminate()
-	finally:
-		J.void()
+def alloc(q):
+	return io.DatagramArray("ip4", 512, q)
 
 def test_Datagrams_transfer_one(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
+		r, w = J.rallocate('datagrams://acquire', mksrv())
 		J.acquire(r)
 		J.acquire(w)
-		dga = w.rallocate(1)
-		dga.set_endpoint(0, r.endpoint())
+		ep = r.endpoint()
+
+		dga = alloc(1)
+		dga.set_endpoint(0, ep)
 		dga.payload(0)[:6] = b'foobar'
 
-		rdga = r.rallocate(1)
+		rdga = alloc(1)
 		r.acquire(rdga)
 		w.acquire(dga)
 		while not r.exhausted or not w.exhausted:
 			with J:
 				pass
 
-		test/rdga.endpoint(0) == r.endpoint()
+		test/rdga.endpoint(0) == ep
 		test/bytes(rdga.payload(0)).strip(b'\x00') == b'foobar'
 	finally:
 		J.void()
@@ -167,15 +158,16 @@ def test_Datagrams_transfer_one(test):
 def test_Datagrams_transfer_one_of_two(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
+		r, w = J.rallocate('datagrams://acquire', mksrv())
 		J.acquire(r)
 		J.acquire(w)
-		dga = w.rallocate(1)
-		dga.set_endpoint(0, r.endpoint())
+		ep = r.endpoint()
+		dga = alloc(1)
+		dga.set_endpoint(0, ep)
 		dga.payload(0)[:6] = b'foobar'
 
 		# trigger EAGAIN
-		rdga = r.rallocate(2)
+		rdga = alloc(2)
 		r.acquire(rdga)
 		w.acquire(dga)
 
@@ -193,16 +185,18 @@ def test_Datagrams_transfer_one_of_two(test):
 def test_Datagrams_transfer_two_of_one(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
+		r, w = J.rallocate('datagrams://acquire', mksrv())
 		J.acquire(r)
 		J.acquire(w)
-		dga = w.rallocate(2)
-		dga.set_endpoint(0, r.endpoint())
-		dga.set_endpoint(1, r.endpoint())
+		ep = r.endpoint()
+
+		dga = alloc(2)
+		dga.set_endpoint(0, ep)
+		dga.set_endpoint(1, ep)
 		dga.payload(0)[:6] = b'foobar'
 		dga.payload(1)[:6] = b'barfoo'
 
-		rdga = r.rallocate(1)
+		rdga = alloc(1)
 		r.acquire(rdga)
 		w.acquire(dga)
 
@@ -214,10 +208,10 @@ def test_Datagrams_transfer_two_of_one(test):
 					break
 
 		test/r.exhausted == True # one of two datagrams
-		test/rdga.endpoint(0) == r.endpoint()
+		test/rdga.endpoint(0) == ep
 		test/bytes(rdga.payload(0)).strip(b'\x00') == b'foobar'
 
-		rdga = r.rallocate(1)
+		rdga = alloc(1)
 		r.acquire(rdga)
 
 		while True:
@@ -227,7 +221,7 @@ def test_Datagrams_transfer_two_of_one(test):
 					test/len(r.transfer()) == 1
 					break
 		test/r.exhausted == True # one of two datagrams
-		test/rdga.endpoint(0) == r.endpoint()
+		test/rdga.endpoint(0) == ep
 		test/bytes(rdga.payload(0)).strip(b'\x00') == b'barfoo'
 
 		test/w.exhausted == True # one of two datagrams
@@ -237,9 +231,10 @@ def test_Datagrams_transfer_two_of_one(test):
 def test_Datagrams_invalid(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate(('datagrams', 'ip4'), ('127.0.0.1', 0))
+		r, w = J.rallocate('datagrams://acquire', mksrv())
 		J.acquire(r)
 		J.acquire(w)
+		ep = r.endpoint()
 
 		w.acquire(b'')
 		while not w.exhausted:
@@ -247,8 +242,8 @@ def test_Datagrams_invalid(test):
 				pass
 		test/w.exhausted == True
 
-		dga = w.rallocate(1)
-		dga.set_endpoint(0, r.endpoint())
+		dga = alloc(1)
+		dga.set_endpoint(0, ep)
 		w.acquire(dga)
 		r.acquire(bytearray(0))
 		while not r.exhausted:

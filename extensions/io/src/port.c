@@ -241,68 +241,6 @@ port_set_socket_option(Port p, int option, int setting)
 	return(0);
 }
 
-int
-port_socket(Port p, int domain, int socktype, int protocol)
-{
-	RETRY_STATE_INIT;
-	int r;
-	kport_t kp;
-
-	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(kp_invalid, &kp, socket, domain, socktype, protocol);
-
-	if (kp < 0)
-	{
-		switch (errno)
-		{
-			/*
-				// Invalidate point to avoid future close().
-			*/
-			case AGAIN:
-			case EINTR:
-				LIMITED_RETRY()
-			default:
-				Port_NoteError(p, kc_socket);
-				return(1);
-			break;
-		}
-	}
-
-	p->point = kp;
-	p->type = kt_socket;
-	return(0);
-}
-
-int
-port_bind(Port p, if_addr_ref_t addr, socklen_t addrlen)
-{
-	RETRY_STATE_INIT;
-	kport_t kp = p->point;
-	int r;
-
-	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(-1, &r, bind, kp, addr, addrlen);
-
-	if (r)
-	{
-		switch (errno)
-		{
-			/*
-				// Invalidate point to avoid future close().
-			*/
-			case AGAIN:
-			case EINTR:
-				LIMITED_RETRY()
-			default:
-				Port_NoteError(p, kc_bind);
-				return(1);
-			break;
-		}
-	}
-
-	return(0);
-}
-
 #ifdef EVMECH_EPOLL
 int
 port_epoll_create(Port p)
@@ -481,42 +419,6 @@ port_kevent(Port p, int retry, int *out, kevent_t *changes, int nchanges, kevent
 #endif
 
 int
-port_connect(Port p, if_addr_ref_t addr, socklen_t addrlen)
-{
-	RETRY_STATE_INIT;
-	kport_t kp = p->point;
-	int r;
-
-	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(-1, &r, connect, kp, addr, addrlen);
-
-	if (r)
-	{
-		switch (errno)
-		{
-			/* Non-Errors */
-			case EINPROGRESS:
-			case EISCONN:
-				/*
-					// It is connecting or ... it is already connected?
-				*/
-				errno = 0;
-			break;
-
-			case AGAIN:
-			case EINTR:
-				LIMITED_RETRY()
-			default:
-				Port_NoteError(p, kc_connect);
-				return(1);
-			break;
-		}
-	}
-
-	return(0);
-}
-
-int
 port_listen(Port p, int backlog)
 {
 	RETRY_STATE_INIT;
@@ -656,6 +558,8 @@ port_init_listening_socket(Port p)
 
 		return(0);
 	}
+#else
+	#define port_nosigpipe(p) 0
 #endif
 
 int
@@ -1347,115 +1251,6 @@ port_output_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t 
 	// note the error on the port.
 **/
 int
-ports_listen(Port p, int domain, if_addr_ref_t interface, size_t interface_size)
-{
-	/*
-		// Specifically for binding listen sockets.
-	*/
-	if (port_socket(p, domain, SOCK_STREAM, 0))
-		goto exit;
-
-	if (port_noblocking(p))
-		goto exit;
-
-	if (port_bind(p, interface, interface_size))
-		goto exit;
-
-	if (port_listen(p, DEFAULT_BACKLOG))
-		goto exit;
-
-	return(0);
-
-	exit:
-	{
-		return(1);
-	}
-}
-
-int
-ports_bind(Port p, int domain, int socktype, int proto, if_addr_ref_t endpoint, size_t endpoint_size)
-{
-	/*
-		// Primarily for datagram sockets.
-	*/
-	if (port_socket(p, domain, socktype, proto))
-		goto exit;
-
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p))
-			goto exit;
-	#endif
-
-	if (port_noblocking(p))
-		goto exit;
-
-	if (port_bind(p, endpoint, endpoint_size))
-		goto exit;
-
-	port_init_socket(p);
-
-	return(0);
-
-	exit:
-	return(1);
-}
-
-int
-ports_bind_connect(Port p, int domain, int socktype, int proto, if_addr_ref_t endpoint, size_t endpoint_size, if_addr_ref_t interface, size_t ifsize)
-{
-	if (port_socket(p, domain, socktype, proto))
-		goto exit;
-
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p))
-			goto exit;
-	#endif
-
-	if (port_noblocking(p))
-		goto exit;
-
-	if (port_bind(p, interface, ifsize))
-		goto exit;
-
-	if (port_connect(p, endpoint, endpoint_size))
-		goto exit;
-
-	port_init_socket(p);
-
-	return(0);
-
-	exit:
-	return(1);
-}
-
-int
-ports_connect(Port p,
-	int domain, int socktype, int proto,
-	if_addr_ref_t endpoint, size_t endpoint_size)
-{
-	if (port_socket(p, domain, socktype, proto))
-		goto exit;
-
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p))
-			goto exit;
-	#endif
-
-	if (port_noblocking(p))
-		goto exit;
-
-	if (port_connect(p, endpoint, endpoint_size))
-		goto exit;
-
-	port_init_socket(p);
-
-	return(0);
-
-	exit:
-	return(1);
-}
-
-int
 ports_identify_socket(Port p)
 {
 	if (port_identify_type(p))
@@ -1468,10 +1263,8 @@ ports_identify_socket(Port p)
 		goto exit;
 	}
 
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p))
-			goto exit;
-	#endif
+	if (port_nosigpipe(p))
+		goto exit;
 
 	if (port_noblocking(p))
 		goto exit;
@@ -1514,10 +1307,8 @@ ports_identify_output(Port p)
 	if (port_identify_type(p))
 		goto exit;
 
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p))
-			goto exit;
-	#endif
+	if (port_nosigpipe(p))
+		goto exit;
 
 	if (port_noblocking(p))
 		goto exit;

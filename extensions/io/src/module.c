@@ -730,7 +730,6 @@ static PyMethodDef endpoint_methods[] = {
 */
 struct Datagrams {
 	Channel_HEAD
-	int pf; /* Necessary for resource allocation (ip4 vs ip6) */
 };
 
 #define INIT_CHANNEL(t, J) do { \
@@ -2985,20 +2984,6 @@ PyTypeObject DatagramArrayType = {
 };
 
 static PyObj
-datagrams_rallocate(PyObj self, PyObj args)
-{
-	Datagrams t = (Datagrams) self;
-	unsigned long ngrams, size = 512;
-	PyObj rob;
-
-	if (!PyArg_ParseTuple(args, "L|L", &ngrams, &size))
-		return(NULL);
-
-	rob = allocdga(&DatagramArrayType, t->pf, size, ngrams);
-	return(rob);
-}
-
-static PyObj
 datagrams_transfer(PyObj self)
 {
 	Channel t = (Channel) self;
@@ -3026,11 +3011,6 @@ datagrams_transfer(PyObj self)
 }
 
 static PyMethodDef datagrams_methods[] = {
-	{"rallocate",
-		(PyCFunction) datagrams_rallocate, METH_VARARGS,
-		PyDoc_STR("Allocate a DatagramArray for use with the Datagrams channel.")
-	},
-
 	{"transfer",
 		(PyCFunction) datagrams_transfer, METH_NOARGS,
 		PyDoc_STR(
@@ -4448,15 +4428,10 @@ ArrayType = {{
 	// The fourth parameter is the "protocol".
 */
 #define ARRAY_RESOURCE_ALLOCATION_DEFAULTS() \
+	X(io,datagrams,acquire,DEFAULT) \
 	X(io,octets,acquire,DEFAULT) \
 	X(i,sockets,acquire,DEFAULT) \
 	X(io,ports,acquire,DEFAULT) \
-	X(io,datagrams,ip4,DEFAULT) \
-	X(io,datagrams,ip6,DEFAULT) \
-
-#define ARRAY_RESOURCE_ALLOCATION_PROTOCOL() \
-	X(io,datagrams,ip4,udp) \
-	X(io,datagrams,ip6,udp) \
 
 #define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
 	X(io,octets,acquire,socket) \
@@ -4484,14 +4459,6 @@ ArrayType = {{
 #define PARAM_STORAGE(PARAM, IOF, FREIGHT, DOMAIN, ...) DOMAIN##_addr_t PARAM
 #define PARAM_CLEAR(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_clear
 #define CONVERTER(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_from_object
-
-#define _jra_udp_ip4_init(rob) \
-	((struct Datagrams *) PyTuple_GET_ITEM(rob, 0))->addrlen = \
-	((struct Datagrams *) PyTuple_GET_ITEM(rob, 1))->addrlen = sizeof(ip4_addr_t)
-
-#define _jra_udp_ip6_init(rob) \
-	((struct Datagrams *) PyTuple_GET_ITEM(rob, 0))->addrlen = \
-	((struct Datagrams *) PyTuple_GET_ITEM(rob, 1))->addrlen = sizeof(ip6_addr_t)
 
 #define FIRST_TWO(IOF, F1, F2, ...) #F1, #F2
 #define FIRST_TWO_IRI(IOF, F1, F2, ...) #F1 "://" #F2
@@ -4521,17 +4488,14 @@ ArrayType = {{
 #define ports_init_octets_local(P, x) \
 	ports_connect(P[0], _LOCAL_PARAMS, (if_addr_ref_t) &x, sizeof(x))
 
-#define ports_init_datagrams_ip4_udp(P, x) \
-	ports_bind(P[0], ip4_pf, _UDPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-#define ports_init_datagrams_ip6_udp(P, x) \
-	ports_bind(P[0], ip6_pf, _UDPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-
 #define ports_init_acquire_socket(P, x) \
 	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
 #define ports_init_acquire_input(P, x) \
 	do { P[0]->point = x; ports_identify_input(P[0]); } while(0)
 #define ports_init_acquire_output(P, x) \
 	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
+
+#define ports_init_datagrams_acquire_DEFAULT ports_init_acquire_socket
 
 #define ports_init_sockets_acquire_socket ports_init_acquire_socket
 #define ports_init_sockets_acquire_DEFAULT ports_init_acquire_socket
@@ -4543,9 +4507,6 @@ ArrayType = {{
 #define ports_init_octets_acquire_DEFAULT ports_init_acquire_socket
 #define ports_init_octets_acquire_input  ports_init_acquire_input
 #define ports_init_octets_acquire_output ports_init_acquire_output
-
-#define ports_init_datagrams_ip4_DEFAULT ports_init_datagrams_ip4_udp
-#define ports_init_datagrams_ip6_DEFAULT ports_init_datagrams_ip6_udp
 
 #define INITPORTS(IOF, FREIGHT, DOMAIN, PROTO, ...) \
 	ports_init_##FREIGHT##_##DOMAIN##_##PROTO
@@ -4573,15 +4534,10 @@ ALLOCFNAME(__VA_ARGS__)(PyObj J, PyObj param) \
 	INITPORTS(__VA_ARGS__)(p, port_param); \
 	if (p[0]->cause == kc_pyalloc) p[0]->cause = kc_none; \
 	if (p[1] != NULL && p[1]->cause == kc_pyalloc) p[1]->cause = kc_none; \
-	if (typ == datagramstype) { \
-		((Datagrams) PyTuple_GET_ITEM(rob, 0))->pf = \
-		((Datagrams) PyTuple_GET_ITEM(rob, 1))->pf = PARAM_FAMILY(__VA_ARGS__); \
-	} \
 	return(rob); \
 }
 
 ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 ARRAY_RESOURCE_ALLOCATION_SELECTION()
 #undef X
 
@@ -4597,14 +4553,12 @@ _init_array_rallocation(void)
 			OBNAME(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME(__VA_ARGS__))), NULL, NULL)
 
 			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
 		#undef X
 	;
 
 	#define X(...) if (OBNAME(__VA_ARGS__) == NULL) goto error;
 		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-		ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 		ARRAY_RESOURCE_ALLOCATION_SELECTION()
 	#undef X
 
@@ -4615,14 +4569,12 @@ _init_array_rallocation(void)
 			#undef X
 
 			#define X(...) "(sss)O"
-				ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 				ARRAY_RESOURCE_ALLOCATION_SELECTION()
 			#undef X
 
 			#define X(...) "sO"
 				ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
 				ARRAY_RESOURCE_ALLOCATION_SELECTION()
-				ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			#undef X
 		"}"
 
@@ -4631,7 +4583,6 @@ _init_array_rallocation(void)
 		#undef X
 
 		#define X(...) , FIRST_THREE(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
 		#undef X
 
@@ -4642,17 +4593,12 @@ _init_array_rallocation(void)
 		#define X(...) , FIRST_THREE_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
 		#undef X
-
-		#define X(...) , FIRST_THREE_IRI_PORT(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
-		#undef X
 	);
 
 	error:
 	{
 		#define X(...) Py_DECREF(OBNAME(__VA_ARGS__));
 			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-			ARRAY_RESOURCE_ALLOCATION_PROTOCOL()
 			ARRAY_RESOURCE_ALLOCATION_SELECTION()
 		#undef X
 	}
