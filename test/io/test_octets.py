@@ -1,10 +1,10 @@
 """
 # Check io.Octets interfaces.
 """
-import time
 import os
 import os.path
 import errno
+import time
 
 from ... import io
 from . import common
@@ -334,6 +334,12 @@ def test_octets_acquire_badfd_detect(test):
 		os.close(r)
 		os.close(w)
 		J.void()
+
+def test_ip4(test):
+	common.stream_listening_connection(test, 'ip4', ('127.0.0.1', 0))
+
+def test_ip6(test):
+	common.stream_listening_connection(test, 'ip6', ('::1', 0))
 
 if __name__ == '__main__':
 	import sys; from ....test import library as libtest
