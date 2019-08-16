@@ -4448,12 +4448,7 @@ ArrayType = {{
 	// The fourth parameter is the "protocol".
 */
 #define ARRAY_RESOURCE_ALLOCATION_DEFAULTS() \
-	X(io,octets,local,DEFAULT) \
-	X(io,octets,ip4,DEFAULT) \
-	X(io,octets,ip6,DEFAULT) \
-	X(i,sockets,ip4,DEFAULT) \
-	X(i,sockets,ip6,DEFAULT) \
-	X(i,sockets,local,DEFAULT) \
+	X(io,octets,acquire,DEFAULT) \
 	X(i,sockets,acquire,DEFAULT) \
 	X(io,ports,acquire,DEFAULT) \
 	X(io,datagrams,ip4,DEFAULT) \
@@ -4531,26 +4526,6 @@ ArrayType = {{
 #define ports_init_datagrams_ip6_udp(P, x) \
 	ports_bind(P[0], ip6_pf, _UDPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
 
-#define ports_init_octets_ip4_tcp(P, x) \
-	ports_connect(P[0], ip4_pf, _TCPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-#define ports_init_octets_ip6_tcp(P, x) \
-	ports_connect(P[0], ip6_pf, _TCPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-
-#define ports_init_octets_ip4_udp(P, x) \
-	ports_connect(P[0], ip4_pf, _UDPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-#define ports_init_octets_ip6_udp(P, x) \
-	ports_connect(P[0], ip6_pf, _UDPIP_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-
-#define ports_init_octets_ip4_tcp_bind(P, ...) \
-	ports_bind_connect(P, ip4_pf, _TCPIP_PARAMS, __VA_ARGS__)
-#define ports_init_octets_ip6_tcp_bind(P, ...) \
-	ports_bind_connect(P, ip6_pf, _TCPIP_PARAMS, __VA_ARGS__)
-
-#define ports_init_octets_ip4_udp_bind(P, ...) \
-	ports_bind_connect(P, ip4_pf, _UDPIP_PARAMS, __VA_ARGS__)
-#define ports_init_octets_ip6_udp_bind(P, ...) \
-	ports_bind_connect(P, ip6_pf, _UDPIP_PARAMS, __VA_ARGS__)
-
 #define ports_init_acquire_socket(P, x) \
 	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
 #define ports_init_acquire_input(P, x) \
@@ -4558,19 +4533,17 @@ ArrayType = {{
 #define ports_init_acquire_output(P, x) \
 	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
 
-#define ports_init_octets_acquire_socket ports_init_acquire_socket
 #define ports_init_sockets_acquire_socket ports_init_acquire_socket
+#define ports_init_sockets_acquire_DEFAULT ports_init_acquire_socket
 
 #define ports_init_ports_acquire_socket ports_init_acquire_socket
 #define ports_init_ports_acquire_DEFAULT ports_init_acquire_socket
 
+#define ports_init_octets_acquire_socket ports_init_acquire_socket
+#define ports_init_octets_acquire_DEFAULT ports_init_acquire_socket
 #define ports_init_octets_acquire_input  ports_init_acquire_input
 #define ports_init_octets_acquire_output ports_init_acquire_output
 
-#define ports_init_octets_local_DEFAULT ports_init_octets_local
-#define ports_init_octets_ip4_DEFAULT ports_init_octets_ip4_tcp
-#define ports_init_octets_ip6_DEFAULT ports_init_octets_ip6_tcp
-#define ports_init_sockets_acquire_DEFAULT ports_init_acquire_socket
 #define ports_init_datagrams_ip4_DEFAULT ports_init_datagrams_ip4_udp
 #define ports_init_datagrams_ip6_DEFAULT ports_init_datagrams_ip6_udp
 

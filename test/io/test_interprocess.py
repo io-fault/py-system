@@ -1,4 +1,5 @@
 import os
+from ... import network
 from ... import io
 from . import common
 
@@ -155,10 +156,13 @@ def test_ports_sockets(test):
 
 				sockets = am.array.rallocate('sockets://acquire/socket', fd)
 				sockets.port.raised()
+				server = sockets.endpoint()
+				server = network.Endpoint('ip4', (server.address, server.port), None, 'octets')
+
 				listen = common.Events(sockets)
 				listen.setup_read(1)
 				with am.manage(listen):
-					channels = am.array.rallocate('octets://ip4', sockets.endpoint())
+					channels = am.array.rallocate('octets://acquire', network.connect(server))
 					client = common.Endpoint(channels)
 					with am.manage(client):
 						for x in am.delta():
@@ -176,7 +180,8 @@ def test_ports_sockets(test):
 		del channels
 
 		with am.thread(), am.manage(parent):
-			sockets = am.array.rallocate('sockets://ip4', ('127.0.0.1', 0))
+			ep = network.Endpoint.from_ip4(('127.0.0.1', 0))
+			sockets = am.array.rallocate("sockets://acquire", network.service(ep))
 
 			r = parent.write_channel.rallocate(1)
 			r[0] = sockets.port.id
