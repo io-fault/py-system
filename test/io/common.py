@@ -581,18 +581,18 @@ def stream_listening_connection(test, version, address, port = None):
 
 	s_endpoint = s.endpoint()
 	if isinstance(address, tuple):
-		full_address = (s_endpoint.interface, s_endpoint.port)
-		test/s_endpoint.interface == address[0]
+		full_address = (s_endpoint.address, s_endpoint.port)
+		test/s_endpoint.address == address[0]
 	else:
 		full_address = address
-		address in test/(s_endpoint.interface, str(s_endpoint))
+		address in test/(s_endpoint.address, str(s_endpoint))
 	test/s_endpoint.address_type == version
 	test/str(s_endpoint) != None
 
 	if s_endpoint.port is None:
 		test/s_endpoint.pair == None
 	else:
-		test/s_endpoint.pair == (s_endpoint.interface, s_endpoint.port)
+		test/s_endpoint.pair == (s_endpoint.address, s_endpoint.port)
 
 	with am.thread(), am.manage(listen):
 
@@ -627,13 +627,13 @@ def stream_listening_connection(test, version, address, port = None):
 					sr_endpoint = server.read_channel.endpoint()
 					sw_endpoint = server.write_channel.endpoint()
 
-					if isinstance(sr_endpoint, io.Endpoint) and isinstance(c_endpoint, io.Endpoint):
-						test/sr_endpoint.interface == c_endpoint.interface
+					if isinstance(sr_endpoint, network.Endpoint) and isinstance(c_endpoint, network.Endpoint):
+						test/sr_endpoint.address == c_endpoint.address
 						# should be None for endpoints without ports.
 						test/sr_endpoint.port == c_endpoint.port
 
-					if isinstance(sw_endpoint, io.Endpoint) and isinstance(r_endpoint, io.Endpoint):
-						test/sw_endpoint.interface == r_endpoint.interface
+					if isinstance(sw_endpoint, network.Endpoint) and isinstance(r_endpoint, network.Endpoint):
+						test/sw_endpoint.address == r_endpoint.address
 						# should be None for endpoints without ports.
 						test/sw_endpoint.port == r_endpoint.port
 

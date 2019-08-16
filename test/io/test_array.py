@@ -4,6 +4,7 @@
 import time
 import errno
 import sys
+import os
 
 from ... import io
 
@@ -11,7 +12,8 @@ def test_array_already_acquired(test):
 	try:
 		J1 = io.Array()
 		J2 = io.Array()
-		r = J1.rallocate('octets://file/read', '/dev/null')
+		rfd, wfd = os.pipe()
+		r = J1.rallocate('octets://acquire/input', rfd)
 		J1.acquire(r)
 		with test/io.TransitionViolation as exc:
 			J2.acquire(r)
@@ -80,7 +82,9 @@ def test_array_terminated(test):
 	try:
 		J = io.Array()
 		J.terminate()
-		f = J.rallocate('octets://file/read', '/dev/null')
+		rfd, wfd = os.pipe()
+		f = J.rallocate('octets://acquire/input', rfd)
+
 		with J:
 			pass
 

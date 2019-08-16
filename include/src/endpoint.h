@@ -124,5 +124,8 @@ Endpoint endpoint_create(int, int, if_addr_ref_t, socklen_t);
 struct EndpointAPI {
 	PyTypeObject *type;
 	Endpoint (*create)(int, int, if_addr_ref_t, socklen_t);
+	int (*ip4_converter)(PyObj, void *);
+	int (*ip6_converter)(PyObj, void *);
+	int (*local_converter)(PyObj, void *);
 };
 #endif

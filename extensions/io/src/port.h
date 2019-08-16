@@ -15,9 +15,6 @@
 	// and the file name as the port. This allows us to handle local addresses in a way that
 	// is reasonably consistent with internet addresses.
 */
-typedef struct sockaddr_storage any_addr_t;
-typedef struct sockaddr if_addr_t;
-typedef struct sockaddr * if_addr_ref_t;
 
 #include "datagram.h"
 
@@ -25,18 +22,6 @@ typedef struct sockaddr * if_addr_ref_t;
 
 #ifndef CONFIG_OPEN_FLAGS
 	#define CONFIG_OPEN_FLAGS 0
-#endif
-
-#ifdef __linux__
-	/* For Enabling Accept Delay */
-	#include <netinet/tcp.h>
-
-	/* linux doesnt do sin_len so void out the operation */
-	/* admittedly, sin_len is silly, but why introduce incompat... */
-	#define SETADDRLEN(TARGET, VALUE)
-#else
-	/* some systems want/need this field to be filled out */
-	#define SETADDRLEN(TARGET, VALUE) TARGET = VALUE
 #endif
 
 /**

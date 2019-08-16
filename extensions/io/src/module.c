@@ -23,11 +23,17 @@
 #include <kcore.h>
 #include <kports.h>
 
+#include <endpoint.h>
+
 #include "module.h"
 #include "port.h"
-#include "endpoint.h"
 
 struct KPortsAPI *KP = NULL;
+struct EndpointAPI *EP = NULL;
+
+int ip4_from_object(PyObj ob, void *out) { return EP->ip4_converter(ob, out); }
+int ip6_from_object(PyObj ob, void *out) { return EP->ip6_converter(ob, out); }
+int local_from_object(PyObj ob, void *out) { return EP->local_converter(ob, out); }
 
 /* Number of kevent structs to allocate when working with kevent(). */
 #ifndef CONFIG_DEFAULT_ARRAY_SIZE
@@ -45,6 +51,35 @@ struct KPortsAPI *KP = NULL;
 #include <fault/posix/errno.h>
 
 PyObj PyExc_TransitionViolation = NULL;
+
+/**
+	// pseudo domains
+*/
+#define acquire_pf (SOCK_MAXADDRLEN - 2)
+#define clone_pf   (SOCK_MAXADDRLEN - 3)
+#define spawn_pf   (SOCK_MAXADDRLEN - 4)
+#define acquire_clear -1
+#define spawn_clear 0
+
+#define spawn_from_object(...) 1
+
+typedef char spawn_addr_t;
+typedef kport_t acquire_addr_t;
+typedef kport_t clone_addr_t;
+
+int
+acquire_from_object(PyObj args, void *out)
+{
+	long fd;
+	kport_t *kp = out;
+
+	fd = PyLong_AsLong(args);
+	if (PyErr_Occurred())
+		return(0);
+
+	*kp = fd;
+	return(1);
+}
 
 /**
 	// Get the name of the errno.
@@ -694,336 +729,6 @@ PortType = {
 
 static PyMethodDef endpoint_methods[] = {
 	{NULL,}
-};
-
-static PyObj
-endpoint_get_address_type(PyObj self, void *_)
-{
-	Endpoint E = (Endpoint) self;
-
-	switch (Endpoint_GetAddress(E)->ss_family)
-	{
-		#define A(AF) \
-			case AF##_pf: \
-				return(PyUnicode_FromString(AF##_name)); \
-			break;
-
-			ADDRESSING()
-		#undef A
-	}
-
-	Py_RETURN_NONE;
-}
-
-static PyObj
-endpoint_get_interface(PyObj self, void *_)
-{
-	char addrstr[1024];
-	Endpoint E = (Endpoint) self;
-
-	sockaddr_interface(Endpoint_GetAddress(E), addrstr, sizeof(addrstr));
-	return(PyUnicode_FromString(addrstr));
-}
-
-static PyObj
-endpoint_get_port(PyObj self, void *_)
-{
-	Endpoint E = (Endpoint) self;
-	struct aport_t port;
-
-	switch (sockaddr_port(Endpoint_GetAddress(E), &port, sizeof(port)))
-	{
-		case aport_kind_numeric2:
-			return(PyLong_FromLong(port.data.numeric2));
-		break;
-
-		case aport_kind_filename:
-			/* xxx: encoding */
-			return(PyUnicode_FromString(port.data.filename));
-		break;
-
-		case aport_kind_none:
-		default:
-			Py_RETURN_NONE;
-		break;
-	}
-}
-
-static PyObj
-endpoint_get_pair(PyObj self, void *_)
-{
-	Endpoint E = (Endpoint) self;
-	char buf[PATH_MAX];
-	struct aport_t port;
-	PyObj rob;
-
-	sockaddr_interface(Endpoint_GetAddress(E), buf, sizeof(buf));
-	port.kind = sockaddr_port(Endpoint_GetAddress(E), &port, sizeof(port));
-
-	switch (port.kind)
-	{
-		case aport_kind_numeric2:
-			rob = Py_BuildValue("(sl)", buf, (unsigned int) port.data.numeric2);
-		break;
-
-		case aport_kind_filename:
-			rob = Py_BuildValue("(ss)", buf, port.data.filename);
-		break;
-
-		case aport_kind_none:
-		default:
-			rob = Py_None; Py_INCREF(rob); break;
-	}
-
-	return(rob);
-}
-
-static PyGetSetDef
-endpoint_getset[] = {
-	{"address_type", endpoint_get_address_type, NULL,
-		PyDoc_STR(
-			"The type of addressing used to reference the endpoint.\n"
-			"One of `'ip6'`, `'ip4'`, `'local'`, or `None` if irrelevant.")
-	},
-
-	{"interface", endpoint_get_interface, NULL,
-		PyDoc_STR(
-			"The local endpoint of the channel. Normally regarding socket connections.\n"
-			"If the connection is to a local socket, the interface will be the directory containing the socket file.")
-	},
-
-	{"port", endpoint_get_port, NULL,
-		PyDoc_STR(
-			"The port of the endpoint as an &int. &None if none\n"
-			"or if the concept of a port does not apply to the endpoint's domain.")
-	},
-
-	#if 0
-		{"port_int", endpoint_get_port_string, NULL,
-			PyDoc_STR(
-				"The port of the endpoint as an `int`. `None` if none\n"
-				"or if the concept of a port does not apply to the endpoint's domain.")
-		},
-	#endif
-
-	{"pair", endpoint_get_pair, NULL,
-		PyDoc_STR(
-			"A tuple consisting of the interface and port attributes.\n"
-		)
-	},
-
-	{NULL,},
-};
-
-static PyObj
-endpoint_richcompare(PyObj self, PyObj x, int op)
-{
-	Endpoint a = (Endpoint) self, b = (Endpoint) x;
-	PyObj rob;
-
-	if (!PyObject_IsInstance(x, ((PyObj) &EndpointType)))
-	{
-		Py_INCREF(Py_NotImplemented);
-		return(Py_NotImplemented);
-	}
-
-	switch (op)
-	{
-		case Py_NE:
-		case Py_EQ:
-			rob = Py_False;
-
-			if (Endpoint_GetLength(a) == Endpoint_GetLength(b))
-			{
-				if (memcmp((char *) Endpoint_GetAddress(a), (char *) Endpoint_GetAddress(b), Endpoint_GetLength(a)) == 0)
-				{
-					rob = Py_True;
-					Py_INCREF(rob);
-					break;
-				}
-			}
-
-			if (op == Py_NE)
-			{
-				/*
-					// Invert result.
-				*/
-				rob = (rob == Py_True) ? Py_False : Py_True;
-			}
-			Py_INCREF(rob);
-		break;
-
-		default:
-			PyErr_SetString(PyExc_TypeError, "endpoint only supports equality");
-			rob = NULL;
-		break;
-	}
-
-	return(rob);
-}
-
-/**
-	// String representation suitable for text based displays.
-*/
-static PyObj
-endpoint_str(PyObj self)
-{
-	Endpoint E = (Endpoint) self;
-	char buf[PATH_MAX];
-	struct aport_t port;
-	PyObj rob;
-
-	sockaddr_interface(Endpoint_GetAddress(E), buf, sizeof(buf));
-
-	port.kind = sockaddr_port(Endpoint_GetAddress(E), &port, sizeof(port));
-	switch (port.kind)
-	{
-		case aport_kind_numeric2:
-			rob = PyUnicode_FromFormat("[%s]:%d", buf, (int) port.data.numeric2);
-		break;
-
-		case aport_kind_filename:
-			rob = PyUnicode_FromFormat("%s/%s", buf, port.data.filename);
-		break;
-
-		case aport_kind_none:
-		default:
-			rob = PyUnicode_FromFormat("%s", buf);
-		break;
-	}
-
-	return(rob);
-}
-
-#define A(DOMAIN) \
-/**\
-	// Constructor.\
-*/\
-static PyObj \
-endpoint_new_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
-{ \
-	const int addrlen = sizeof(DOMAIN##_addr_t); \
-	int r; \
-	\
-	PyObj rob; \
-	Endpoint E; \
-	\
-	r = addrlen / subtype->tp_itemsize; \
-	if (r * subtype->tp_itemsize <= addrlen) \
-		++r; \
-	\
-	rob = subtype->tp_alloc(subtype, r); \
-	if (rob == NULL) \
-		return(NULL); \
-	E = (Endpoint) rob; \
-	\
-	if (! (DOMAIN##_from_object(rep, (DOMAIN##_addr_t *) Endpoint_GetAddress(E)))) \
-	{ \
-		Py_DECREF(rob); \
-		return(NULL); \
-	} \
-	E->len = addrlen; \
-	\
-	return(rob); \
-}
-
-ADDRESSING()
-#undef A
-
-static Endpoint
-endpoint_create(if_addr_ref_t addr, socklen_t addrlen)
-{
-	#define endpoint_alloc(x) EndpointType.tp_alloc(&EndpointType, x)
-
-	const int itemsize = EndpointType.tp_itemsize;
-	int r;
-	Endpoint E;
-
-	r = addrlen / itemsize;
-	if (r * itemsize <= addrlen)
-		++r;
-
-	PYTHON_RECEPTACLE(NULL, ((PyObj *) &E), endpoint_alloc, r);
-	if (E == NULL)
-		return(NULL);
-
-	E->len = addrlen;
-	memcpy(Endpoint_GetAddress(E), addr, addrlen);
-
-	return(E);
-
-	#undef endpoint_alloc
-}
-
-static PyObj
-endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
-{
-	static char *kwlist[] = {"domain", "address", NULL};
-	char *domain;
-	PyObj rob = NULL, address;
-
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "sO", kwlist, &domain, &address))
-		return(NULL);
-
-	/*
-		// XXX: While it's not expected for endpoint_new to occur often, this should be a hash.
-	*/
-	if (0) ;
-	#define A(DOMAIN) \
-		else if (strcmp(domain, #DOMAIN) == 0) \
-			rob = endpoint_new_##DOMAIN(subtype, address);
-		ADDRESSING()
-	#undef A
-	else
-	{
-		PyErr_Format(PyExc_ValueError, "unknown address domain: %s", domain);
-	}
-
-	return(rob);
-}
-
-PyDoc_STRVAR(endpoint_doc, "Endpoint(domain, address)\n\n""\n");
-
-PyTypeObject
-EndpointType = {
-	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Endpoint"), /* tp_name */
-	sizeof(struct Endpoint),        /* tp_basicsize */
-	sizeof(void *),                 /* tp_itemsize */
-	NULL,                           /* tp_dealloc */
-	NULL,                           /* tp_print */
-	NULL,                           /* tp_getattr */
-	NULL,                           /* tp_setattr */
-	NULL,                           /* tp_compare */
-	NULL,                           /* tp_repr */
-	NULL,                           /* tp_as_number */
-	NULL,                           /* tp_as_sequence */
-	NULL,                           /* tp_as_mapping */
-	NULL,                           /* tp_hash */
-	NULL,                           /* tp_call */
-	endpoint_str,                   /* tp_str */
-	NULL,                           /* tp_getattro */
-	NULL,                           /* tp_setattro */
-	NULL,                           /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	endpoint_doc,                   /* tp_doc */
-	NULL,                           /* tp_traverse */
-	NULL,                           /* tp_clear */
-	endpoint_richcompare,           /* tp_richcompare */
-	0,                              /* tp_weaklistoffset */
-	NULL,                           /* tp_iter */
-	NULL,                           /* tp_iternext */
-	endpoint_methods,               /* tp_methods */
-	NULL,                           /* tp_members */
-	endpoint_getset,                /* tp_getset */
-	NULL,                           /* tp_base */
-	NULL,                           /* tp_dict */
-	NULL,                           /* tp_descr_get */
-	NULL,                           /* tp_descr_set */
-	0,                              /* tp_dictoffset */
-	NULL,                           /* tp_init */
-	NULL,                           /* tp_alloc */
-	endpoint_new,                   /* tp_new */
 };
 
 #include "channel.h"
@@ -1742,9 +1447,8 @@ channel_endpoint(PyObj self)
 	if (!Channel_PortLatched(t))
 		Py_RETURN_NONE;
 
-	addrlen = sizeof(addr);
-	addr.ss_family = AF_UNSPEC;
 	bzero(&addr, addrlen);
+	addr.ss_family = AF_UNSPEC;
 
 	if (Channel_Polarity(t) == p_output)
 	{
@@ -1820,7 +1524,7 @@ channel_endpoint(PyObj self)
 		}
 	}
 
-	return((PyObj) endpoint_create((if_addr_ref_t) &addr, addrlen));
+	return((PyObj) EP->create(0, 0, (if_addr_ref_t) &addr, addrlen));
 
 	none:
 	{
@@ -2927,7 +2631,7 @@ datagramarray_get_endpoint(DatagramArray dga, uint32_t offset)
 
 	dg = dga->indexes[offset];
 
-	return((PyObj) endpoint_create(DatagramGetAddress(dg), DatagramGetAddressLength(dg)));
+	return((PyObj) EP->create(0, 0, DatagramGetAddress(dg), DatagramGetAddressLength(dg)));
 }
 
 static PyObj
@@ -2976,12 +2680,12 @@ datagramarray_set_endpoint(PyObj self, PyObj args)
 	switch (dga->pf)
 	{
 		case ip4_pf:
-			if (!ip4_from_object(endpoint, dg->addr))
+			if (!EP->ip4_converter(endpoint, dg->addr))
 				return(NULL);
 		break;
 
 		case ip6_pf:
-			if (!ip6_from_object(endpoint, dg->addr))
+			if (!EP->ip6_converter(endpoint, dg->addr))
 				return(NULL);
 		break;
 
@@ -4863,10 +4567,6 @@ ArrayType = {{
 	X(i,sockets,acquire,socket) \
 	X(io,ports,acquire,socket) \
 	X(ioio,ports,spawn,bidirectional) \
-	\
-	X(i,octets,file,read) \
-	X(o,octets,file,overwrite) \
-	X(o,octets,file,append) \
 
 #define DEFAULT_REQUEST(IOF, FREIGHT, DOMAIN, ...) #FREIGHT, #DOMAIN
 #define PROTOCOL_REQUEST(IOF, FREIGHT, DOMAIN, PROTOCOL, ...) #FREIGHT, #DOMAIN, #PROTOCOL
@@ -4947,21 +4647,6 @@ ArrayType = {{
 	ports_bind_connect(P, ip4_pf, _UDPIP_PARAMS, __VA_ARGS__)
 #define ports_init_octets_ip6_udp_bind(P, ...) \
 	ports_bind_connect(P, ip6_pf, _UDPIP_PARAMS, __VA_ARGS__)
-
-#define ports_init_octets_file(f, P, x) do { \
-	ports_open(P[0], x.fa_path, f); \
-	if (P[0]->type == kt_file || P[0]->type == kt_device) { \
-		Channel_XQualify(((Channel) rob), teq_transfer); \
-		Channel_SetControl(((Channel) rob), ctl_requeue); \
-	} \
-} while(0)
-
-#define ports_init_octets_file_read(...) \
-	ports_init_octets_file(O_CREAT|O_RDONLY|O_CLOEXEC, __VA_ARGS__)
-#define ports_init_octets_file_overwrite(...) \
-	ports_init_octets_file(O_CREAT|O_WRONLY|O_CLOEXEC, __VA_ARGS__)
-#define ports_init_octets_file_append(...) \
-	ports_init_octets_file(O_CREAT|O_WRONLY|O_APPEND|O_CLOEXEC, __VA_ARGS__)
 
 #define ports_init_acquire_socket(P, x) \
 	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
@@ -5181,6 +4866,19 @@ INIT(module, 0, PyDoc_STR("Asynchronous System I/O"))
 		KP = PyCapsule_GetPointer(cap, "_kports_api");
 		Py_DECREF(cap);
 		if (KP == NULL)
+			goto error;
+	}
+
+	if (EP == NULL)
+	{
+		PyObj cap;
+		cap = PyImport_ImportAdjacentEx(module, "network", "_endpoint_api");
+		if (cap == NULL)
+			goto error;
+
+		EP = PyCapsule_GetPointer(cap, "_endpoint_api");
+		Py_DECREF(cap);
+		if (EP == NULL)
 			goto error;
 	}
 

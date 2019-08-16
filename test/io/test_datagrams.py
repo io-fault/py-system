@@ -1,5 +1,6 @@
 from . import common
 from ... import io
+from ... import network
 
 def error_cases(test, dg, idx):
 	with test/IndexError:
@@ -9,7 +10,7 @@ def error_cases(test, dg, idx):
 		dg.endpoint(idx)
 
 	with test/IndexError:
-		dg.set_endpoint(idx, io.Endpoint("ip4", ('127.0.0.1', 123)))
+		dg.set_endpoint(idx, network.Endpoint.from_ip4(('127.0.0.1', 123)))
 
 	with test/IndexError:
 		dg.payload(idx)
@@ -33,7 +34,7 @@ def test_DatagramArray_errors(test):
 		empty.set_endpoint("foo")
 
 	with test/TypeError:
-		one.set_endpoint(0, io.Endpoint("ip6", ("::1", 0)))
+		one.set_endpoint(0, network.Endpoint.from_ip6(("::1", 0)))
 
 	with test/TypeError:
 		one[::2]
@@ -68,11 +69,11 @@ def test_DatagramArray(test):
 	test.isinstance(dga[500:1000], io.DatagramArray)
 	test.isinstance(dga[3:1000], io.DatagramArray)
 
-	dga.set_endpoint(0, io.Endpoint("ip4", ('127.0.0.2', 2323)))
+	dga.set_endpoint(0, network.Endpoint.from_ip4(('127.0.0.2', 2323)))
 	dga.set_endpoint(1, ('127.0.0.9', 3232))
 
-	test/dga.endpoint(0) == io.Endpoint("ip4", ('127.0.0.2', 2323))
-	test/dga.endpoint(1) == io.Endpoint("ip4", ('127.0.0.9', 3232))
+	test/dga.endpoint(0) == network.Endpoint.from_ip4(('127.0.0.2', 2323))
+	test/dga.endpoint(1) == network.Endpoint.from_ip4(('127.0.0.9', 3232))
 
 	mv = dga.payload(0)
 	test/len(mv) == 16
@@ -92,12 +93,12 @@ def test_DatagramArray(test):
 
 	first = dga[:1]
 	test/len(first) == 1
-	test/first.endpoint(0) == io.Endpoint("ip4", ('127.0.0.2', 2323))
+	test/first.endpoint(0) == network.Endpoint.from_ip4(('127.0.0.2', 2323))
 	test/first.payload(0) == dga.payload(0)
 
 	second = dga[1:]
 	test/len(second) == 2
-	test/second.endpoint(0) == io.Endpoint("ip4", ('127.0.0.9', 3232))
+	test/second.endpoint(0) == network.Endpoint.from_ip4(('127.0.0.9', 3232))
 	test/second.payload(0) == dga.payload(1)
 
 	# subarray slices
@@ -115,7 +116,7 @@ def test_DatagramArray(test):
 
 	# subarrays use the same space.
 	five = io.DatagramArray("ip4", 64, 5)
-	endpoints = [io.Endpoint("ip4", ("127.0.0.1", 7777 + i)) for i in range(5)]
+	endpoints = [network.Endpoint.from_ip4(("127.0.0.1", 7777 + i)) for i in range(5)]
 
 	for x, e in zip(range(5), endpoints):
 		five[x:x+1].set_endpoint(0, e)

@@ -5,59 +5,13 @@ import sys
 from ... import io
 from . import common
 
-def test_invalid_address(test):
-	try:
-		J = io.Array()
-		with test/TypeError as exc:
-			J.rallocate('octets://file/read', 123)
-		with test/TypeError as exc:
-			J.rallocate('octets://file/read', ())
-	finally:
-		J.void()
-
-def test_endpoints(test):
-	ep = io.Endpoint('file', '/')
-	test/str(ep) == '/'
-	test/ep.port == None
-
-	ep = io.Endpoint('file', '/foo')
-	test/str(ep) == '/foo'
-	test/ep.interface == '/foo'
-
-def test_array_rallocate(test):
-	requests = [
-		('octets', 'file', 'read'),
-		('octets', 'file', 'overwrite'),
-		('octets', 'file', 'append'),
-		'octets://file/read',
-		'octets://file/overwrite',
-		'octets://file/append',
-	]
-
-	# be sure to hit the root path here
-	# as file addressing always uses O_CREAT
-	J = io.Array()
-	for x in requests:
-		t = J.rallocate(x, '/')
-		test/t.port.error_name == 'EISDIR'
-		J.acquire(t)
-
-	ep = io.Endpoint('file', '/')
-	for x in requests:
-		t = J.rallocate(x, ep)
-		test/t.port.error_name == 'EISDIR'
-		J.acquire(t)
-
-	J.terminate()
-	with J:
-		pass
-
 def file_test(test, am, path, apath):
 	count = 0
 	wrote_data = []
 	thedata = b'\xF1'*128
 
-	wr = am.array.rallocate(('octets', 'file', 'append'), apath)
+	fd = os.open(apath, os.O_APPEND|os.O_WRONLY|os.O_CREAT)
+	wr = am.array.rallocate(('octets', 'acquire', 'output'), fd)
 	wr.port.raised()
 
 	writer = common.Events(wr)
@@ -85,8 +39,9 @@ def file_test(test, am, path, apath):
 	test/actual == expected
 	data_size = len(thedata) * i
 
-	# now read it back in.
-	rd = am.array.rallocate(('octets', 'file', 'read'), apath)
+	# read it back
+	fd = os.open(apath, os.O_RDONLY)
+	rd = am.array.rallocate(('octets', 'acquire', 'input'), fd)
 	rd.port.raised() # check exception
 
 	out = []
@@ -115,7 +70,8 @@ def file_test(test, am, path, apath):
 
 	somedata = b'0' * 256
 
-	wr = am.array.rallocate(('octets', 'file', 'overwrite'), apath)
+	fd = os.open(apath, os.O_WRONLY)
+	wr = am.array.rallocate(('octets', 'acquire', 'output'), fd)
 	wr.port.raised()
 	writer = common.Events(wr)
 	writer.setup_write(somedata)
@@ -137,10 +93,11 @@ def file_test(test, am, path, apath):
 		actual = f.read()
 	test/actual == expected
 
-	# now read it back in.
+	# read it back
 	data_size = len(expected)
 	xfer_len = 0
-	rd = am.array.rallocate(('octets', 'file', 'read'), apath)
+	fd = os.open(apath, os.O_RDONLY)
+	rd = am.array.rallocate(('octets', 'acquire', 'input'), fd)
 	out = []
 	reader = common.Events(rd)
 	reader.setup_read(17)

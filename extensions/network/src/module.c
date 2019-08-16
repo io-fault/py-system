@@ -532,7 +532,13 @@ nw_bind(PyObj module, PyObj args, PyObj kw)
 /*
 	// Works with statically defined types.
 */
-struct EndpointAPI _ep_apis = {&EndpointType, endpoint_create};
+struct EndpointAPI _ep_apis = {
+	&EndpointType,
+	endpoint_create,
+	ip4_from_object,
+	ip6_from_object,
+	local_from_object,
+};
 
 #define PYTHON_TYPES() \
 	ID(Endpoint)
@@ -567,11 +573,11 @@ INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
 		PYTHON_TYPES()
 	#undef ID
 
-	api_ob = PyCapsule_New(&_ep_apis, PYTHON_MODULE_PATH("_endpoint_api"), NULL);
+	api_ob = PyCapsule_New(&_ep_apis, "_endpoint_api", NULL);
 	if (api_ob == NULL)
 		return(-1);
 
-	if (PyModule_AddObject(module, "_api", api_ob))
+	if (PyModule_AddObject(module, "_endpoint_api", api_ob))
 	{
 		Py_DECREF(api_ob);
 		return(-1);

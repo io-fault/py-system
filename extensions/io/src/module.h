@@ -20,7 +20,6 @@
 
 #define PY_TYPES() \
 	ID(Port, ...) \
-	ID(Endpoint, ...) \
 	ID(DatagramArray, ...)
 
 #define ID(x, y) typedef struct x * x;

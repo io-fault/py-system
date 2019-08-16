@@ -19,6 +19,8 @@
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
 
+#include <endpoint.h>
+
 #include "port.h"
 
 #define errpf(...) fprintf(stderr, __VA_ARGS__)
