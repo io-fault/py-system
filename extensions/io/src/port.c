@@ -82,7 +82,6 @@ map_st_mode(mode_t mode)
 
 		case S_IFCHR:
 		case S_IFBLK:
-			return(kt_device);
 		case S_IFDIR:
 		case S_IFLNK:
 		case S_IFREG:
@@ -271,101 +270,6 @@ port_socket(Port p, int domain, int socktype, int protocol)
 
 	p->point = kp;
 	p->type = kt_socket;
-	return(0);
-}
-
-int
-port_socketpair(Port p1, Port p2)
-{
-	RETRY_STATE_INIT;
-	int fdv[2] = {-1, -1};
-	int r;
-
-	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(-1, &r, socketpair, AF_LOCAL, SOCK_STREAM, 0, fdv);
-
-	if (r)
-	{
-		switch (errno)
-		{
-			/*
-				// Invalidate point to avoid future close().
-			*/
-			case AGAIN:
-			case EINTR:
-				LIMITED_RETRY()
-			default:
-				Ports_NoteError(p1, p2, kc_socketpair);
-				return(1);
-			break;
-		}
-	}
-
-	p1->point = fdv[0];
-	p2->point = fdv[1];
-	p1->type = kt_socket;
-	p2->type = kt_socket;
-
-	return(0);
-}
-
-int
-port_pipe(Port p1, Port p2)
-{
-	RETRY_STATE_INIT;
-	int fdv[2] = {-1, -1};
-	int r;
-
-	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(-1, &r, pipe, fdv);
-
-	if (r)
-	{
-		switch (errno)
-		{
-			case AGAIN:
-			case EINTR:
-				LIMITED_RETRY()
-			default:
-				Ports_NoteError(p1, p2, kc_pipe);
-				return(1);
-			break;
-		}
-	}
-
-	p1->point = fdv[0];
-	p2->point = fdv[1];
-
-	p1->type = kt_pipe;
-	p2->type = kt_pipe;
-
-	return(0);
-}
-
-int
-port_dup(Port p, int fd)
-{
-	RETRY_STATE_INIT;
-	kport_t kp;
-
-	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(kp_invalid, &kp, dup, fd);
-
-	if (kp < 0)
-	{
-		switch (errno)
-		{
-			case AGAIN:
-			case EINTR:
-				LIMITED_RETRY()
-			default:
-				Port_NoteError(p, kc_dup);
-				return(1);
-			break;
-		}
-	}
-
-	p->point = kp;
 	return(0);
 }
 
@@ -975,20 +879,6 @@ port_input_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 		if (size > 0)
 		{
 			/*
-				// *Unless* it's a file.
-			*/
-			if (p->type == kt_file)
-			{
-				/*
-					// zero read. file?
-				*/
-				if (r < isize)
-				{
-					return(io_flow);
-				}
-			}
-
-			/*
 				// For some edge level trigger implementations, it's important
 				// that we exhaust our buffer or trigger EWOULDBLOCK. If EWOULDBLOCK
 				// is not triggered with epoll solutions, we won't see another event.
@@ -1003,7 +893,7 @@ port_input_octets(Port p, uint32_t *consumed, char *buf, uint32_t size)
 			}
 			else
 			{
-				/* A zero read where the type is not a file means EOF. */
+				/* Zero read. */
 				return(io_terminate);
 			}
 		}
@@ -1560,40 +1450,6 @@ ports_connect(Port p,
 	port_init_socket(p);
 
 	return(0);
-
-	exit:
-	return(1);
-}
-
-int
-ports_pipe(Port p[])
-{
-	if (port_pipe(p[0], p[1]))
-		goto exit;
-
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p[1]))
-			goto exit;
-	#endif
-
-	return((port_noblocking(p[0]) << 1) | port_noblocking(p[1]));
-
-	exit:
-	return(1);
-}
-
-int
-ports_socketpair(Port p[])
-{
-	if (port_socketpair(p[0], p[1]))
-		goto exit;
-
-	#ifdef F_SETNOSIGPIPE
-		if (port_nosigpipe(p[0]) | port_nosigpipe(p[1]))
-			goto exit;
-	#endif
-
-	return((port_noblocking(p[0]) << 1) | port_noblocking(p[1]));
 
 	exit:
 	return(1);
