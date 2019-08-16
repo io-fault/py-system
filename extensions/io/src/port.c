@@ -68,67 +68,6 @@ socket_send_buffer(kport_t kp)
 	return(size);
 }
 
-int
-port_open(Port p, char *path, int oflags)
-{
-	RETRY_STATE_INIT;
-	kport_t kp;
-
-	RETRY_SYSCALL:
-	{
-		ERRNO_RECEPTACLE(kp_invalid, &kp, open, path, oflags|CONFIG_OPEN_FLAGS, 0777);
-
-		if (kp < 0)
-		{
-			switch (errno)
-			{
-				/*
-					// Invalidate point to avoid future close().
-				*/
-				case AGAIN:
-				case EINTR:
-					LIMITED_RETRY()
-				default:
-					Port_NoteError(p, kc_open);
-					return(1);
-				break;
-			}
-		}
-		p->point = kp;
-
-		return(0);
-	}
-}
-
-int
-port_seek(Port p, off_t off, int whence)
-{
-	RETRY_STATE_INIT;
-	int r;
-	kport_t kp = p->point;
-
-	RETRY_SYSCALL:
-	{
-		ERRNO_RECEPTACLE(-1, &r, lseek, kp, off, whence);
-
-		if (r < 0)
-		{
-			switch (errno)
-			{
-				case AGAIN:
-				case EINTR:
-					LIMITED_RETRY()
-				default:
-					Port_NoteError(p, kc_lseek);
-					return(1);
-				break;
-			}
-		}
-
-		return(0);
-	}
-}
-
 static ktype_t
 map_st_mode(mode_t mode)
 {
@@ -1698,10 +1637,6 @@ ports_identify_input(Port p)
 	if (port_identify_type(p))
 		goto exit;
 
-	/*
-		// Reads don't cause EPIPE
-	*/
-
 	if (port_noblocking(p))
 		goto exit;
 
@@ -1787,34 +1722,4 @@ int
 ports_clone_pair(Port p[], kport_t reader, kport_t writer)
 {
 	return(ports_clone_input(p[0], reader) << 1 | ports_clone_output(p[1], writer));
-}
-
-int
-ports_open(Port p, char *path, int oflags)
-{
-	if (port_open(p, path, oflags))
-		goto exit;
-
-	if (port_noblocking(p))
-		goto exit;
-
-	if (port_identify_type(p))
-		goto exit;
-
-	switch (p->type)
-	{
-		case kt_file:
-		{
-			;
-		}
-		break;
-		default:
-			/* note not regular file? */
-		break;
-	}
-
-	return(0);
-
-	exit:
-	return(1);
 }
