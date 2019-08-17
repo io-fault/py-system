@@ -179,21 +179,9 @@ int ports_identify_socket(Port p);
 int ports_identify_input(Port p);
 int ports_identify_output(Port p);
 
-int ports_pipe(Port p[]);
-int ports_socketpair(Port p[]);
-int ports_listen(Port p, int domain, if_addr_ref_t interface, size_t interface_size);
-int ports_bind(Port p, int domain, int socktype, int proto, if_addr_ref_t endpoint, size_t endpoint_size);
-int ports_bind_connect(Port p, int domain, int socktype, int proto, if_addr_ref_t endpoint, size_t endpoint_size, if_addr_ref_t interface, size_t ifsize);
-int ports_connect(Port p, int domain, int socktype, int proto, if_addr_ref_t endpoint, size_t endpoint_size);
-
 int port_getpeername(Port p, if_addr_ref_t addr, socklen_t *addrlen);
 int port_getsockname(Port p, if_addr_ref_t addr, socklen_t *addrlen);
 int port_set_socket_option(Port p, int option, int setting);
-int port_socket(Port p, int domain, int socktype, int protocol);
-int port_socketpair(Port p1, Port p2);
-int port_pipe(Port p1, Port p2);
-int port_dup(Port p, int fd);
-int port_bind(Port p, if_addr_ref_t addr, socklen_t addrlen);
 
 #ifdef EVMECH_EPOLL
 	int port_epoll_create(Port p);
@@ -204,7 +192,6 @@ int port_bind(Port p, if_addr_ref_t addr, socklen_t addrlen);
 	int port_kevent(Port p, int retry, int *out, kevent_t *changes, int nchanges, kevent_t *events, int nevents, const struct timespec *timeout);
 #endif
 
-int port_connect(Port p, if_addr_ref_t addr, socklen_t addrlen);
 int port_listen(Port p, int backlog);
 
 int port_init_socket(Port p);
