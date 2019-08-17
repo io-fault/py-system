@@ -812,9 +812,10 @@ initialize(PyObj mod, PyObj ctx)
 	Py_RETURN_NONE;
 }
 
+#define PortsType KPortsType
 #define PYTHON_TYPES() \
 	ID(Invocation) \
-	ID(KPorts)
+	ID(Ports)
 
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
@@ -828,12 +829,11 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		exit_by_signal, exit_by_signal, METH_O, \
 			"Register an (system/manual)`atexit` handler that causes the " \
-			"process to exit with the given signal number." \
-			"\n\nThis may only be called once per-process.") \
+			"process to exit with the given signal number.") \
 	PYMETHOD( \
 		initialize, initialize, METH_O, \
 			"Initialize the after fork callbacks. " \
-			"Called once by &.process. Do not use.")
+			"Called once by &.process. Do not use directly.")
 
 extern PyTypeObject KPortsType;
 KPorts kports_alloc(kport_t, Py_ssize_t);

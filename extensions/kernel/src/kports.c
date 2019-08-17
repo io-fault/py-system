@@ -412,7 +412,7 @@ PyDoc_STRVAR(kports_doc, "File Descriptor array type.");
 PyTypeObject
 KPortsType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("KPorts"),   /* tp_name */
+	PYTHON_MODULE_PATH("Ports"),    /* tp_name */
 	sizeof(struct KPorts),          /* tp_basicsize */
 	sizeof(kport_t),                /* tp_itemsize */
 	kports_dealloc,                 /* tp_dealloc */

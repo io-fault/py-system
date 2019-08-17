@@ -16,8 +16,6 @@ typedef struct KPorts *KPorts;
 #define KPorts_SetItem(KP, IDX, VAL) (KPorts_GetArray(KP)[IDX]) = VAL
 #define KPorts_GetLength(KP) Py_SIZE(KP)
 
-extern PyTypeObject KPortsType;
-
 struct KPortsAPI {
 	PyTypeObject *type;
 	KPorts (*alloc)(kport_t, Py_ssize_t);
