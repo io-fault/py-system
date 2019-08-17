@@ -592,7 +592,7 @@ def stream_listening_connection(test, version, address, port = None):
 	am = ArrayActionManager()
 	if_p = network.Endpoint(version, address, None, 'octets')
 	fd = network.service(if_p)
-	s = am.array.rallocate(('sockets', 'acquire'), fd)
+	s = io.alloc_service(fd)
 
 	# check for initial failures
 	s.port.raised()
@@ -624,7 +624,7 @@ def stream_listening_connection(test, version, address, port = None):
 		for exchange in transfer_cases:
 			peer_ep = network.Endpoint(version, full_address, None, 'octets')
 			pfd = network.connect(peer_ep)
-			client_channels = am.array.rallocate(('octets', 'acquire', 'socket'), pfd)
+			client_channels = io.alloc_octets(pfd)
 
 			client_channels[0].port.raised()
 			client_channels[0].resize_exoresource(1024 * 32)
@@ -646,7 +646,7 @@ def stream_listening_connection(test, version, address, port = None):
 				fd = listen.sockets[0]
 				listen.clear()
 
-				server_channels = am.array.rallocate(('octets', 'acquire', 'socket'), fd)
+				server_channels = io.alloc_octets(fd)
 				server = Endpoint(server_channels)
 				with am.manage(server):
 					sr_endpoint = server.read_channel.endpoint()
