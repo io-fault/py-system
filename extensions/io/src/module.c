@@ -4360,11 +4360,6 @@ ArrayType = {{
 	// The third parameter is the domain/address family.
 	// The fourth parameter is the "protocol".
 */
-#define ARRAY_RESOURCE_ALLOCATION_DEFAULTS() \
-	X(io,datagrams,acquire,DEFAULT) \
-	X(io,octets,acquire,DEFAULT) \
-	X(i,sockets,acquire,DEFAULT) \
-	X(io,ports,acquire,DEFAULT)
 
 #define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
 	X(io,datagrams,acquire,socket) \
@@ -4374,9 +4369,6 @@ ArrayType = {{
 	X(i,sockets,acquire,socket) \
 	X(io,ports,acquire,socket)
 
-#define DEFAULT_REQUEST(IOF, FREIGHT, DOMAIN, ...) #FREIGHT, #DOMAIN
-#define PROTOCOL_REQUEST(IOF, FREIGHT, DOMAIN, PROTOCOL, ...) #FREIGHT, #DOMAIN, #PROTOCOL
-
 #define OBNAME(IOF, FREIGHT, DOMAIN, PROTO, ...) \
 	_pycap_##FREIGHT##_##DOMAIN##_##PROTO
 #define ALLOCFNAME(IOF, FREIGHT, DOMAIN, PROTO, ...) \
@@ -4384,17 +4376,9 @@ ArrayType = {{
 #define ALLOC(IOF, ...) (alloc##IOF)
 #define TYP(IOF, FREIGHT, ...) FREIGHT##type
 #define PARAM_FAMILY(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_pf
-#define DOMAIN_STR(IOF, FREIGHT, DOMAIN, ...) #DOMAIN
 #define PARAM_STORAGE(PARAM, IOF, FREIGHT, DOMAIN, ...) DOMAIN##_addr_t PARAM
 #define PARAM_CLEAR(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_clear
 #define CONVERTER(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_from_object
-
-#define FIRST_TWO(IOF, F1, F2, ...) #F1, #F2
-#define FIRST_TWO_IRI(IOF, F1, F2, ...) #F1 "://" #F2
-
-#define FIRST_THREE(IOF, F1, F2, F3, ...) #F1, #F2, #F3
-#define FIRST_THREE_IRI(IOF, F1, F2, F3, ...) #F1 "://" #F2 "/" #F3
-#define FIRST_THREE_IRI_PORT(IOF, F1, F2, F3, ...) #F1 "://" #F2 ":" #F3
 
 /*
 	// These defines are for the nasty X-macro generated channel allocation functions used
@@ -4410,17 +4394,13 @@ ArrayType = {{
 #define ports_init_acquire_output(P, x) \
 	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
 
-#define ports_init_datagrams_acquire_DEFAULT ports_init_acquire_socket
 #define ports_init_datagrams_acquire_socket ports_init_acquire_socket
 
 #define ports_init_sockets_acquire_socket ports_init_acquire_socket
-#define ports_init_sockets_acquire_DEFAULT ports_init_acquire_socket
 
 #define ports_init_ports_acquire_socket ports_init_acquire_socket
-#define ports_init_ports_acquire_DEFAULT ports_init_acquire_socket
 
 #define ports_init_octets_acquire_socket ports_init_acquire_socket
-#define ports_init_octets_acquire_DEFAULT ports_init_acquire_socket
 #define ports_init_octets_acquire_input  ports_init_acquire_input
 #define ports_init_octets_acquire_output ports_init_acquire_output
 
@@ -4451,7 +4431,6 @@ ALLOCFNAME(__VA_ARGS__)(PyObj J, PyObj param) \
 	return(rob); \
 }
 
-ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
 ARRAY_RESOURCE_ALLOCATION_SELECTION()
 #undef X
 
