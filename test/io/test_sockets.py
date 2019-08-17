@@ -21,7 +21,7 @@ def test_sockets_accept_filter(test):
 	J = io.Array()
 	try:
 		ep = network.Endpoint.from_ip4(('127.0.0.1', 0))
-		s = J.rallocate("sockets://acquire", network.service(ep))
+		s = io.alloc_service(network.service(ep))
 		J.acquire(s)
 		with test/TypeError as exc:
 			s.set_accept_filter()

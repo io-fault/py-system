@@ -315,19 +315,19 @@ def test_octets_acquire_badfd_detect(test):
 	r, w = os.pipe()
 	J = io.Array()
 	try:
-		xr = J.rallocate('octets://acquire/input', w)
+		xr = io.alloc_input(w)
 		xr.port.error_code in test/(errno.EBADF, 0)
 		xr.port.call in test/('read', None)
 
-		xw = J.rallocate('octets://acquire/output', r)
+		xw = io.alloc_output(r)
 		xw.port.error_code in test/(errno.EBADF, 0)
 		xw.port.call in test/('write', None)
 
-		xs, xsw = J.rallocate('octets://acquire/socket', r)
+		xs, xsw = io.alloc_octets(r)
 		test/xs.port.error_code == errno.EBADF
 		test/xs.port.call == 'identify' # local call
 
-		xs = J.rallocate('sockets://acquire/socket', w)
+		xs = io.alloc_service(w)
 		test/xs.port.error_code == errno.EBADF
 		test/xs.port.call == 'identify' # local call
 	finally:
