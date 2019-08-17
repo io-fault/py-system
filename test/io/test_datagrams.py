@@ -4,7 +4,7 @@ from ... import network
 
 service_alloc = network.Endpoint.from_ip4(('127.0.0.1', 0), 'udp', 'datagrams')
 def mksrv():
-	return network.bind(service_alloc)
+	return io.alloc_datagrams(network.bind(service_alloc))
 
 def error_cases(test, dg, idx):
 	with test/IndexError:
@@ -134,7 +134,7 @@ def alloc(q):
 def test_Datagrams_transfer_one(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate('datagrams://acquire', mksrv())
+		r, w = mksrv()
 		J.acquire(r)
 		J.acquire(w)
 		ep = r.endpoint()
@@ -158,7 +158,7 @@ def test_Datagrams_transfer_one(test):
 def test_Datagrams_transfer_one_of_two(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate('datagrams://acquire', mksrv())
+		r, w = mksrv()
 		J.acquire(r)
 		J.acquire(w)
 		ep = r.endpoint()
@@ -185,7 +185,7 @@ def test_Datagrams_transfer_one_of_two(test):
 def test_Datagrams_transfer_two_of_one(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate('datagrams://acquire', mksrv())
+		r, w = mksrv()
 		J.acquire(r)
 		J.acquire(w)
 		ep = r.endpoint()
@@ -231,7 +231,7 @@ def test_Datagrams_transfer_two_of_one(test):
 def test_Datagrams_invalid(test):
 	J = io.Array()
 	try:
-		r, w = J.rallocate('datagrams://acquire', mksrv())
+		r, w = mksrv()
 		J.acquire(r)
 		J.acquire(w)
 		ep = r.endpoint()

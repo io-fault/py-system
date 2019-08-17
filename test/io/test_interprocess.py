@@ -154,7 +154,7 @@ def test_ports_sockets(test):
 				fd = child.read_payload_int[0]
 				test/fd != -1
 
-				sockets = am.array.rallocate('sockets://acquire/socket', fd)
+				sockets = io.alloc_service(fd)
 				sockets.port.raised()
 				server = sockets.endpoint()
 				server = network.Endpoint('ip4', (server.address, server.port), None, 'octets')
@@ -162,7 +162,7 @@ def test_ports_sockets(test):
 				listen = common.Events(sockets)
 				listen.setup_read(1)
 				with am.manage(listen):
-					channels = am.array.rallocate('octets://acquire', network.connect(server))
+					channels = io.alloc_octets(network.connect(server))
 					client = common.Endpoint(channels)
 					with am.manage(client):
 						for x in am.delta():
@@ -181,7 +181,7 @@ def test_ports_sockets(test):
 
 		with am.thread(), am.manage(parent):
 			ep = network.Endpoint.from_ip4(('127.0.0.1', 0))
-			sockets = am.array.rallocate("sockets://acquire", network.service(ep))
+			sockets = io.alloc_service(network.service(ep))
 
 			r = parent.write_channel.rallocate(1)
 			r[0] = sockets.port.id
@@ -231,7 +231,7 @@ def test_ports_spawned_octets(test):
 
 				sock = child.read_payload_int[0]
 				ours = os.dup(sock)
-				channels = am.array.rallocate('octets://acquire/socket', ours)
+				channels = io.alloc_octets(ours)
 				# echo everything they send us.
 				channels[0].port.raised()
 				objects = common.Objects(channels)
@@ -256,7 +256,7 @@ def test_ports_spawned_octets(test):
 		]
 
 		with am.thread(), am.manage(parent):
-			comchannels = am.array.rallocate('octets://spawn/bidirectional')
+			comchannels = common.allocsockets(am.array)
 
 			ours = comchannels[:2]
 			theirs = comchannels[2:]

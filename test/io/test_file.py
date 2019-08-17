@@ -11,7 +11,7 @@ def file_test(test, am, path, apath):
 	thedata = b'\xF1'*128
 
 	fd = os.open(apath, os.O_APPEND|os.O_WRONLY|os.O_CREAT)
-	wr = am.array.rallocate(('octets', 'acquire', 'output'), fd)
+	wr = io.alloc_output(fd)
 	wr.port.raised()
 
 	writer = common.Events(wr)
@@ -41,7 +41,7 @@ def file_test(test, am, path, apath):
 
 	# read it back
 	fd = os.open(apath, os.O_RDONLY)
-	rd = am.array.rallocate(('octets', 'acquire', 'input'), fd)
+	rd = io.alloc_input(fd)
 	rd.port.raised() # check exception
 
 	out = []
@@ -71,7 +71,7 @@ def file_test(test, am, path, apath):
 	somedata = b'0' * 256
 
 	fd = os.open(apath, os.O_WRONLY)
-	wr = am.array.rallocate(('octets', 'acquire', 'output'), fd)
+	wr = io.alloc_output(fd)
 	wr.port.raised()
 	writer = common.Events(wr)
 	writer.setup_write(somedata)
@@ -97,7 +97,7 @@ def file_test(test, am, path, apath):
 	data_size = len(expected)
 	xfer_len = 0
 	fd = os.open(apath, os.O_RDONLY)
-	rd = am.array.rallocate(('octets', 'acquire', 'input'), fd)
+	rd = io.alloc_input(fd)
 	out = []
 	reader = common.Events(rd)
 	reader.setup_read(17)

@@ -14,24 +14,24 @@ from ... import network
 def allocpipe(A):
 	r, w = os.pipe()
 	return (
-		A.rallocate('octets://acquire/input', r),
-		A.rallocate('octets://acquire/output', w)
+		io.alloc_input(r),
+		io.alloc_output(w)
 	)
 
 def allocsockets(A):
 	s1, s2 = socket.socketpair()
 	s1.setblocking(False)
 	s2.setblocking(False)
-	s1 = A.rallocate('octets://acquire/socket', os.dup(s1.fileno()))
-	s2 = A.rallocate('octets://acquire/socket', os.dup(s2.fileno()))
+	s1 = io.alloc_octets(os.dup(s1.fileno()))
+	s2 = io.alloc_octets(os.dup(s2.fileno()))
 	return s1 + s2
 
 def allocports(A):
 	s1, s2 = socket.socketpair()
 	s1.setblocking(False)
 	s2.setblocking(False)
-	s1 = A.rallocate('ports://acquire/socket', os.dup(s1.fileno()))
-	s2 = A.rallocate('ports://acquire/socket', os.dup(s2.fileno()))
+	s1 = io.alloc_ports(os.dup(s1.fileno()))
+	s2 = io.alloc_ports(os.dup(s2.fileno()))
 	return s1 + s2
 
 class Terminated(Exception):

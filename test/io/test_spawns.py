@@ -2,14 +2,6 @@ import os
 from . import common
 from ... import io
 
-def test_invalid_address(test):
-	try:
-		J = io.Array()
-		with test/TypeError as exc:
-			J.rallocate('octets://acquire/socket', "foobar")
-	finally:
-		J.void()
-
 # two pipe()'s
 def test_unidirectional(test):
 	am = common.ArrayActionManager()

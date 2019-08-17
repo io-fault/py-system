@@ -180,16 +180,6 @@ def test_array_resize_exoresource(test):
 	finally:
 		J.void()
 
-def test_array_rallocate_errors(test):
-	J = io.Array()
-	try:
-		with test/LookupError as exc:
-			J.rallocate("")
-		with test/TypeError as exc:
-			J.rallocate()
-	finally:
-		J.void()
-
 def test_array_collection_countdown(test):
 	J = io.Array()
 	try:
@@ -206,7 +196,7 @@ def test_array_collection_countdown(test):
 				y.acquire(data)
 
 			for t in reads:
-				b = t.rallocate(len(data))
+				b = bytearray(len(data))
 				bufs.append(b)
 				t.acquire(b)
 				J.acquire(t)

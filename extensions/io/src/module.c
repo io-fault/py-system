@@ -4431,27 +4431,23 @@ ArrayType = {{
 	X(io,datagrams,acquire,DEFAULT) \
 	X(io,octets,acquire,DEFAULT) \
 	X(i,sockets,acquire,DEFAULT) \
-	X(io,ports,acquire,DEFAULT) \
+	X(io,ports,acquire,DEFAULT)
 
 #define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
+	X(io,datagrams,acquire,socket) \
 	X(io,octets,acquire,socket) \
 	X(i,octets,acquire,input) \
 	X(o,octets,acquire,output) \
-	\
 	X(i,sockets,acquire,socket) \
-	X(io,ports,acquire,socket) \
+	X(io,ports,acquire,socket)
 
 #define DEFAULT_REQUEST(IOF, FREIGHT, DOMAIN, ...) #FREIGHT, #DOMAIN
 #define PROTOCOL_REQUEST(IOF, FREIGHT, DOMAIN, PROTOCOL, ...) #FREIGHT, #DOMAIN, #PROTOCOL
 
 #define OBNAME(IOF, FREIGHT, DOMAIN, PROTO, ...) \
 	_pycap_##FREIGHT##_##DOMAIN##_##PROTO
-#define OBNAME_BIND(IOF, FREIGHT, DOMAIN, PROTO, ...) \
-	_pycap_##FREIGHT##_##DOMAIN##_##PROTO##_bind
 #define ALLOCFNAME(IOF, FREIGHT, DOMAIN, PROTO, ...) \
 	_talloc_##FREIGHT##_##DOMAIN##_##PROTO
-#define ALLOCFNAME_BIND(IOF, FREIGHT, DOMAIN, PROTO, ...) \
-	_talloc_##FREIGHT##_##DOMAIN##_##PROTO##_bind
 #define ALLOC(IOF, ...) (alloc##IOF)
 #define TYP(IOF, FREIGHT, ...) FREIGHT##type
 #define PARAM_FAMILY(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_pf
@@ -4467,10 +4463,6 @@ ArrayType = {{
 #define FIRST_THREE_IRI(IOF, F1, F2, F3, ...) #F1 "://" #F2 "/" #F3
 #define FIRST_THREE_IRI_PORT(IOF, F1, F2, F3, ...) #F1 "://" #F2 ":" #F3
 
-#define _TCPIP_PARAMS SOCK_STREAM, 0
-#define _UDPIP_PARAMS SOCK_DGRAM, 0
-#define _LOCAL_PARAMS PF_LOCAL, SOCK_STREAM, 0
-
 /*
 	// These defines are for the nasty X-macro generated channel allocation functions used
 	// by Array.rallocate(). There are a number of combinations, so grouping the
@@ -4478,16 +4470,6 @@ ArrayType = {{
 
 	// Cover each combination referenced by the capsule xmacro.
 */
-#define ports_init_sockets_ip4_DEFAULT(P, x) \
-	ports_listen(P[0], ip4_pf, (if_addr_ref_t) &x, sizeof(x))
-#define ports_init_sockets_ip6_DEFAULT(P, x) \
-	ports_listen(P[0], ip6_pf, (if_addr_ref_t) &x, sizeof(x))
-#define ports_init_sockets_local_DEFAULT(P, x) \
-	ports_listen(P[0], local_pf, (if_addr_ref_t) &x, sizeof(x))
-
-#define ports_init_octets_local(P, x) \
-	ports_connect(P[0], _LOCAL_PARAMS, (if_addr_ref_t) &x, sizeof(x))
-
 #define ports_init_acquire_socket(P, x) \
 	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
 #define ports_init_acquire_input(P, x) \
@@ -4496,6 +4478,7 @@ ArrayType = {{
 	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
 
 #define ports_init_datagrams_acquire_DEFAULT ports_init_acquire_socket
+#define ports_init_datagrams_acquire_socket ports_init_acquire_socket
 
 #define ports_init_sockets_acquire_socket ports_init_acquire_socket
 #define ports_init_sockets_acquire_DEFAULT ports_init_acquire_socket
@@ -4510,8 +4493,6 @@ ArrayType = {{
 
 #define INITPORTS(IOF, FREIGHT, DOMAIN, PROTO, ...) \
 	ports_init_##FREIGHT##_##DOMAIN##_##PROTO
-#define INITPORTS_BIND(IOF, FREIGHT, DOMAIN, PROTO, ...) \
-	ports_init_##FREIGHT##_##DOMAIN##_##PROTO##_bind
 
 /* Generate the allocation functions. */
 #define X(...) \
@@ -4607,9 +4588,27 @@ _init_array_rallocation(void)
 }
 
 /**
-	// No functions. Only types.
+	// Access to channel allocators.
 */
-#define MODULE_FUNCTIONS()
+#define MODULE_FUNCTIONS() \
+	PYMETHOD( \
+		alloc_input, _talloc_octets_acquire_input, METH_O, \
+		"Allocate Octets for the given read-only file descriptor.") \
+	PYMETHOD( \
+		alloc_output, _talloc_octets_acquire_output, METH_O, \
+		"Allocate Octets for the given write-only file descriptor.") \
+	PYMETHOD( \
+		alloc_datagrams, _talloc_datagrams_acquire_socket, METH_O, \
+		"Allocate Datagrams for the given socket file descriptor.") \
+	PYMETHOD( \
+		alloc_octets, _talloc_octets_acquire_socket, METH_O, \
+		"Allocate Octets for the given socket file descriptor.") \
+	PYMETHOD( \
+		alloc_ports, _talloc_ports_acquire_socket, METH_O, \
+		"Allocate Ports for the given socket file descriptor.") \
+	PYMETHOD( \
+		alloc_service, _talloc_sockets_acquire_socket, METH_O, \
+		"Allocate Sockets for the given socket file descriptor.")
 
 #include <fault/python/module.h>
 
