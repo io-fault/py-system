@@ -3115,55 +3115,6 @@ array_resize_exoresource(PyObj self, PyObj args)
 	return(PyLong_FromUnsignedLong(Channel_GetWindowStop(J)));
 }
 
-/*
-	// Relay to the generated channel alloc functions.
-	// See the preproc blackmagic at the bottom of the file.
-*/
-static PyObj _jra_map = NULL; /* module init */
-
-static PyObj
-array_rallocate(PyObj self, PyObj args)
-{
-	PyObj (*talloc)(PyObj, PyObj);
-	PyObj req, params;
-	PyObj cap, rob;
-	Py_ssize_t i, len = PyTuple_GET_SIZE(args);
-
-	if (len < 1)
-	{
-		PyErr_SetString(PyExc_TypeError, "Array.rallocate requires at least one argument");
-		return(NULL);
-	}
-
-	req = PyTuple_GET_ITEM(args, 0);
-
-	/*
-		// It's essentially a method table.
-		// Capsules are used because we are resolving methods using arbitrary Python objects.
-		// (If it were just strings, we'd probably use a plain hash table with uthash)
-	*/
-	cap = PyDict_GetItem(_jra_map, req);
-	if (cap == NULL)
-	{
-		PyErr_SetString(PyExc_LookupError, "no such resource type");
-		return(NULL);
-	}
-
-	talloc = PyCapsule_GetPointer(cap, NULL);
-	if (len > 1)
-		rob = talloc(self, PyTuple_GET_ITEM(args, 1));
-	else
-		rob = talloc(self, Py_None);
-
-	return(rob);
-}
-
-static PyObj
-array_rtypes(PyObj self)
-{
-	return(PyObject_CallMethod(_jra_map, "keys", ""));
-}
-
 static PyObj
 array_acquire(PyObj self, PyObj ob)
 {
@@ -4209,24 +4160,6 @@ array_methods[] = {
 		)
 	},
 
-	{"rallocate",
-		(PyCFunction) array_rallocate, METH_VARARGS|METH_CLASS,
-		PyDoc_STR(
-			"Returns a Channel or a sequence of Channels constructed from the request.\n"
-
-			"[ Parameters ]\n"
-			"/(&tuple)`request`/\n"
-			"\tThe address and parameters to the Channel allocator.\n"
-		)
-	},
-
-	{"rtypes",
-		(PyCFunction) array_rtypes, METH_NOARGS|METH_CLASS,
-		PyDoc_STR(
-			"Returns an iterator to resource allocation request types recognized by the Array."
-		)
-	},
-
 	{"acquire",
 		(PyCFunction) array_acquire, METH_O,
 		PyDoc_STR(
@@ -4522,71 +4455,6 @@ ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
 ARRAY_RESOURCE_ALLOCATION_SELECTION()
 #undef X
 
-static PyObj
-_init_array_rallocation(void)
-{
-	/*
-		// There is a number of allocation combinations possible,
-		// so macros are used to generate many allocation actions.
-	*/
-	PyObj rob = NULL
-		#define X(...) , \
-			OBNAME(__VA_ARGS__) = PyCapsule_New((void *) (& (ALLOCFNAME(__VA_ARGS__))), NULL, NULL)
-
-			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-	;
-
-	#define X(...) if (OBNAME(__VA_ARGS__) == NULL) goto error;
-		ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-		ARRAY_RESOURCE_ALLOCATION_SELECTION()
-	#undef X
-
-	rob = Py_BuildValue(
-		"{"
-			#define X(...) "(ss)O"
-				ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-			#undef X
-
-			#define X(...) "(sss)O"
-				ARRAY_RESOURCE_ALLOCATION_SELECTION()
-			#undef X
-
-			#define X(...) "sO"
-				ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-				ARRAY_RESOURCE_ALLOCATION_SELECTION()
-			#undef X
-		"}"
-
-		#define X(...) , FIRST_TWO(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-		#undef X
-
-		#define X(...) , FIRST_THREE(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-
-		#define X(...) , FIRST_TWO_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-		#undef X
-
-		#define X(...) , FIRST_THREE_IRI(__VA_ARGS__), OBNAME(__VA_ARGS__)
-			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-	);
-
-	error:
-	{
-		#define X(...) Py_DECREF(OBNAME(__VA_ARGS__));
-			ARRAY_RESOURCE_ALLOCATION_DEFAULTS()
-			ARRAY_RESOURCE_ALLOCATION_SELECTION()
-		#undef X
-	}
-
-	return(rob);
-}
-
 /**
 	// Access to channel allocators.
 */
@@ -4668,14 +4536,6 @@ INIT(module, 0, PyDoc_STR("Asynchronous System I/O"))
 		CHANNEL_TYPES()
 		PY_TYPES()
 	#undef ID
-
-	/*
-		// Provides mapping for Array.rallocate()
-		// Must be initialized after types are Ready'd.
-	*/
-	_jra_map = _init_array_rallocation();
-	if (_jra_map == NULL)
-		goto error;
 
 	/**
 		// Setup exception instances.

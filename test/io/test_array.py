@@ -20,9 +20,6 @@ def test_array_already_acquired(test):
 		J1.void()
 		J2.void()
 
-def test_array_rtypes(test):
-	test/list(io.Array.rtypes()) != []
-
 def test_array_set(test, count=128):
 	"""
 	# Sanity/smoke test validating the capacity to create some number of arrays.
