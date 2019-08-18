@@ -4254,38 +4254,25 @@ ArrayType = {{
 	&ArrayTIF,
 };
 
-int
-acquire_from_object(PyObj args, void *out)
-{
-	long fd;
-	kport_t *kp = out;
-
-	fd = PyLong_AsLong(args);
-	if (PyErr_Occurred())
-		return(0);
-
-	*kp = fd;
-	return(1);
-}
-
 static PyObj
-_talloc_sockets_input(PyObj J, PyObj param)
+_talloc_sockets_input(PyObj module, PyObj param)
 {
 	const PyObj typ = &SocketsType;
 	Port p = NULL;
 	PyObj rob = NULL;
-	kport_t port_param = -1;
+	kport_t fd = -1;
 
-	if (!acquire_from_object(param, (void *) &port_param))
-		return(NULL);
+	fd = PyLong_AsLong(param);
+	if (PyErr_Occurred())
+		return(0);
 
 	rob = alloci(typ, &p);
 	if (rob == NULL)
 		return(NULL);
 
 	p->freight = f_sockets;
-	p->point = port_param;
-	ports_identify_input(p);
+	p->point = fd;
+	ports_identify_socket(p);
 	if (p->cause == kc_pyalloc)
 		p->cause = kc_none;
 
@@ -4293,22 +4280,23 @@ _talloc_sockets_input(PyObj J, PyObj param)
 }
 
 static PyObj
-_talloc_octets_input(PyObj J, PyObj param)
+_talloc_octets_input(PyObj module, PyObj param)
 {
 	const PyObj typ = &OctetsType;
 	Port p = NULL;
 	PyObj rob = NULL;
-	kport_t port_param = -1;
+	kport_t fd = -1;
 
-	if (!acquire_from_object(param, (void *) &port_param))
-		return(NULL);
+	fd = PyLong_AsLong(param);
+	if (PyErr_Occurred())
+		return(0);
 
 	rob = alloci(typ, &p);
 	if (rob == NULL)
 		return(NULL);
 
 	p->freight = f_octets;
-	p->point = port_param;
+	p->point = fd;
 	ports_identify_input(p);
 	if (p->cause == kc_pyalloc)
 		p->cause = kc_none;
@@ -4317,22 +4305,23 @@ _talloc_octets_input(PyObj J, PyObj param)
 }
 
 static PyObj
-_talloc_octets_output(PyObj J, PyObj param)
+_talloc_octets_output(PyObj module, PyObj param)
 {
 	const PyObj typ = &OctetsType;
 	Port p = NULL;
 	PyObj rob = NULL;
-	kport_t port_param = -1;
+	kport_t fd = -1;
 
-	if (!acquire_from_object(param, (void *) &port_param))
-		return(NULL);
+	fd = PyLong_AsLong(param);
+	if (PyErr_Occurred())
+		return(0);
 
 	rob = alloco(typ, &p);
 	if (rob == NULL)
 		return(NULL);
 
 	p->freight = f_octets;
-	p->point = port_param;
+	p->point = fd;
 	ports_identify_output(p);
 	if (p->cause == kc_pyalloc)
 		p->cause = kc_none;
@@ -4341,22 +4330,23 @@ _talloc_octets_output(PyObj J, PyObj param)
 }
 
 static PyObj
-_talloc_datagrams_socket(PyObj J, PyObj param)
+_talloc_datagrams_socket(PyObj module, PyObj param)
 {
 	const PyObj typ = &DatagramsType;
 	Port p = NULL;
 	PyObj rob = NULL;
-	kport_t port_param = -1;
+	kport_t fd = -1;
 
-	if (!acquire_from_object(param, (void *) &port_param))
-		return(NULL);
+	fd = PyLong_AsLong(param);
+	if (PyErr_Occurred())
+		return(0);
 
 	rob = allocio(typ, typ, &p);
 	if (rob == NULL)
 		return(NULL);
 
 	p->freight = f_datagrams;
-	p->point = port_param;
+	p->point = fd;
 	ports_identify_socket(p);
 	if (p->cause == kc_pyalloc)
 		p->cause = kc_none;
@@ -4365,22 +4355,23 @@ _talloc_datagrams_socket(PyObj J, PyObj param)
 }
 
 static PyObj
-_talloc_octets_socket(PyObj J, PyObj param)
+_talloc_octets_socket(PyObj module, PyObj param)
 {
 	const PyObj typ = &OctetsType;
 	Port p = NULL;
 	PyObj rob = NULL;
-	kport_t port_param = -1;
+	kport_t fd = -1;
 
-	if (!acquire_from_object(param, (void *) &port_param))
-		return(NULL);
+	fd = PyLong_AsLong(param);
+	if (PyErr_Occurred())
+		return(0);
 
 	rob = allocio(typ, typ, &p);
 	if (rob == NULL)
 		return(NULL);
 
 	p->freight = f_octets;
-	p->point = port_param;
+	p->point = fd;
 	ports_identify_socket(p);
 	if (p->cause == kc_pyalloc)
 		p->cause = kc_none;
@@ -4389,22 +4380,23 @@ _talloc_octets_socket(PyObj J, PyObj param)
 }
 
 static PyObj
-_talloc_ports_socket(PyObj J, PyObj param)
+_talloc_ports_socket(PyObj module, PyObj param)
 {
 	const PyObj typ = &PortsType;
 	Port p = NULL;
 	PyObj rob = NULL;
-	kport_t port_param = -1;
+	kport_t fd = -1;
 
-	if (!acquire_from_object(param, (void *) &port_param))
-		return(NULL);
+	fd = PyLong_AsLong(param);
+	if (PyErr_Occurred())
+		return(0);
 
 	rob = allocio(typ, typ, &p);
 	if (rob == NULL)
 		return(NULL);
 
 	p->freight = f_ports;
-	p->point = port_param;
+	p->point = fd;
 	ports_identify_socket(p);
 	if (p->cause == kc_pyalloc)
 		p->cause = kc_none;
@@ -4423,17 +4415,17 @@ _talloc_ports_socket(PyObj J, PyObj param)
 		alloc_output, _talloc_octets_output, METH_O, \
 		"Allocate Octets for the given write-only file descriptor.") \
 	PYMETHOD( \
+		alloc_service, _talloc_sockets_input, METH_O, \
+		"Allocate Sockets for the given listening socket file descriptor.") \
+	PYMETHOD( \
 		alloc_datagrams, _talloc_datagrams_socket, METH_O, \
-		"Allocate Datagrams for the given socket file descriptor.") \
+		"Allocate a Datagrams pair for the given socket file descriptor.") \
 	PYMETHOD( \
 		alloc_octets, _talloc_octets_socket, METH_O, \
-		"Allocate Octets for the given socket file descriptor.") \
+		"Allocate an Octets pair for the given socket file descriptor.") \
 	PYMETHOD( \
 		alloc_ports, _talloc_ports_socket, METH_O, \
-		"Allocate Ports for the given socket file descriptor.") \
-	PYMETHOD( \
-		alloc_service, _talloc_sockets_socket, METH_O, \
-		"Allocate Sockets for the given socket file descriptor.")
+		"Allocate a Ports pair for the given socket file descriptor.")
 
 #include <fault/python/module.h>
 
