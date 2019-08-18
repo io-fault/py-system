@@ -1930,7 +1930,7 @@ alloc_port(void)
 }
 
 static PyObj
-alloci(PyObj isubtype, PyObj osubtype, Port *out)
+alloci(PyObj isubtype, Port *out)
 {
 	Channel t;
 	PyObj rob;
@@ -1959,7 +1959,7 @@ alloci(PyObj isubtype, PyObj osubtype, Port *out)
 }
 
 static PyObj
-alloco(PyObj isubtype, PyObj osubtype, Port *out)
+alloco(PyObj osubtype, Port *out)
 {
 	PyObj rob;
 	Channel t;
@@ -2052,12 +2052,12 @@ allociopair(PyObj isubtype, PyObj osubtype, Port p[])
 	if (rob == NULL)
 		return(NULL);
 
-	input = alloci(isubtype, osubtype, &x);
+	input = alloci(isubtype, &x);
 	if (input == NULL)
 		goto error;
 	PyTuple_SET_ITEM(rob, 0, (PyObj) input);
 
-	output = alloco(isubtype, osubtype, &y);
+	output = alloco(osubtype, &y);
 	if (output == NULL)
 		goto error;
 	PyTuple_SET_ITEM(rob, 1, (PyObj) output);
@@ -4180,7 +4180,7 @@ array_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "", kwlist))
 		return(NULL);
 
-	J = (Array) alloci((PyObj) subtype, (PyObj) subtype, &p);
+	J = (Array) alloci((PyObj) subtype, &p);
 	if (J == NULL)
 		return(NULL);
 	p->type = kt_kqueue;
@@ -4254,13 +4254,6 @@ ArrayType = {{
 	&ArrayTIF,
 };
 
-/**
-	// The initial parameter designates the allocation type to support the new channels.
-	// The second parameter defines the freight type and the Python type used.
-	// The third parameter is the domain/address family.
-	// The fourth parameter is the "protocol".
-*/
-
 int
 acquire_from_object(PyObj args, void *out)
 {
@@ -4275,62 +4268,149 @@ acquire_from_object(PyObj args, void *out)
 	return(1);
 }
 
-#define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
-	X(io,datagrams,socket) \
-	X(io,octets,socket) \
-	X(i,octets,input) \
-	X(o,octets,output) \
-	X(i,sockets,socket) \
-	X(io,ports,socket)
+static PyObj
+_talloc_sockets_input(PyObj J, PyObj param)
+{
+	const PyObj typ = &SocketsType;
+	Port p = NULL;
+	PyObj rob = NULL;
+	kport_t port_param = -1;
 
-#define ALLOCFNAME(IOF, FREIGHT, PROTO, ...) \
-	_talloc_##FREIGHT##_##PROTO
-#define ALLOC(IOF, ...) (alloc##IOF)
-#define TYP(IOF, FREIGHT, ...) FREIGHT##type
+	if (!acquire_from_object(param, (void *) &port_param))
+		return(NULL);
 
-#define ports_init_socket(P, x) \
-	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
-#define ports_init_input(P, x) \
-	do { P[0]->point = x; ports_identify_input(P[0]); } while(0)
-#define ports_init_output(P, x) \
-	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
+	rob = alloci(typ, &p);
+	if (rob == NULL)
+		return(NULL);
 
-#define ports_init_datagrams_socket ports_init_socket
-#define ports_init_sockets_socket ports_init_socket
-#define ports_init_ports_socket ports_init_socket
-#define ports_init_octets_socket ports_init_socket
-#define ports_init_octets_input  ports_init_input
-#define ports_init_octets_output ports_init_output
+	p->freight = f_sockets;
+	p->point = port_param;
+	ports_identify_input(p);
+	if (p->cause == kc_pyalloc)
+		p->cause = kc_none;
 
-#define INITPORTS(IOF, FREIGHT, PROTO, ...) \
-	ports_init_##FREIGHT##_##PROTO
-
-/* Generate the allocation functions. */
-#define X(...) \
-static PyObj \
-ALLOCFNAME(__VA_ARGS__)(PyObj J, PyObj param) \
-{ \
-	const PyObj typ = TYP(__VA_ARGS__); \
-	Port p[2] = {NULL,NULL}; \
-	PyObj rob = NULL; \
-	\
-	kport_t port_param = -1; \
-	\
-	if (!acquire_from_object(param, (void *) &port_param)) \
-		return(NULL); \
-	rob = ALLOC(__VA_ARGS__)(typ, typ, p); \
-	if (rob == NULL) \
-		return(NULL); \
-	p[0]->freight = Type_GetInterface(typ)->ti_freight; \
-	if (p[1] != NULL) p[1]->freight = Type_GetInterface(typ)->ti_freight; \
-	INITPORTS(__VA_ARGS__)(p, port_param); \
-	if (p[0]->cause == kc_pyalloc) p[0]->cause = kc_none; \
-	if (p[1] != NULL && p[1]->cause == kc_pyalloc) p[1]->cause = kc_none; \
-	return(rob); \
+	return(rob);
 }
 
-ARRAY_RESOURCE_ALLOCATION_SELECTION()
-#undef X
+static PyObj
+_talloc_octets_input(PyObj J, PyObj param)
+{
+	const PyObj typ = &OctetsType;
+	Port p = NULL;
+	PyObj rob = NULL;
+	kport_t port_param = -1;
+
+	if (!acquire_from_object(param, (void *) &port_param))
+		return(NULL);
+
+	rob = alloci(typ, &p);
+	if (rob == NULL)
+		return(NULL);
+
+	p->freight = f_octets;
+	p->point = port_param;
+	ports_identify_input(p);
+	if (p->cause == kc_pyalloc)
+		p->cause = kc_none;
+
+	return(rob);
+}
+
+static PyObj
+_talloc_octets_output(PyObj J, PyObj param)
+{
+	const PyObj typ = &OctetsType;
+	Port p = NULL;
+	PyObj rob = NULL;
+	kport_t port_param = -1;
+
+	if (!acquire_from_object(param, (void *) &port_param))
+		return(NULL);
+
+	rob = alloco(typ, &p);
+	if (rob == NULL)
+		return(NULL);
+
+	p->freight = f_octets;
+	p->point = port_param;
+	ports_identify_output(p);
+	if (p->cause == kc_pyalloc)
+		p->cause = kc_none;
+
+	return(rob);
+}
+
+static PyObj
+_talloc_datagrams_socket(PyObj J, PyObj param)
+{
+	const PyObj typ = &DatagramsType;
+	Port p = NULL;
+	PyObj rob = NULL;
+	kport_t port_param = -1;
+
+	if (!acquire_from_object(param, (void *) &port_param))
+		return(NULL);
+
+	rob = allocio(typ, typ, &p);
+	if (rob == NULL)
+		return(NULL);
+
+	p->freight = f_datagrams;
+	p->point = port_param;
+	ports_identify_socket(p);
+	if (p->cause == kc_pyalloc)
+		p->cause = kc_none;
+
+	return(rob);
+}
+
+static PyObj
+_talloc_octets_socket(PyObj J, PyObj param)
+{
+	const PyObj typ = &OctetsType;
+	Port p = NULL;
+	PyObj rob = NULL;
+	kport_t port_param = -1;
+
+	if (!acquire_from_object(param, (void *) &port_param))
+		return(NULL);
+
+	rob = allocio(typ, typ, &p);
+	if (rob == NULL)
+		return(NULL);
+
+	p->freight = f_octets;
+	p->point = port_param;
+	ports_identify_socket(p);
+	if (p->cause == kc_pyalloc)
+		p->cause = kc_none;
+
+	return(rob);
+}
+
+static PyObj
+_talloc_ports_socket(PyObj J, PyObj param)
+{
+	const PyObj typ = &PortsType;
+	Port p = NULL;
+	PyObj rob = NULL;
+	kport_t port_param = -1;
+
+	if (!acquire_from_object(param, (void *) &port_param))
+		return(NULL);
+
+	rob = allocio(typ, typ, &p);
+	if (rob == NULL)
+		return(NULL);
+
+	p->freight = f_ports;
+	p->point = port_param;
+	ports_identify_socket(p);
+	if (p->cause == kc_pyalloc)
+		p->cause = kc_none;
+
+	return(rob);
+}
 
 /**
 	// Access to channel allocators.
