@@ -17,6 +17,7 @@
 #include <kcore.h>
 #include <kports.h>
 
+extern PyTypeObject KPortsType;
 #define _kports_alloc(x) KPortsType.tp_alloc(&KPortsType, x)
 
 KPorts
