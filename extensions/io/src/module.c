@@ -31,10 +31,6 @@
 struct KPortsAPI *KP = NULL;
 struct EndpointAPI *EP = NULL;
 
-int ip4_from_object(PyObj ob, void *out) { return EP->ip4_converter(ob, out); }
-int ip6_from_object(PyObj ob, void *out) { return EP->ip6_converter(ob, out); }
-int local_from_object(PyObj ob, void *out) { return EP->local_converter(ob, out); }
-
 /* Number of kevent structs to allocate when working with kevent(). */
 #ifndef CONFIG_DEFAULT_ARRAY_SIZE
 	#define CONFIG_DEFAULT_ARRAY_SIZE 16
@@ -51,27 +47,6 @@ int local_from_object(PyObj ob, void *out) { return EP->local_converter(ob, out)
 #include <fault/posix/errno.h>
 
 PyObj PyExc_TransitionViolation = NULL;
-
-/**
-	// pseudo domains
-*/
-#define acquire_pf (SOCK_MAXADDRLEN - 2)
-#define acquire_clear -1
-typedef kport_t acquire_addr_t;
-
-int
-acquire_from_object(PyObj args, void *out)
-{
-	long fd;
-	kport_t *kp = out;
-
-	fd = PyLong_AsLong(args);
-	if (PyErr_Occurred())
-		return(0);
-
-	*kp = fd;
-	return(1);
-}
 
 /**
 	// Get the name of the errno.
@@ -4286,41 +4261,49 @@ ArrayType = {{
 	// The fourth parameter is the "protocol".
 */
 
-#define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
-	X(io,datagrams,acquire,socket) \
-	X(io,octets,acquire,socket) \
-	X(i,octets,acquire,input) \
-	X(o,octets,acquire,output) \
-	X(i,sockets,acquire,socket) \
-	X(io,ports,acquire,socket)
+int
+acquire_from_object(PyObj args, void *out)
+{
+	long fd;
+	kport_t *kp = out;
 
-#define OBNAME(IOF, FREIGHT, DOMAIN, PROTO, ...) \
-	_pycap_##FREIGHT##_##DOMAIN##_##PROTO
-#define ALLOCFNAME(IOF, FREIGHT, DOMAIN, PROTO, ...) \
-	_talloc_##FREIGHT##_##DOMAIN##_##PROTO
+	fd = PyLong_AsLong(args);
+	if (PyErr_Occurred())
+		return(0);
+
+	*kp = fd;
+	return(1);
+}
+
+#define ARRAY_RESOURCE_ALLOCATION_SELECTION() \
+	X(io,datagrams,socket) \
+	X(io,octets,socket) \
+	X(i,octets,input) \
+	X(o,octets,output) \
+	X(i,sockets,socket) \
+	X(io,ports,socket)
+
+#define ALLOCFNAME(IOF, FREIGHT, PROTO, ...) \
+	_talloc_##FREIGHT##_##PROTO
 #define ALLOC(IOF, ...) (alloc##IOF)
 #define TYP(IOF, FREIGHT, ...) FREIGHT##type
-#define PARAM_FAMILY(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_pf
-#define PARAM_STORAGE(PARAM, IOF, FREIGHT, DOMAIN, ...) DOMAIN##_addr_t PARAM
-#define PARAM_CLEAR(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_clear
-#define CONVERTER(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_from_object
 
-#define ports_init_acquire_socket(P, x) \
+#define ports_init_socket(P, x) \
 	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
-#define ports_init_acquire_input(P, x) \
+#define ports_init_input(P, x) \
 	do { P[0]->point = x; ports_identify_input(P[0]); } while(0)
-#define ports_init_acquire_output(P, x) \
+#define ports_init_output(P, x) \
 	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
 
-#define ports_init_datagrams_acquire_socket ports_init_acquire_socket
-#define ports_init_sockets_acquire_socket ports_init_acquire_socket
-#define ports_init_ports_acquire_socket ports_init_acquire_socket
-#define ports_init_octets_acquire_socket ports_init_acquire_socket
-#define ports_init_octets_acquire_input  ports_init_acquire_input
-#define ports_init_octets_acquire_output ports_init_acquire_output
+#define ports_init_datagrams_socket ports_init_socket
+#define ports_init_sockets_socket ports_init_socket
+#define ports_init_ports_socket ports_init_socket
+#define ports_init_octets_socket ports_init_socket
+#define ports_init_octets_input  ports_init_input
+#define ports_init_octets_output ports_init_output
 
-#define INITPORTS(IOF, FREIGHT, DOMAIN, PROTO, ...) \
-	ports_init_##FREIGHT##_##DOMAIN##_##PROTO
+#define INITPORTS(IOF, FREIGHT, PROTO, ...) \
+	ports_init_##FREIGHT##_##PROTO
 
 /* Generate the allocation functions. */
 #define X(...) \
@@ -4331,9 +4314,9 @@ ALLOCFNAME(__VA_ARGS__)(PyObj J, PyObj param) \
 	Port p[2] = {NULL,NULL}; \
 	PyObj rob = NULL; \
 	\
-	PARAM_STORAGE(port_param, __VA_ARGS__) = PARAM_CLEAR(__VA_ARGS__); \
+	kport_t port_param = -1; \
 	\
-	if (!CONVERTER(__VA_ARGS__)(param, (void *) &port_param)) \
+	if (!acquire_from_object(param, (void *) &port_param)) \
 		return(NULL); \
 	rob = ALLOC(__VA_ARGS__)(typ, typ, p); \
 	if (rob == NULL) \
@@ -4354,22 +4337,22 @@ ARRAY_RESOURCE_ALLOCATION_SELECTION()
 */
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
-		alloc_input, _talloc_octets_acquire_input, METH_O, \
+		alloc_input, _talloc_octets_input, METH_O, \
 		"Allocate Octets for the given read-only file descriptor.") \
 	PYMETHOD( \
-		alloc_output, _talloc_octets_acquire_output, METH_O, \
+		alloc_output, _talloc_octets_output, METH_O, \
 		"Allocate Octets for the given write-only file descriptor.") \
 	PYMETHOD( \
-		alloc_datagrams, _talloc_datagrams_acquire_socket, METH_O, \
+		alloc_datagrams, _talloc_datagrams_socket, METH_O, \
 		"Allocate Datagrams for the given socket file descriptor.") \
 	PYMETHOD( \
-		alloc_octets, _talloc_octets_acquire_socket, METH_O, \
+		alloc_octets, _talloc_octets_socket, METH_O, \
 		"Allocate Octets for the given socket file descriptor.") \
 	PYMETHOD( \
-		alloc_ports, _talloc_ports_acquire_socket, METH_O, \
+		alloc_ports, _talloc_ports_socket, METH_O, \
 		"Allocate Ports for the given socket file descriptor.") \
 	PYMETHOD( \
-		alloc_service, _talloc_sockets_acquire_socket, METH_O, \
+		alloc_service, _talloc_sockets_socket, METH_O, \
 		"Allocate Sockets for the given socket file descriptor.")
 
 #include <fault/python/module.h>
