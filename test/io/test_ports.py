@@ -6,19 +6,8 @@ import os
 import struct
 
 from . import common
+from ... import kernel
 from ... import io
-
-def test_ports_rallocate(test):
-	# leveraging knowledge of io.Sockets.rallocate
-	# in real code, rallocate against the Sockets *instance*
-	test/list(io.Ports.rallocate(10)) == [-1] * 10
-	sb = io.Ports.rallocate(16)
-	mv = memoryview(sb)
-
-	test/sb[0] != 1 # should be -1, but anything aside from 1 is okay.
-	# itemsize is 4, so use pack_into.
-	struct.pack_into("i", mv, 0, 1)
-	test/sb[0] == 1
 
 def test_io(test):
 	J = io.Array()
@@ -41,7 +30,7 @@ def test_io(test):
 		test/child[0].port.freight == "ports"
 		test/child[1].port.freight == "ports"
 
-		buf = parent[1].rallocate(64)
+		buf = kernel.Ports.allocate(64)
 		for x in range(64):
 			buf[x] = files[x]
 
@@ -49,7 +38,7 @@ def test_io(test):
 		with J:
 			pass
 		# cover the exhaustion case
-		cbuf = child[0].rallocate(32)
+		cbuf = kernel.Ports.allocate(32)
 		child[0].acquire(cbuf)
 		while not child[0].exhausted:
 			with J:
@@ -60,7 +49,7 @@ def test_io(test):
 		test/set(cbuf) != set((-1,))
 
 		# cover the EAGAIN case
-		cbuf = child[0].rallocate(64)
+		cbuf = kernel.Ports.allocate(64)
 		child[0].acquire(cbuf)
 		while not parent[1].exhausted:
 			with J:

@@ -10,6 +10,7 @@ import os
 import socket
 from ... import io
 from ... import network
+from ... import kernel
 
 def allocpipe(A):
 	r, w = os.pipe()
@@ -33,6 +34,15 @@ def allocports(A):
 	s1 = io.alloc_ports(os.dup(s1.fileno()))
 	s2 = io.alloc_ports(os.dup(s2.fileno()))
 	return s1 + s2
+
+ralloc_index = {
+	io.Ports: kernel.Ports.allocate,
+	io.Sockets: kernel.Ports.allocate,
+	io.Octets: bytearray,
+}
+
+def rallocate(channel, quantity):
+	return ralloc_index[channel.__class__](quantity)
 
 class Terminated(Exception):
 	pass
@@ -238,7 +248,7 @@ class Events(object):
 
 	def setup_read(self, quantity):
 		for x in self.channels:
-			x.acquire(x.rallocate(quantity))
+			x.acquire(rallocate(x, quantity))
 
 	def setup_write(self, resource):
 		for x in self.channels:
@@ -268,7 +278,7 @@ class Endpoint(object):
 			self.read_length += len(activity.transferred)
 		if d is not None:
 			# chain reads
-			d(activity.channel.rallocate(self.default_bufsize))
+			d(rallocate(activity.channel, self.default_bufsize))
 		self.read_events.append(activity)
 
 	def terminate(self):
@@ -296,7 +306,7 @@ class Endpoint(object):
 	@property
 	def read_payload_int(self):
 		self._read_term_check()
-		payload = self.read_channel.rallocate(0)
+		payload = rallocate(self.read_channel, 0)
 		for x in self.read_events:
 			if x.transferred:
 				payload += x.transferred
@@ -339,7 +349,7 @@ class Endpoint(object):
 
 	def setup_read(self, rallocation):
 		self._read_term_check()
-		self.read_channel.acquire(self.read_channel.rallocate(rallocation))
+		self.read_channel.acquire(rallocate(self.read_channel, rallocation))
 
 	def setup_write(self, resource):
 		self._write_term_check()
@@ -363,7 +373,7 @@ class Objects(object):
 			self.read_channel: self._read_event,
 			self.write_channel: self._write_event,
 		}
-		self.read_channel.acquire(self.read_channel.rallocate(128))
+		self.read_channel.acquire(rallocate(self.read_channel, 128))
 
 	def _read_event(self, activity):
 		d = activity.demand
@@ -376,7 +386,7 @@ class Objects(object):
 			except:
 				pass
 		if d is not None:
-			d(activity.channel.rallocate(512))
+			d(rallocate(activity.channel, 512))
 
 	def _write_event(self, activity):
 		if activity.demand is not None:

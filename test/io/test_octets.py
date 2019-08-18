@@ -9,15 +9,6 @@ import time
 from ... import io
 from . import common
 
-def test_rallocate(test):
-	test/list(bytes(io.Octets.rallocate(20))) == list(b'\x00' * 20)
-	mb = io.Octets.rallocate(20)
-	mb[0:5] = b'fffff'
-	test/memoryview(mb).tobytes() == b'fffff' + (b'\x00' * (20 - 5))
-	mv = memoryview(mb)
-	b = bytes(mv[11])
-	mb[10:15] = b'fffff'
-
 def test_anonymous_endpoints_socketpair(test):
 	J = io.Array()
 	try:
@@ -86,7 +77,7 @@ def test_channel_force(test):
 		channels = common.allocsockets(j)
 		for x in channels:
 			j.acquire(x)
-		channels[0].acquire(channels[0].rallocate(1))
+		channels[0].acquire(bytearray(1))
 		with j:
 			test/list(j.transfer()) == []
 			pass
@@ -223,8 +214,8 @@ def test_octets_acquire_after_terminate(test):
 	# a race condition involved with parallel event collection.
 	# Termination is noted in loop before the exhaust event
 	# is processed by its receiver.
-	test/r.acquire(r.rallocate(0)) == None
-	test/w.acquire(w.rallocate(0)) == None
+	test/r.acquire(bytearray(0)) == None
+	test/w.acquire(bytearray(0)) == None
 
 def test_array_flush_release(test):
 	J = io.Array()
@@ -277,11 +268,11 @@ def test_octets_resource_error(test):
 
 	# already acquired, reader
 	test/r.exhausted == True
-	r.acquire(r.rallocate(0))
+	r.acquire(bytearray(0))
 
 	test/r.exhausted == False
 	with test/io.TransitionViolation as exc:
-		r.acquire(r.rallocate(0))
+		r.acquire(bytearray(0))
 
 	r.terminate()
 	w.terminate()

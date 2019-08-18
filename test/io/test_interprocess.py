@@ -1,4 +1,5 @@
 import os
+from ... import kernel
 from ... import network
 from ... import io
 from . import common
@@ -89,8 +90,8 @@ def test_ports_files(test):
 
 			for x in parent + child:
 				J.acquire(x)
-			pbuf = parent[1].rallocate(1)
-			cbuf = child[0].rallocate(1)
+			pbuf = kernel.Ports.allocate(1)
+			cbuf = kernel.Ports.allocate(1)
 			pbuf[0] = resource.fileno()
 
 			pid = os.fork()
@@ -183,7 +184,7 @@ def test_ports_sockets(test):
 			ep = network.Endpoint.from_ip4(('127.0.0.1', 0))
 			sockets = io.alloc_service(network.service(ep))
 
-			r = parent.write_channel.rallocate(1)
+			r = kernel.Ports.allocate(1)
 			r[0] = sockets.port.id
 			parent.setup_write(r)
 
@@ -262,7 +263,7 @@ def test_ports_spawned_octets(test):
 			theirs = comchannels[2:]
 			objects = common.Objects(ours)
 
-			r = parent.write_channel.rallocate(1)
+			r = kernel.Ports.allocate(1)
 			r[0] = theirs[0].port.id
 			parent.setup_write(r)
 			theirs[0].port.leak()

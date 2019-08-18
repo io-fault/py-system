@@ -2101,25 +2101,6 @@ allociopair(PyObj isubtype, PyObj osubtype, Port p[])
 	}
 }
 
-static PyObj
-octets_rallocate(PyObj subtype, PyObj size)
-{
-	PyObj args, rob = NULL;
-
-	args = PyTuple_New(1);
-	if (args == NULL)
-		return(NULL);
-
-	PyTuple_SET_ITEM(args, 0, PyByteArray_FromObject(size));
-	if (PyTuple_GET_ITEM(args, 0) != NULL)
-	{
-		rob = PyObject_CallObject(((PyObj) &PyMemoryView_Type), args);
-	}
-
-	Py_DECREF(args);
-	return(rob);
-}
-
 static PyMethodDef octets_methods[] = {
 	{"resize_exoresource", (PyCFunction) octets_resize_exoresource, METH_VARARGS,
 		PyDoc_STR(
@@ -2129,18 +2110,6 @@ static PyMethodDef octets_methods[] = {
 			"[Parameters]\n"
 			"/new_size/\n"
 			"\tThe number of octets to use as the external resource size.\n"
-		)
-	},
-
-	{"rallocate",
-		(PyCFunction) octets_rallocate,
-		METH_O|METH_CLASS,
-		PyDoc_STR(
-			"Create a mutable resource capable of being written into by a Octets instance.\n"
-
-			"[Parameters]\n"
-			"/size/\n"
-			"Number of bytes that can be written in the resource.\n"
 		)
 	},
 
@@ -2237,18 +2206,6 @@ sockets_set_accept_filter(PyObj self, PyObj args)
 }
 
 static PyObj
-allocate_array(PyTypeObject *subtype, PyObj ob)
-{
-	Py_ssize_t size = 0;
-
-	size = PyLong_AsSsize_t(ob);
-	if (size == -1 && PyErr_Occurred())
-		return(NULL);
-
-	return((PyObj) KP->alloc(-1, size));
-}
-
-static PyObj
 sockets_resize_exoresource(PyObj self, PyObj args)
 {
 	Channel t = (Channel) self;
@@ -2272,23 +2229,6 @@ sockets_resize_exoresource(PyObj self, PyObj args)
 }
 
 static PyMethodDef sockets_methods[] = {
-	{"rallocate",
-		(PyCFunction) allocate_array,
-		METH_O|METH_CLASS,
-		PyDoc_STR(
-			"Create a mutable resource capable of being written into by a Sockets instance.\n"
-			"\n"
-			"[Parameters]\n"
-			"/(&int)`size`/\n"
-			"\tNumber of sockets that can be accepted.\n"
-			"\n"
-			"[Effects]\n"
-			"/(&array.array)`Return`/\n"
-			"\tA new mutable resource.\n"
-			"\n"
-		)
-	},
-
 	{"resize_exoresource",
 		(PyCFunction) sockets_resize_exoresource,
 		METH_VARARGS,
@@ -2381,21 +2321,6 @@ PortsTIF = {
 
 static PyMethodDef
 ports_methods[] = {
-	{"rallocate",
-		(PyCFunction) allocate_array,
-		METH_O|METH_CLASS,
-		PyDoc_STR(
-			"Create a mutable resource capable of being written into by a Ports instance.\n"
-			"\n[Parameters]\n"
-			"/(&int)size/\n"
-			"\tNumber of ports that can be accepted before the resource is exhausted.\n"
-			"\n[Effects]\n"
-			"/(&array.array)`Return`/\n"
-			"\tA new mutable resource.\n"
-			"\n"
-		)
-	},
-
 	{NULL,}
 };
 
@@ -4380,13 +4305,6 @@ ArrayType = {{
 #define PARAM_CLEAR(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_clear
 #define CONVERTER(IOF, FREIGHT, DOMAIN, ...) DOMAIN##_from_object
 
-/*
-	// These defines are for the nasty X-macro generated channel allocation functions used
-	// by Array.rallocate(). There are a number of combinations, so grouping the
-	// the similar operations helps to save some redundant code.
-
-	// Cover each combination referenced by the capsule xmacro.
-*/
 #define ports_init_acquire_socket(P, x) \
 	do { P[0]->point = x; ports_identify_socket(P[0]); } while(0)
 #define ports_init_acquire_input(P, x) \
@@ -4395,11 +4313,8 @@ ArrayType = {{
 	do { P[0]->point = x; ports_identify_output(P[0]); } while(0)
 
 #define ports_init_datagrams_acquire_socket ports_init_acquire_socket
-
 #define ports_init_sockets_acquire_socket ports_init_acquire_socket
-
 #define ports_init_ports_acquire_socket ports_init_acquire_socket
-
 #define ports_init_octets_acquire_socket ports_init_acquire_socket
 #define ports_init_octets_acquire_input  ports_init_acquire_input
 #define ports_init_octets_acquire_output ports_init_acquire_output
