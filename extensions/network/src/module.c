@@ -125,7 +125,7 @@ construct_error(int code)
 }
 
 static PyObj
-nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr, int socktype, int flags)
+nw_getaddrinfo(const char *stream_type, const char *namestr, const char *servicestr, int socktype, int flags)
 {
 	PyObj addrlist, rob;
 
@@ -137,7 +137,7 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 	hints.ai_socktype = socktype;
 	hints.ai_flags = flags;
 
-	r = getaddrinfo(namestr, portstr ? portstr : "", &hints, &info);
+	r = getaddrinfo(namestr, servicestr ? servicestr : "", &hints, &info);
 	if (r != 0)
 	{
 		switch (r)
@@ -222,14 +222,14 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *portstr
 	// Resolve transport selectors for the given host and service.
 */
 static PyObj
-nw_select_transports_gai(PyObj mod, PyObj args)
+nw_select_endpoints_gai(PyObj mod, PyObj args)
 {
 	const char *namestr;
-	const char *portstr = NULL;
+	const char *servicestr = NULL;
 	const char *transferstr = NULL;
 	int socktype;
 
-	if (!PyArg_ParseTuple(args, "z|zz", &namestr, &portstr, &transferstr))
+	if (!PyArg_ParseTuple(args, "z|zz", &namestr, &servicestr, &transferstr))
 		return(NULL);
 
 	if (transferstr != NULL)
@@ -244,7 +244,7 @@ nw_select_transports_gai(PyObj mod, PyObj args)
 	else
 		socktype = SOCK_STREAM;
 
-	return(nw_getaddrinfo("octets", namestr, portstr, socktype, AI_CANONNAME|AI_ADDRCONFIG));
+	return(nw_getaddrinfo("octets", namestr, servicestr, socktype, AI_CANONNAME|AI_ADDRCONFIG));
 }
 
 /**
@@ -253,11 +253,12 @@ nw_select_transports_gai(PyObj mod, PyObj args)
 static PyObj
 nw_select_interfaces_gai(PyObj mod, PyObj args)
 {
-	const char *portstr = NULL;
+	const char *servicestr = NULL;
 	const char *transferstr = NULL;
+	const char *namestr = NULL;
 	int socktype;
 
-	if (!PyArg_ParseTuple(args, "|zz", &portstr, &transferstr))
+	if (!PyArg_ParseTuple(args, "|zzz", &servicestr, &transferstr, &namestr))
 		return(NULL);
 
 	if (transferstr != NULL)
@@ -272,7 +273,7 @@ nw_select_interfaces_gai(PyObj mod, PyObj args)
 	else
 		socktype = SOCK_STREAM;
 
-	return(nw_getaddrinfo("sockets", NULL, portstr, socktype, AI_CANONNAME|AI_PASSIVE|AI_ADDRCONFIG));
+	return(nw_getaddrinfo("sockets", namestr, servicestr, socktype, AI_CANONNAME|AI_PASSIVE|AI_ADDRCONFIG));
 }
 
 static kport_t
@@ -545,11 +546,11 @@ struct EndpointAPI _ep_apis = {
 
 #define MODULE_FUNCTIONS() \
 	PYMETHOD( \
-		select_transports, nw_select_transports_gai, METH_VARARGS, \
-			"Resolve the transport of the given host and service using (system/manual)`getaddrinfo`.") \
+		select_endpoints, nw_select_endpoints_gai, METH_VARARGS, \
+			"Resolve the Endpoints of the given host and service using (system/manual)`getaddrinfo`.") \
 	PYMETHOD( \
 		select_interfaces, nw_select_interfaces_gai, METH_VARARGS, \
-			"Identify the interfaces to use for the service using (system/manual)`getaddrinfo`.") \
+			"Identify the interfaces to bind to for the service using (system/manual)`getaddrinfo`.") \
 	PYMETHOD( \
 		connect, nw_connect, METH_VARARGS|METH_KEYWORDS, \
 			"Connect new sockets using the given endpoints.") \
