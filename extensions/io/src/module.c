@@ -2358,17 +2358,17 @@ struct DatagramArray {
 	uint32_t ngrams;
 
 	/**
-		// Address Length of endpoint.
+		// Address Length of endpoints.
 	*/
 	socklen_t addrlen;
 
 	/**
-		// Packet Family of endpoint.
+		// Packet Family of endpoints.
 	*/
 	int pf;
 
 	/**
-		// Address Space of endpoint.
+		// Address Space of endpoints.
 	*/
 	uint32_t space;
 
@@ -2545,22 +2545,6 @@ allocdga(PyTypeObject *subtype, int pf, uint32_t space, uint32_t ngrams)
 	if (rob == NULL)
 		return(NULL);
 
-	dga = (DatagramArray) rob;
-	dga->space = space;
-	dga->ngrams = ngrams;
-	dga->data.obj = NULL;
-	dga->pf = pf;
-	switch (pf)
-	{
-		case ip4_pf:
-			dga->addrlen = sizeof(ip4_addr_t);
-		break;
-		case ip6_pf:
-			dga->addrlen = sizeof(ip6_addr_t);
-		break;
-	}
-	unit = DatagramCalculateUnit(space, dga->addrlen);
-
 	PYTHON_RECEPTACLE("new_ba", &ba, PyByteArray_FromStringAndSize, "", 0);
 	if (ba == NULL)
 	{
@@ -2568,11 +2552,36 @@ allocdga(PyTypeObject *subtype, int pf, uint32_t space, uint32_t ngrams)
 		return(NULL);
 	}
 
+	dga = (DatagramArray) rob;
+	dga->space = space;
+	dga->ngrams = ngrams;
+	dga->data.obj = NULL;
+
+	dga->pf = pf;
+	switch (pf)
+	{
+		case ip4_pf:
+			dga->addrlen = sizeof(ip4_addr_t);
+		break;
+
+		case ip6_pf:
+			dga->addrlen = sizeof(ip6_addr_t);
+		break;
+
+		default:
+			PyErr_SetString(PyExc_TypeError, "unrecognized packet family");
+			goto error;
+		break;
+	}
+	unit = DatagramCalculateUnit(space, dga->addrlen);
+
 	i = PyByteArray_Resize(ba, (unit * ngrams));
-	if (i) goto error;
+	if (i)
+		goto error;
 
 	i = PyObject_GetBuffer(ba, &(dga->data), PyBUF_WRITABLE);
-	if (i) goto error;
+	if (i)
+		goto error;
 
 	/*
 		// Clear data. Allows memoryview payload access to copy first n-bytes and forget.
