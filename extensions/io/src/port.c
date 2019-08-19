@@ -490,9 +490,6 @@ init_socket(kport_t kp)
 	#endif
 }
 
-/**
-	// setsockopt's and run init_kpoint
-**/
 static void
 init_listening_socket(kport_t kp)
 {
@@ -1131,7 +1128,10 @@ port_input_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t q
 	RETRY_STATE_INIT;
 	int r;
 	struct Datagram *current = dg;
-	socklen_t len;
+	void *buf;
+	size_t buflen;
+	if_addr_ref_t addr;
+	socklen_t *addrlen;
 
 	continuation:
 	if (!DatagramIsValid(current, quantity))
@@ -1142,10 +1142,14 @@ port_input_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t q
 		*consumed = (((intptr_t) current) - ((intptr_t) dg)) + quantity;
 		return(io_flow);
 	}
-	len = DatagramGetAddressLength(current);
+
+	buf = DatagramGetData(current);
+	buflen = DatagramGetSpace(current);
+	addr = DatagramGetAddress(current);
+	addrlen = &(DatagramGetAddressLength(current));
 
 	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(-1, &r, recvfrom, p->point, DatagramGetData(current), DatagramGetSpace(current), 0, DatagramGetAddress(current), &len);
+	ERRNO_RECEPTACLE(-1, &r, recvfrom, p->point, buf, buflen, 0, addr, &addrlen);
 
 	if (r >= 0)
 	{
@@ -1192,6 +1196,11 @@ port_output_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t 
 	ssize_t r;
 	struct Datagram *current = dg;
 
+	void *buf;
+	size_t buflen;
+	if_addr_ref_t addr;
+	socklen_t addrlen;
+
 	continuation:
 	if (!DatagramIsValid(current, quantity))
 	{
@@ -1202,8 +1211,13 @@ port_output_datagrams(Port p, uint32_t *consumed, struct Datagram *dg, uint32_t 
 		return(io_flow);
 	}
 
+	buf = DatagramGetData(current);
+	buflen = DatagramGetSpace(current);
+	addr = DatagramGetAddress(current);
+	addrlen = DatagramGetAddressLength(current);
+
 	RETRY_SYSCALL:
-	ERRNO_RECEPTACLE(-1, &r, sendto, p->point, DatagramGetData(current), DatagramGetSpace(current), 0, DatagramGetAddress(current), DatagramGetAddressLength(current));
+	ERRNO_RECEPTACLE(-1, &r, sendto, p->point, buf, buflen, 0, addr, addrlen);
 
 	if (r >= 0)
 	{
