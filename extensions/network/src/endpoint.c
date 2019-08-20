@@ -581,7 +581,7 @@ endpoint_getset[] = {
 	{"address_type", endpoint_get_address_type, NULL,
 		PyDoc_STR(
 			"The type of addressing used to reference the endpoint.\n"
-			"One of `'ip6'`, `'ip4'`, `'local'`, or `None` if irrelevant.")
+			"One of `'ip6'`, `'ip4'`, `'local'`, or `None` if family is unknown.")
 	},
 
 	{"address", endpoint_get_address, NULL,

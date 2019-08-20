@@ -3,7 +3,7 @@
 
 typedef struct sockaddr_storage any_addr_t;
 typedef struct sockaddr if_addr_t;
-typedef struct sockaddr * if_addr_ref_t;
+typedef if_addr_t * if_addr_ref_t;
 
 /**
 	// Endpoint - Hold an arbitrary socket address.
