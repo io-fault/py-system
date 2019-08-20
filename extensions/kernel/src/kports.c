@@ -253,6 +253,12 @@ kports_setitem(PyObj self, Py_ssize_t index, PyObj val)
 	if (PyErr_Occurred())
 		return(-1);
 
+	if (l > INT_MAX || l < INT_MIN)
+	{
+		PyErr_SetString(PyExc_OverflowError, "assigned file descriptor is out of range");
+		return(-1);
+	}
+
 	KPorts_SetItem(kp, index, (kport_t) l);
 	return(0);
 }
@@ -387,19 +393,30 @@ kports_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	for (i = 0; i < count; ++i)
 	{
 		PyObj ob = PyList_GET_ITEM(lob, i);
+		long l;
 
-		KPorts_SetItem(kp, i, (kport_t) PyLong_AsLong(ob));
-
+		l = PyLong_AsLong(ob);
 		if (PyErr_Occurred())
+			goto error;
+
+		if (l > INT_MAX || l < INT_MIN)
 		{
-			Py_DECREF(rob);
-			Py_DECREF(lob);
-			return(NULL);
+			PyErr_SetString(PyExc_OverflowError, "given file descriptor out of range");
+			goto error;
 		}
+
+		KPorts_SetItem(kp, i, (kport_t) l);
 	}
 
 	Py_DECREF(lob);
 	return((PyObj) kp);
+
+	error:
+	{
+		Py_DECREF(rob);
+		Py_DECREF(lob);
+		return(NULL);
+	}
 }
 
 static void

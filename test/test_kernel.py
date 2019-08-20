@@ -115,6 +115,14 @@ def test_Ports_sequence(test):
 		kp[x] = 10
 		test/kp[x] == 10
 
+def test_Ports_overflow(test):
+	"""
+	# Presumes integer size; failure of this test may not indicate dysfunction.
+	"""
+	kp = module.Ports.allocate(1)
+	test/OverflowError ^ (lambda: kp.__setitem__(0, 0xfffffffffff))
+	test/OverflowError ^ (lambda: module.Ports([0xfffffffffff]))
+
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
 	libtest.execute(sys.modules[__name__])
