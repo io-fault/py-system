@@ -178,7 +178,7 @@ kports_richcompare(PyObj self, PyObj x, int op)
 		break;
 
 		default:
-			PyErr_SetString(PyExc_TypeError, "KPorts only supports equality");
+			PyErr_SetString(PyExc_TypeError, "kernel.Ports only supports equality");
 			rob = NULL;
 		break;
 	}

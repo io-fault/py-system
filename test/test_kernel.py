@@ -1,9 +1,8 @@
 import io
 import os
 
-from ...system import files
-
-from .. import kernel as library
+from .. import files
+from .. import kernel as module
 
 def perform_cat(pids, input, output, data, *errors):
 	error = []
@@ -49,15 +48,15 @@ def test_Invocation(test):
 	"""
 	# Sanity and operations.
 	"""
-	notreal = library.Invocation("some string", ())
-	test.isinstance(notreal, library.Invocation)
+	notreal = module.Invocation("some string", ())
+	test.isinstance(notreal, module.Invocation)
 
 	del notreal
 	test.garbage()
 
-	environ = library.Invocation("/bin/cat", ("cat", "-",), environ=dict(SOME_ENVIRON_VAR="foo"))
+	environ = module.Invocation("/bin/cat", ("cat", "-",), environ=dict(SOME_ENVIRON_VAR="foo"))
 
-	realish = library.Invocation("/bin/cat", ("cat", "filepath1", "filepath2", "n"*100,))
+	realish = module.Invocation("/bin/cat", ("cat", "filepath1", "filepath2", "n"*100,))
 	del realish
 	test.garbage()
 
@@ -67,7 +66,7 @@ def test_Invocation_file_not_found(test):
 	"""
 	tr = test.exits.enter_context(files.Path.temporary())
 	r = tr / 'no-such.exe'
-	i = library.Invocation(str(r), ())
+	i = module.Invocation(str(r), ())
 
 	with open(os.devnull) as f:
 		invoke = lambda: i(((f.fileno(), 0), (f.fileno(), 1), (f.fileno(), 2)))
@@ -79,7 +78,7 @@ def test_Invocation_execute(test):
 	stdout = os.pipe()
 	stderr = os.pipe()
 
-	catinv = library.Invocation("/bin/cat", (), environ={})
+	catinv = module.Invocation("/bin/cat", (), environ={})
 	pid = catinv(((stdin[0],0), (stdout[1],1), (stderr[1],2)))
 
 	os.close(stdin[0])
@@ -92,6 +91,29 @@ def test_Invocation_execute(test):
 	data = b'data\n'
 	out, status = perform_cat([pid], stdin[1], stdout[0], data, stderr[0])
 	test/out == data
+
+def test_Ports_new(test):
+	kp = module.Ports(list(range(10)))
+	test/list(kp) == list(range(10))
+
+	# Internal list materialization
+	kp = module.Ports((range(10)))
+	test/list(kp) == list(range(10))
+
+def test_Ports_sequence(test):
+	kp = module.Ports.allocate(16)
+	test/len(kp) == 16
+
+	# Iterator
+	test/list(kp) == [-1 for x in range(16)]
+
+	test/kp[0] == -1
+	test/kp[-1] == -1
+
+	# set/get item.
+	for x in range(16):
+		kp[x] = 10
+		test/kp[x] == 10
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
