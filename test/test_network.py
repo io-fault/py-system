@@ -16,11 +16,22 @@ def test_endpoint_new(test):
 	test/str(e) == "[127.0.0.1]:0"
 	e = module.Endpoint("ip6", ('::1', 0))
 	test/str(e) == "[::1]:0"
-	e = module.Endpoint("local", '/path')
+
+def test_endpoint_local_new(test):
+	e = module.Endpoint('local', "/path/to/socket")
+	test/e.address == "/path/to/"
+	test/e.port == "socket"
+	test/str(e) == "/path/to/socket"
+
+	e = module.Endpoint('local', '/path')
+	test/e.address == "/"
+	test/e.port == "path"
 	test/str(e) == "/path"
-	e = module.Endpoint("local", ('/dir', 'sockname'))
+
+	e = module.Endpoint('local', ('/dir', 'sockname'))
 	test/str(e) == "/dir/sockname"
-	e = module.Endpoint("local", b'/path')
+
+	e = module.Endpoint('local', b'/path')
 	test/str(e) == "/path"
 
 def test_endpoint_inconsistent_pf(test):
@@ -46,7 +57,7 @@ def test_endpoint_consistent_pf(test):
 	e = module.Endpoint("local", '/local')
 	test/e == module.Endpoint("local", e)
 
-def test_endpoint_ne(test):
+def test_endpoint_inequality(test):
 	e = module.Endpoint("ip4", ('127.0.0.1', 0))
 	test/e != module.Endpoint("ip4", ('127.0.0.2', 0))
 
@@ -60,8 +71,24 @@ def test_endpoint_nicmp(test):
 	e = module.Endpoint("ip4", ('127.0.0.1', 0))
 	test/(e == 1) == False
 
+def test_endpoint_equality_type(test):
+	e = module.Endpoint("ip4", ('127.0.0.1', 0), -1, -1)
+	e2 = module.Endpoint("ip4", ('127.0.0.1', 0), 10, 10)
+	test/e != e2
+
+	e3 = module.Endpoint("ip4", ('127.0.0.1', 0), 10, 10)
+	test/e3 != e2
+
+	# Validate that socket type and address family are considered.
+	e4 = module.Endpoint("ip4", ('127.0.0.1', 0), 10, 15)
+	test/e4 != e3
+
+	e5 = module.Endpoint("ip4", ('127.0.0.1', 0), 15, 10)
+	test/e5 != e3
+
 def test_endpoint_only_equals(test):
 	e = module.Endpoint("ip4", ('127.0.0.1', 0))
+
 	with test/TypeError:
 		e > e
 	with test/TypeError:
@@ -71,7 +98,7 @@ def test_endpoint_only_equals(test):
 	with test/TypeError:
 		e >= e
 
-def test_endpoint_ip4(test):
+def test_endpoint_ip4_new(test):
 	ep = module.Endpoint.from_ip4(('127.0.0.1', 100))
 	test/ep.port == 100
 	test/ep.address == '127.0.0.1'
@@ -130,7 +157,7 @@ def test_endpoint_ip6_pton_error(test):
 
 	test/exc().errno == 1
 
-def test_endpoint_ip6(test):
+def test_endpoint_ip6_new(test):
 	ep = module.Endpoint('ip6', ('::1', 100))
 	test/ep.port == 100
 	test/ep.address == '::1'
