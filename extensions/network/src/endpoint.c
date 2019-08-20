@@ -15,6 +15,8 @@
 
 #include <endpoint.h>
 
+extern PyTypeObject EndpointType;
+
 #ifndef HAVE_STDINT_H
 	/* relying on Python's checks */
 	#include <stdint.h>

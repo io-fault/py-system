@@ -21,7 +21,6 @@ struct Endpoint {
 
 typedef struct Endpoint *Endpoint;
 
-#define Endpoint_Check(E) (PyObject_IsInstance(E, (PyObj) &EndpointType))
 #define Endpoint_GetAddress(E) ((any_addr_t *) &((*E).data))
 #define Endpoint_GetLength(E) (E->len)
 #define Endpoint_GetFamily(E) (Endpoint_GetAddress(E)->ss_family)
@@ -116,10 +115,6 @@ int local_from_object(PyObj ob, void *out);
 	A(ip4) \
 	A(ip6) \
 	A(local)
-
-extern PyTypeObject EndpointType;
-int nw_socket_type(const char *);
-Endpoint endpoint_create(int, int, if_addr_ref_t, socklen_t);
 
 struct EndpointAPI {
 	PyTypeObject *type;

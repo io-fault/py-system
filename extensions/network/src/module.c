@@ -25,6 +25,15 @@
 #include <kcore.h>
 
 /*
+	// Local endpoint functions and macros.
+*/
+extern PyTypeObject EndpointType;
+int nw_socket_type(const char *);
+Endpoint endpoint_create(int, int, if_addr_ref_t, socklen_t);
+
+#define Endpoint_Check(E) (PyObject_IsInstance(E, (PyObj) &EndpointType))
+
+/*
 	// Manage retry state for limiting the number of times we'll accept EINTR.
 */
 #ifndef CONFIG_SYSCALL_RETRY
