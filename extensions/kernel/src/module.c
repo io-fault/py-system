@@ -749,7 +749,7 @@ exit_by_signal(PyObj mod, PyObj ob)
 	// Used by system to hold on to listening sockets.
 
 	// Generally, most file descriptors created by &.system will have
-	// the FD_CLOEXEC flag set as in only a few cases, preservation is desired.
+	// the FD_CLOEXEC flag set.
 */
 static PyObj
 kport_clear_cloexec(PyObj mod, PyObj seq)
@@ -767,6 +767,37 @@ kport_clear_cloexec(PyObj mod, PyObj seq)
 		}
 
 		flag = fcntl((int) fd, F_SETFD, (flag & (~FD_CLOEXEC)));
+		if (flag == -1)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			break;
+		}
+	}
+	PyLoop_CatchError(seq)
+	{
+		return(NULL);
+	}
+	PyLoop_End(seq)
+
+	Py_RETURN_NONE;
+}
+
+static PyObj
+kport_set_cloexec(PyObj mod, PyObj seq)
+{
+	long fd;
+
+	PyLoop_ForEachLong(seq, &fd)
+	{
+		int flag = fcntl((int) fd, F_GETFD, 0);
+
+		if (flag == -1)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			break;
+		}
+
+		flag = fcntl((int) fd, F_SETFD, (flag | FD_CLOEXEC));
 		if (flag == -1)
 		{
 			PyErr_SetFromErrno(PyExc_OSError);
@@ -821,6 +852,9 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		preserve, kport_clear_cloexec, METH_O, \
 			"Preserve the given file descriptors across process image substitutions(exec).") \
+	PYMETHOD( \
+		released, kport_set_cloexec, METH_O, \
+			"Configure the file descriptors to be released when the process exits or is replaced.") \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \
