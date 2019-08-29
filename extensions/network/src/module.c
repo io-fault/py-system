@@ -30,6 +30,7 @@
 extern PyTypeObject EndpointType;
 int nw_socket_type(const char *);
 Endpoint endpoint_create(int, int, if_addr_ref_t, socklen_t);
+Endpoint endpoint_copy(PyObj);
 
 #define Endpoint_Check(E) (PyObject_IsInstance(E, (PyObj) &EndpointType))
 
@@ -545,6 +546,7 @@ nw_bind(PyObj module, PyObj args, PyObj kw)
 struct EndpointAPI _ep_apis = {
 	&EndpointType,
 	endpoint_create,
+	endpoint_copy,
 	ip4_from_object,
 	ip6_from_object,
 	local_from_object,

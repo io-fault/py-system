@@ -371,6 +371,17 @@ ip6_from_object(PyObj ob, void *out)
 	return(1);
 }
 
+static int
+local_port_index(char *buf)
+{
+	int i, pos;
+
+	pos = strlen(buf);
+	for (i = pos; i > 0 && buf[i] != '/'; --i);
+
+	return(i);
+}
+
 void
 local_str(char *dst, size_t dstsize, local_addr_t *addr)
 {
@@ -464,11 +475,165 @@ local_from_object(PyObj ob, void *out)
 	return(1);
 }
 
+PyObj
+endpoint_copy(PyObj endpoint)
+{
+	PyObj rob;
+	Py_ssize_t units = Py_SIZE(endpoint);
+	Endpoint r, a;
+
+	rob = Py_TYPE(endpoint)->tp_alloc(Py_TYPE(endpoint), units);
+	if (rob == NULL)
+		return(NULL);
+
+	r = (Endpoint) rob;
+	a = (Endpoint) endpoint;
+
+	memcpy(Endpoint_GetAddress(r), Endpoint_GetAddress(a), Endpoint_GetLength(a));
+
+	r->len = a->len;
+	r->type = a->type;
+	r->transport = a->transport;
+
+	return(rob);
+}
+
+static PyObj
+endpoint_replace(PyObj self, PyObj args, PyObj kw)
+{
+	static char *kwlist[] = {"address", "port", "transport", "type", NULL};
+	char *domain;
+	PyObj rob;
+	PyObj address = NULL, port = NULL, transport = NULL, type = NULL;
+	Endpoint E;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "|OOOO", kwlist, &address, &port, &transport, &type))
+		return(NULL);
+
+	rob = endpoint_copy(self);
+	if (rob == NULL)
+		return(NULL);
+
+	E = (Endpoint) rob;
+
+	if (address != NULL)
+	{
+		switch (Endpoint_GetFamily(E))
+		{
+			case ip4_pf:
+				ip4_from_object(address, Endpoint_GetAddress(E));
+			break;
+
+			case ip6_pf:
+				ip6_from_object(address, Endpoint_GetAddress(E));
+			break;
+
+			case local_pf:
+				local_from_object(address, Endpoint_GetAddress(E));
+			break;
+
+			default:
+			{
+				PyErr_Format(PyExc_RuntimeError,
+					"cannot interpret address for the endpoint's address family");
+				goto error;
+			}
+			break;
+		}
+	}
+
+	if (port != NULL)
+	{
+		switch (Endpoint_GetFamily(E))
+		{
+			case ip4_pf:
+			{
+				ip4_addr_t *addr = Endpoint_GetAddress(E);
+				ip4_port_field(addr) = htons(PyLong_AsLong(port));
+			}
+			break;
+
+			case ip6_pf:
+			{
+				ip6_addr_t *addr = Endpoint_GetAddress(E);
+				ip6_port_field(addr) = htons(PyLong_AsLong(port));
+			}
+			break;
+
+			case local_pf:
+			{
+				int i, buflen;
+				local_addr_t *addr = Endpoint_GetAddress(E);
+
+				if (PyUnicode_Check(port))
+				{
+					port = PyUnicode_EncodeFSDefault(port);
+				}
+				else if (!PyBytes_Check(port))
+				{
+					PyErr_Format(PyExc_TypeError, "invalid port type for local endpoint");
+					goto error;
+				}
+				else
+					Py_INCREF(port);
+
+				i = local_port_index(local_port_field(addr)) + 1;
+				buflen = sizeof(addr->sun_path) - i;
+
+				if (PyBytes_GET_SIZE(port) > (buflen-1))
+				{
+					PyErr_Format(PyExc_ValueError, "insufficient memory for port in local endpoint");
+				}
+				else
+				{
+					char *buf = &(addr->sun_path[i]);
+					int portlen = strlen(buf);
+					memcpy(buf, PyBytes_AS_STRING(port), PyBytes_GET_SIZE(port));
+					addr->sun_path[i + PyBytes_GET_SIZE(port)] = '\0';
+				}
+
+				Py_DECREF(port);
+			}
+			break;
+
+			default:
+			{
+				PyErr_Format(PyExc_RuntimeError,
+					"cannot interpret port for the endpoint's address family");
+				goto error;
+			}
+			break;
+		}
+
+		if (PyErr_Occurred())
+			goto error;
+	}
+
+	if (transport != NULL && interpret_transport(transport, &(E->transport)))
+		goto error;
+	if (type != NULL && interpret_type(type, &(E->type)))
+		goto error;
+
+	return(rob);
+
+	error:
+	{
+		Py_DECREF(rob);
+		return(NULL);
+	}
+}
+
 #define A(AF) static PyObj endpoint_new_##AF(PyTypeObject *, PyObj, PyObj);
 	ADDRESSING()
 #undef A
 
 static PyMethodDef endpoint_methods[] = {
+	{"replace",
+		(PyCFunction) endpoint_replace,
+		METH_VARARGS|METH_KEYWORDS,
+		PyDoc_STR("Create a new endpoint with the given fields overwritten.")
+	},
+
 	#define A(AF) \
 		{"from_" #AF, \
 			(PyCFunction) endpoint_new_##AF , \
