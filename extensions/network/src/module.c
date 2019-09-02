@@ -1,11 +1,5 @@
 /**
 	// Various high-level interfaces for working with the system's network and netdb.
-	// Currently this only includes getaddrinfo interfaces.
-
-	// Address resolution only supports PF_INET, PF_INET6, and PF_LOCAL.
-	// The transport protocols returned are not directly exposed; the socket type
-	// is expected to unamibguously imply the protocol. This is not always
-	// coherent.
 */
 #include <errno.h>
 #include <fcntl.h>
