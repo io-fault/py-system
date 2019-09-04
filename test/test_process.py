@@ -1,7 +1,7 @@
 import os
 import signal
 
-from .. import process as library
+from .. import process as module
 from .. import thread
 
 class Trapped(Exception):
@@ -12,7 +12,7 @@ class Trapped(Exception):
 
 def test_critical(test):
 	"""
-	# &.library.critical
+	# &.module.critical
 	"""
 	global Trapped
 	test.issubclass(Trapped, Exception) # sanity
@@ -21,7 +21,7 @@ def test_critical(test):
 	# It's only fatal when an exception is raised.
 	def return_obj(*args, **kw):
 		return (args, kw)
-	result = library.critical(None, return_obj, "positional", keyword='value')
+	result = module.critical(None, return_obj, "positional", keyword='value')
 	test/result[0] == ("positional",)
 	test/result[1] == {"keyword":'value'}
 
@@ -37,23 +37,23 @@ def test_critical(test):
 
 	# Interject is not being tested here, so override
 	# it to derive the effect that we're looking for.
-	original = library.interject
-	ctllock = library.__control_lock__
+	original = module.interject
+	ctllock = module.__control_lock__
 	try:
-		library.interject = raised
-		l = library.__control_lock__ = thread.amutex()
+		module.interject = raised
+		l = module.__control_lock__ = thread.amutex()
 		l.acquire()
 		try:
-			library.critical(None, raise_trap)
-		except library.Panic as exc:
+			module.critical(None, raise_trap)
+		except module.Panic as exc:
 			test.isinstance(exc.__cause__, Trapped)
 		except:
 			test.fail("critical did not raise panic")
 		else:
 			test.fail("critical did not raise panic")
 	finally:
-		library.interject = original
-		library.__control_lock__ = ctllock
+		module.interject = original
+		module.__control_lock__ = ctllock
 
 	test/raised_called == True
 
@@ -70,13 +70,42 @@ def test_interject(test):
 
 	s = signal.signal(signal.SIGUSR2, signal.SIG_IGN)
 	try:
-		library.interject(call, replacement=False)
+		module.interject(call, replacement=False)
 		for x in range(32):
 			pass
 	finally:
 		signal.signal(signal.SIGUSR2, s)
 
 	test/executed == True
+
+def test_Invocation_argument_vector(test):
+	"""
+	# Check for argument property existence.
+	"""
+	si = module.Invocation.system()
+	test/si.argv == si.args
+
+def test_Invocation_imports(test):
+	"""
+	# Check for a functioning imports method.
+	"""
+	si = module.Invocation.system()
+	si.environ['_test-environ-4'] = 'AAA'
+
+	os.environ['_test-environ'] = '...'
+	os.environ['_test-environ-2'] = ',,,'
+	os.environ['_test-environ-3'] = '---'
+	os.environ['_test-environ-4'] = 'XXX'
+
+	si.imports(['_test-environ'])
+	test/si.environ['_test-environ'] == '...'
+	test/KeyError ^ (lambda: si.environ['_test-environ-2'])
+
+	si.imports(['_test-environ-2', '_test-environ-3', '_test-environ-4'])
+	test/si.environ['_test-environ-2'] == ',,,'
+	test/si.environ['_test-environ-3'] == '---'
+
+	test/si.environ['_test-environ-4'] == 'AAA' # local override inhibits import
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

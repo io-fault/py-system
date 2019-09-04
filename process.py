@@ -267,11 +267,12 @@ class Invocation(object):
 		self.exit_method(result)
 
 	@property
-	def args(self):
+	def argv(self):
 		"""
-		# Arguments provided by the system.
+		# Arguments provided by the system without the leading command name.
 		"""
 		return self.parameters['system']['arguments']
+	args = argv
 
 	@property
 	def environ(self) -> dict:
@@ -279,6 +280,21 @@ class Invocation(object):
 		# The environment variables collected from the system during the creation of the instance.
 		"""
 		return self.parameters['system']['environment']
+
+	def imports(self, envvars):
+		"""
+		# Copy the given &envvars from &os.environ into the invocation's &parameters.
+		# The snapshot of imported environment variables may be accessed using &environ.
+		"""
+
+		try:
+			env = self.parameters['system']['environment']
+		except KeyError:
+			env = self.parameters['system']['environment'] = {}
+
+		for x in envvars:
+			if x not in env:
+				env[x] = os.environ.get(x)
 
 	@classmethod
 	def system(Class, context=None, environ=(), isinstance=isinstance, str=str):
@@ -300,10 +316,11 @@ class Invocation(object):
 		system['name'] = sys.argv[0]
 		system['arguments'] = sys.argv[1:]
 		system['directory'] = os.getcwd()
+		system['environment'] = {}
 
 		if environ:
 			# Copy environment variables of interest.
-			local = system['environment'] = {}
+			local = system['environment']
 			for x in environ:
 				if not isinstance(x, str):
 					x = str(x)
