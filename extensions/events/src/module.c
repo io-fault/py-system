@@ -118,22 +118,7 @@ ki_kevent(
 	RETRY_SYSCALL:
 	r = kevent(kif->kif_kqueue, changes, nchanges, events, nevents, timeout);
 	if (r >= 0)
-	{
-		/*
-			// EV_ERROR is used in cases where kevent(2) fails after it already processed
-			// some events. In these cases, the EV_ERROR flag is used to note the case.
-		*/
-		if (r > 0 && events[r-1].flags & EV_ERROR)
-		{
-			--r;
-			*out = r;
-			/*
-				// XXX: Set error from EV_ERROR?
-			*/
-		}
-		else
-			*out = r;
-	}
+		*out = r;
 	else
 	{
 		/*
@@ -174,6 +159,22 @@ ki_kevent(
 				return(0);
 			break;
 		}
+	}
+
+	return(1);
+}
+
+/**
+	// Set Python exception from kevent error.
+*/
+static int
+ki_check_kevent(kevent_t *ev)
+{
+	if (ev->flags & EV_ERROR && ev->data != 0)
+	{
+		errno = ev->data;
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(0);
 	}
 
 	return(1);
@@ -553,12 +554,8 @@ ki_track(PyObj self, PyObj args)
 	}
 	else
 	{
-		if (kev.filter == EV_ERROR)
-		{
-			errno = (int) kev.data;
-			PyErr_SetFromErrno(PyExc_OSError);
+		if (!ki_check_kevent(&kev))
 			return(NULL);
-		}
 	}
 
 	Py_RETURN_NONE;
@@ -591,12 +588,8 @@ ki_untrack(PyObj self, PyObj args)
 	}
 	else
 	{
-		if (kev.filter == EV_ERROR)
-		{
-			errno = (int) kev.data;
-			PyErr_SetFromErrno(PyExc_OSError);
+		if (!ki_check_kevent(&kev))
 			return(NULL);
-		}
 	}
 
 	Py_RETURN_NONE;
@@ -653,6 +646,11 @@ set_timer(Interface kif, int recur, int note, unsigned long quantity, PyObj link
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(0);
+	}
+	else
+	{
+		if (!ki_check_kevent(&kev))
+			return(0);
 	}
 
 	return(1);
@@ -801,6 +799,21 @@ ki_cancel(PyObj self, PyObj link)
 			PyErr_SetFromErrno(PyExc_OSError);
 			return(NULL);
 		}
+		else if (kev.flags & EV_ERROR && kev.data != 0)
+		{
+			switch (kev.data)
+			{
+				case ENOENT:
+					Py_RETURN_NONE;
+				break;
+
+				default:
+					errno = kev.data;
+					PyErr_SetFromErrno(PyExc_OSError);
+					return(NULL);
+				break;
+			}
+		}
 
 		/*
 			// Add to cancellation *after* successful kevent()
@@ -913,9 +926,9 @@ ki_wait(PyObj self, PyObj args)
 	}
 
 	Py_BEGIN_ALLOW_THREADS
-	if (!ki_kevent(kif, 0, &nkevents, NULL, 0, kif->kif_events, CONFIG_STATIC_KEVENTS, ref))
 	{
-		error = 1;
+		if (!ki_kevent(kif, 0, &nkevents, NULL, 0, kif->kif_events, CONFIG_STATIC_KEVENTS, ref))
+			error = 1;
 	}
 	Py_END_ALLOW_THREADS
 
