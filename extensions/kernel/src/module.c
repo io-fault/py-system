@@ -205,11 +205,12 @@ static PyObj
 invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
 	static char *kwlist[] = {"path", "arguments", "environ", "set_process_group", NULL,};
+	sigset_t sigreset;
 	PyObj rob;
 	Invocation inv;
 
 	pid_t child = 0;
-	short flags = 0;
+	short flags = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK;
 	int set_pgroup = 0;
 
 	char *path;
@@ -257,6 +258,7 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		Py_DECREF(rob);
 		return(NULL);
 	}
+
 	inv->invocation_spawnattr_init = 1;
 
 	#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
@@ -264,6 +266,22 @@ invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	#endif
 
 	if (posix_spawnattr_setflags(&(inv->invocation_spawnattr), flags) != 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		Py_DECREF(rob);
+		return(NULL);
+	}
+
+	sigfillset(&sigreset);
+	if (posix_spawnattr_setsigdefault(&(inv->invocation_spawnattr), &sigreset) != 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		Py_DECREF(rob);
+		return(NULL);
+	}
+
+	sigemptyset(&sigreset);
+	if (posix_spawnattr_setsigmask(&(inv->invocation_spawnattr), &sigreset) != 0)
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		Py_DECREF(rob);
