@@ -872,7 +872,7 @@ initialize(PyObj mod, PyObj ctx)
 			"Preserve the given file descriptors across process image substitutions(exec).") \
 	PYMETHOD( \
 		released, kport_set_cloexec, METH_O, \
-			"Configure the file descriptors to be released when the process exits or is replaced.") \
+			"Configure the file descriptors to be released when the process is substituted(exec).") \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \
