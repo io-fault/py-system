@@ -79,24 +79,34 @@ fork_child_cleanup = set()
 getattr=getattr
 # Normalized identities for signals.
 signals = {
-	'stop': signal.SIGSTOP,
-	'istop': signal.SIGTSTP,
-	'continue': signal.SIGCONT,
-	'terminate' : signal.SIGTERM,
-	'quit' : signal.SIGQUIT,
-	'interrupt' : signal.SIGINT,
-	'kill' : signal.SIGKILL,
+	'process/stop': signal.SIGSTOP,
+	'process/continue': signal.SIGCONT,
+	'process/terminate' : signal.SIGTERM,
+	'process/quit' : signal.SIGQUIT,
+	'process/interrupt' : signal.SIGINT,
+	'process/kill' : signal.SIGKILL,
 
-	'terminal.query': getattr(signal, 'SIGINFO', None),
-	'terminal.view': getattr(signal, 'SIGWINCH', None),
+	'limit/cpu': signal.SIGXCPU,
+	'limit/file': signal.SIGXFSZ,
+	'limit/time': signal.SIGVTALRM,
 
-	'delta': signal.SIGHUP, # Configuration change; poll file system or memory to update.
-	'context': signal.SIGUSR1, # Context change occurred.
-	'trip' : signal.SIGUSR2, # Trip a system call blocking a thread.
+	'terminal/stop': signal.SIGTSTP,
+	'terminal/query': getattr(signal, 'SIGINFO', None),
+	'terminal/delta': getattr(signal, 'SIGWINCH', None),
+	'terminal/closed': signal.SIGHUP,
+	'terminal/background-read': signal.SIGTTIN,
+	'terminal/background-write': signal.SIGTTOU,
 
-	'limit-cpu': signal.SIGXCPU,
-	'limit-file.size': signal.SIGXFSZ,
-	'profiler': signal.SIGPROF,
+	'user/1': signal.SIGUSR1,
+	'user/2': signal.SIGUSR2,
+
+	'exception/floating-point': signal.SIGFPE,
+	'exception/broken-pipe': signal.SIGPIPE,
+
+	'error/bus': signal.SIGBUS,
+	'error/illegal-instruction': signal.SIGILL,
+	'error/segmentation-violation': signal.SIGSEGV,
+	'error/invalid-system-call': signal.SIGSYS,
 }
 
 # Signal numeric identifier to Signal Names mapping.
@@ -399,7 +409,6 @@ class Interruption(ControlException):
 		# Register a system-level atexit handler that will cause the process to exit with
 		# the configured signal.
 		"""
-		global fatal_signals
 
 		# if the noted signo is normally fatal, make it exit by signal.
 		if self.signo in fatal_signals:
@@ -415,7 +424,6 @@ class Interruption(ControlException):
 
 		# Default signal handler for SIGINT.
 		"""
-		global fatal_signals
 
 		if signo in fatal_signals:
 			interject(Class('signal', signo).raised) # fault.system.process.Interruption
@@ -664,7 +672,7 @@ def protect(*init, looptime=8):
 		if newppid != parent_process_id:
 			# Emit a context signal to the process.
 			parent_process_id = newppid
-			os.kill(os.getpid(), signals['context'])
+			os.kill(os.getpid(), signals['user/1'])
 
 	# Relies on Fork.trip() and runtime.interject to manage the main thread's stack.
 	raise Panic("infinite loop exited") # interject should be used to raise process.Exit()

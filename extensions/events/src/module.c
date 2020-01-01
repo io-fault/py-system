@@ -804,6 +804,9 @@ ki_cancel(PyObj self, PyObj link)
 			switch (kev.data)
 			{
 				case ENOENT:
+					/*
+						// Validate not in kset.
+					*/
 					Py_RETURN_NONE;
 				break;
 
@@ -830,42 +833,9 @@ signal_string(int sig)
 {
 	switch (sig)
 	{
-		case SIGCONT:
-			return "continue";
-		break;
-
-		case SIGTERM:
-			return "terminate";
-		break;
-
-		case SIGHUP:
-			return "delta";
-		break;
-
-		case SIGURG:
-			return "urgent";
-		break;
-
-		#ifdef SIGINFO
-			case SIGINFO:
-				return "terminal.query";
-			break;
-		#endif
-
-		#ifdef SIGWINCH
-			case SIGWINCH:
-				return "terminal.delta";
-			break;
-		#endif
-
-		case SIGUSR1:
-			return "tunnel";
-		break;
-
-		case SIGUSR2:
-			/* Should be ignored; used to interrupt blocking system calls in the main thread. */
-			return "trip";
-		break;
+		#define SIGNAL(SID, SYM, ...) case SID: return SYM; break;
+			#include <ksignal.h>
+		#undef SIGNAL
 
 		default:
 			return "";
