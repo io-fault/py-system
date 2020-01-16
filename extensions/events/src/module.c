@@ -1183,33 +1183,27 @@ static PyGetSetDef ki_getset[] = {
 };
 
 static void
-ki_dealloc(PyObj self)
+ki_clear_tasks(PyObj self)
 {
 	Interface kif = (Interface) self;
 	Tasks t, n;
 	size_t i;
 
-	Py_XDECREF(kif->kif_kset);
-	kif->kif_kset = NULL;
-	Py_XDECREF(kif->kif_cancellations);
-	kif->kif_cancellations = NULL;
+	Tasks kx = kif->kif_executing;
+	Tasks kt = kif->kif_tail;
+	Tasks kl = kif->kif_loading;
 
-	if (kif->kif_kqueue != -1)
-	{
-		close(kif->kif_kqueue);
-		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
-			FACTOR_PATH("Interface") " instance not closed before deallocation");
-	}
+	kif->kif_executing = kif->kif_loading = kif->kif_tail = NULL;
 
 	/*
 		// Executing queue's t_allocated provides accurate count of the segment.
 	*/
-	t = kif->kif_executing;
+	t = kx;
 	while (t != NULL)
 	{
 		n = t->t_next;
 		for (i = 0; i < t->t_allocated; ++i)
-			Py_DECREF(t->t_queue[i]);
+			Py_CLEAR(t->t_queue[i]);
 
 		PyMem_Free(t);
 		t = n;
@@ -1218,32 +1212,28 @@ ki_dealloc(PyObj self)
 	/*
 		// Special case for final segment in loading.
 	*/
-	t = kif->kif_tail;
+	t = kt;
 	if (t != NULL)
 	{
 		for (i = 0; i < kif->kif_tailcursor; ++i)
-			Py_DECREF(t->t_queue[i]);
+			Py_CLEAR(t->t_queue[i]);
 
-		kif->kif_tail->t_allocated = 0;
+		kt->t_allocated = 0;
 	}
 
 	/*
 		// Prior loop on tail sets allocated to zero maintaining the invariant.
 	*/
-	t = kif->kif_loading;
+	t = kl;
 	while (t != NULL)
 	{
 		n = t->t_next;
 		for (i = 0; i < t->t_allocated; ++i)
-			Py_DECREF(t->t_queue[i]);
+			Py_CLEAR(t->t_queue[i]);
 
 		PyMem_Free(t);
 		t = n;
 	}
-
-	kif->kif_executing = kif->kif_loading = kif->kif_tail = NULL;
-
-	Py_TYPE(self)->tp_free(self);
 }
 
 static int
@@ -1252,7 +1242,58 @@ ki_clear(PyObj self)
 	Interface kif = (Interface) self;
 	Py_CLEAR(kif->kif_kset);
 	Py_CLEAR(kif->kif_cancellations);
+	ki_clear_tasks(self);
 	return(0);
+}
+
+static void
+ki_dealloc(PyObj self)
+{
+	Interface kif = (Interface) self;
+
+	ki_clear(self);
+
+	if (kif->kif_kqueue != -1)
+	{
+		close(kif->kif_kqueue);
+		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
+			FACTOR_PATH("Interface") " instance not closed before deallocation");
+	}
+
+	Py_TYPE(self)->tp_free(self);
+}
+
+static int
+ki_traverse_tasks(PyObj self, visitproc visit, void *arg)
+{
+	Interface kif = (Interface) self;
+	Tasks t, n;
+	size_t i;
+
+	t = kif->kif_executing;
+	while (t != NULL)
+	{
+		n = t->t_next;
+		for (i = 0; i < t->t_allocated; ++i)
+			Py_VISIT(t->t_queue[i]);
+		t = n;
+	}
+
+	t = kif->kif_tail;
+	if (t != NULL)
+	{
+		for (i = 0; i < kif->kif_tailcursor; ++i)
+			Py_VISIT(t->t_queue[i]);
+	}
+
+	t = kif->kif_loading;
+	while (t != NULL && t != kif->kif_tail)
+	{
+		n = t->t_next;
+		for (i = 0; i < t->t_allocated; ++i)
+			Py_VISIT(t->t_queue[i]);
+		t = n;
+	}
 }
 
 static int
@@ -1261,7 +1302,7 @@ ki_traverse(PyObj self, visitproc visit, void *arg)
 	Interface kif = (Interface) self;
 	Py_VISIT(kif->kif_kset);
 	Py_VISIT(kif->kif_cancellations);
-	return(0);
+	return(ki_traverse_tasks(self, visit, arg));
 }
 
 static int
