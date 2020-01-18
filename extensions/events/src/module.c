@@ -1115,7 +1115,7 @@ ki_methods[] = {
 	{"wait",
 		(PyCFunction) ki_wait, METH_VARARGS,
 		PyDoc_STR(
-			"Executed after entering a with-statement block to collect queued events or timeout.\n"
+			"Wait for and return kernel events; returns empty list on timeout or interrupt.\n"
 		)
 	},
 
