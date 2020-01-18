@@ -51,7 +51,7 @@ struct Interface {
 	kport_t kif_kqueue;
 	int kif_waiting;
 
-	kevent_t kif_events[8];
+	kevent_t kif_events[CONFIG_STATIC_KEVENTS];
 };
 
 typedef struct Interface *Interface;

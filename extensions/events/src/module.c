@@ -18,7 +18,6 @@
 #include <fault/python/environ.h>
 
 typedef struct kevent kevent_t; /* kernel event description */
-#include "interface.h"
 
 #define KQ_FILTERS() \
 	FILTER(EVFILT_USER) \
@@ -103,6 +102,8 @@ typedef struct kevent kevent_t; /* kernel event description */
 	} \
 } while(0);
 #define UNLIMITED_RETRY() errno = 0; goto RETRY_SYSCALL;
+
+#include "interface.h"
 
 static int
 ki_kevent(
