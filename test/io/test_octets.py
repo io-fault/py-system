@@ -389,10 +389,8 @@ def file_test(test, am, path, apath):
 					reader.setup_read(93)
 					am.force()
 			if reader.terminated or xfer_len >= data_size:
-				out.append(reader.data)
 				reader.raised()
 				break
-	out.append(reader.data)
 
 	test/(bytearray(0).join(out)) == expected
 
@@ -441,10 +439,8 @@ def file_test(test, am, path, apath):
 					reader.setup_read(73)
 					am.force()
 			if reader.terminated or xfer_len >= data_size:
-				out.append(reader.data)
 				reader.raised()
 				break
-	out.append(reader.data)
 	test/(bytearray(0).join(out)) == expected
 
 def test_file(test):
