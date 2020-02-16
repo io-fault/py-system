@@ -10,16 +10,11 @@ def test_Path(test):
 	dir = os.path.dirname(os.path.realpath(__file__))
 	r = lib.Path.from_absolute(os.path.realpath(__file__))
 	test/r.fullpath == os.path.realpath(__file__)
-	# context reduction
-	test/(~r is r) == True
 
 	rd = r.container
 	test/rd.fullpath == dir
 
-	# tail
-	end = lib.Path.from_absolute('foo')
-	test/(rd + end).fullpath == os.path.join(dir, 'foo')
-
+	test/(rd/'foo').fullpath == os.path.join(dir, 'foo')
 	test/lib.Path.from_absolute('/foo/bar.tar.gz').extension == 'gz'
 
 def test_Path_repr(test):

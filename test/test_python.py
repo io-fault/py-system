@@ -12,8 +12,6 @@ def test_Import(test):
 
 	# package.test
 	r = lib.Import.from_fullname(__package__)
-	# context reduction
-	test/(~r is r) == True
 
 	# crawl stack; closest package module is chosen
 	test/lib.Import.from_context() == r
