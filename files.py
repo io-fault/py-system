@@ -15,11 +15,11 @@ import functools
 import operator
 
 from ..time import types as timetypes # Import needs to be delayed somehow.
-from ..routes import types
+from .. import routes
 
-class Path(types.Selector):
+class Path(routes.Selector):
 	"""
-	# &types.Selector subclass for local filesystem paths.
+	# &routes.Selector subclass for local filesystem paths.
 	"""
 	_path_separator = os.path.sep
 
@@ -268,7 +268,7 @@ class Path(types.Selector):
 
 	def is_container(self, isdir=os.path.isdir) -> bool:
 		"""
-		# Whether or not the &Selection is a directory.
+		# Whether or not the referent is a directory.
 		"""
 
 		return isdir(self.fullpath)
@@ -536,9 +536,9 @@ class Path(types.Selector):
 		"""
 
 		if relative:
-			parents, points = self >> to
-			target = '../' * parents
-			target += '/'.join(points)
+			relcount, segment = self.correlate(to)
+			target = '../' * (relcount - 1)
+			target += '/'.join(segment)
 		else:
 			target = str(to)
 

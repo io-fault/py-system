@@ -8,7 +8,7 @@ import pkgutil
 import importlib
 
 from ..time import types as timetypes
-from ..routes import types as routes
+from .. import routes
 
 from . import files
 

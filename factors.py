@@ -7,7 +7,7 @@
 """
 import importlib.machinery
 
-from ..routes import types as routes
+from .. import routes
 from . import files
 from . import identity
 
@@ -156,7 +156,7 @@ class IntegralFinder(object):
 		root = self.index[prefix]
 
 		ipath = name.split('.')
-		route = root.extend(ipath)
+		route = root + ipath
 		parent = route.container
 
 		final = ipath[-1]
@@ -173,15 +173,18 @@ class IntegralFinder(object):
 					# No extensions.
 					break
 			else:
-				xpath = (cur >> route)[1]
+				xpath = route.segment(cur)
 				exts = cur/'extensions'
-				segment = (cur >> (parent/self.integral_container_name))[1]
-				rroute = exts.extend(segment)
+				ints = parent/self.integral_container_name
+				rroute = exts//ints.segment(cur)
+				extfactor = exts//xpath
 
-				if exts.extend(xpath).exists():
+				if extfactor.exists():
 					# .extension entry is present
 					leading, filename, fformat = self._ext
-					path = str(rroute.extend(leading)/fformat(final))
+					path = rroute//leading/fformat(final)
+
+					path = str(path)
 					l = self.ExtensionFileLoader(name, path)
 					spec = self.ModuleSpec(name, l, origin=path, is_package=False)
 					return spec
@@ -220,7 +223,7 @@ class IntegralFinder(object):
 			origin = str(pysrc)
 
 		leading, filename, fformat = self._pbc
-		cached = idir.extend(leading) / fformat(final)
+		cached = idir//leading/fformat(final)
 		l = self.Loader(str(cached), name, str(pysrc))
 		spec = self.ModuleSpec(name, l, origin=origin, is_package=pkg)
 		spec.cached = str(cached)
