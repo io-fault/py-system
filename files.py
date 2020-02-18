@@ -26,7 +26,7 @@ class Path(routes.Selector):
 	__slots__ = ('context', 'points',)
 
 	@classmethod
-	def from_path(Class, path:str, getcwd=os.getcwd) -> "Path":
+	def from_path(Class, path:str, getcwd=os.getcwd):
 		"""
 		# Construct a &Path instance from the given absolute or relative path
 		# provided for &string; if a relative path is specified, it will
@@ -44,7 +44,7 @@ class Path(routes.Selector):
 			return Class.from_relative(Class.from_absolute(getcwd()), path)
 
 	@classmethod
-	def from_relative(Class, context:"Path", path:str, chain=itertools.chain) -> "Path":
+	def from_relative(Class, context, path:str, chain=itertools.chain):
 		"""
 		# Return a new Route pointing to the file referenced by &path;
 		# where path is a path relative to the &context &Path instance.
@@ -62,11 +62,11 @@ class Path(routes.Selector):
 		return Class(None, tuple(points))
 
 	@classmethod
-	def from_absolute(Class, path:str, tuple=tuple) -> "Path":
+	def from_absolute(Class, path:str, tuple=tuple):
 		return Class(None, tuple(x for x in path.split(Class._path_separator) if x))
 
 	@classmethod
-	def from_absolute_parts(Class, start:str, *paths:str) -> "Path":
+	def from_absolute_parts(Class, start:str, *paths:str):
 		ps = Class._path_separator
 
 		ini = start.split(ps)
@@ -80,7 +80,7 @@ class Path(routes.Selector):
 		return current
 
 	@classmethod
-	def from_cwd(Class, *points:str, getcwd=os.getcwd) -> "Path":
+	def from_cwd(Class, *points:str, getcwd=os.getcwd):
 		"""
 		# Return a new Route to the current working directory.
 
@@ -91,7 +91,7 @@ class Path(routes.Selector):
 		return Class(Class.from_absolute(getcwd()), points)
 
 	@classmethod
-	def home(Class) -> "Path":
+	def home(Class):
 		"""
 		# Return a new Route to the home directory defined by the environment.
 
@@ -102,7 +102,7 @@ class Path(routes.Selector):
 
 	@classmethod
 	@contextlib.contextmanager
-	def temporary(Class, TemporaryDirectory=tempfile.mkdtemp) -> "Path":
+	def temporary(Class, TemporaryDirectory=tempfile.mkdtemp):
 		"""
 		# Create a temporary directory at the route using a context manager.
 		# This is a wrapper around &tempfile.TemporaryDirectory that returns a &Path.
@@ -123,7 +123,7 @@ class Path(routes.Selector):
 			r.void()
 
 	@classmethod
-	def which(Class, exe, dirname=os.path.dirname) -> "Path":
+	def which(Class, exe, dirname=os.path.dirname):
 		"""
 		# Return a new Route to the executable found by which.
 		"""
@@ -183,7 +183,7 @@ class Path(routes.Selector):
 
 		return self.fullpath.encode(encoding, "surrogateescape")
 
-	def suffix(self, appended_suffix) -> "Path":
+	def suffix(self, appended_suffix):
 		"""
 		# Modify the name of the file adding the given suffix.
 
@@ -195,7 +195,7 @@ class Path(routes.Selector):
 
 		return self.__class__(self.context, tuple(prefix))
 
-	def prefix(self, s) -> "Path":
+	def prefix(self, s):
 		"""
 		# Modify the name of the file adding the given prefix.
 
@@ -293,7 +293,7 @@ class Path(routes.Selector):
 		except FileNotFoundError:
 			return False
 
-	def follow_links(self, readlink=os.readlink) -> typing.Iterator['Path']:
+	def follow_links(self, readlink=os.readlink) -> typing.Iterator[routes.Selector]:
 		"""
 		# Iterate through the links in a chain until a non-symbolic link file is reached.
 
@@ -381,7 +381,7 @@ class Path(routes.Selector):
 
 	def since(self, since:timetypes.Timestamp,
 			traversed=None,
-		) -> typing.Iterable[typing.Tuple[timetypes.Timestamp, "Path"]]:
+		) -> typing.Iterable[typing.Tuple[timetypes.Timestamp, routes.Selector]]:
 		"""
 		# Identify the set of files that have been modified
 		# since the given point in time.
@@ -390,7 +390,7 @@ class Path(routes.Selector):
 
 		# [ Parameters ]
 
-		# /since
+		# /since/
 			# The point in time after which files and directories will be identified
 			# as being modified and returned inside the result set.
 		"""
@@ -416,7 +416,7 @@ class Path(routes.Selector):
 		for x in dirs:
 			yield from x.since(since, traversed=traversed)
 
-	def real(self, exists=os.path.exists) -> "Path":
+	def real(self, exists=os.path.exists):
 		"""
 		# Return the part of the Path route that actually exists on the File system.
 		"""
@@ -503,7 +503,7 @@ class Path(routes.Selector):
 			else:
 				remove(fp)
 
-	def replace(self, replacement:"Path", copytree=shutil.copytree, copyfile=shutil.copy):
+	def replace(self, replacement, copytree=shutil.copytree, copyfile=shutil.copy):
 		"""
 		# Drop the existing file or directory, &self, and replace it with the
 		# file or directory at the given route, &replacement.
@@ -625,7 +625,7 @@ class Path(routes.Selector):
 			return f.write(data)
 
 	@contextlib.contextmanager
-	def cwd(self, chdir=os.chdir, getcwd=os.getcwd) -> 'Path':
+	def cwd(self, chdir=os.chdir, getcwd=os.getcwd):
 		"""
 		# Context manager using the &Path route as the current working directory within the
 		# context. On exit, restore the current working directory to that the operating system
