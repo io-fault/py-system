@@ -352,7 +352,7 @@ class Path(routes.Selector):
 		directories = []
 		files = []
 		for x in l:
-			sub = self.__class__(self, (x,))
+			sub = self/x
 			if isdir(join(path, x)):
 				directories.append(sub)
 			else:
