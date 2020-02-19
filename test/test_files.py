@@ -20,8 +20,20 @@ def test_Path(test):
 def test_Path_repr(test):
 	end = lib.Path.from_absolute('/test')
 	test/repr(end).__contains__('/test') == True
+
 	nx = lib.Path.from_absolute_parts('/usr/lib', 'python3.5m/site-packages', 'somemod.py')
-	test/repr(nx).__contains__('somemod.py') == True
+	rstr = repr(nx)
+	test/rstr.__contains__('/somemod.py') == True
+	test/rstr.__contains__('/usr/') == True
+
+def test_Path_from_partitioned_string(test):
+	p = lib.Path.from_partitioned_string("/root//prefix/stem//local/target")
+	parts = p.partitions()
+	test/parts == [
+		('root',),
+		('prefix', 'stem',),
+		('local', 'target',),
+	]
 
 def test_Path_bytespath(test):
 	p = lib.Path.from_absolute('/test/path')

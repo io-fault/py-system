@@ -79,6 +79,25 @@ class Path(routes.Selector):
 
 		return current
 
+	@staticmethod
+	def _partition_string(path:str) -> typing.Iterable[typing.Sequence[str]]:
+		return (x.strip('/').split('/') for x in path.split("//"))
+
+	@classmethod
+	def from_partitioned_string(Class, path:str):
+		"""
+		# Construct an absolute path while interpreting consecutive separators
+		# as distinct partitions.
+		"""
+		return Class.from_partitions(Class._partition_string(path))
+
+	def __matmul__(self, path:str):
+		parts = self._partition_string(path)
+		if path[:1] == "/":
+			return self.from_partitions(parts)
+		else:
+			return self // routes.Segment.from_partitions(parts)
+
 	@classmethod
 	def from_cwd(Class, *points:str, getcwd=os.getcwd):
 		"""
@@ -126,6 +145,9 @@ class Path(routes.Selector):
 	def which(Class, exe, dirname=os.path.dirname):
 		"""
 		# Return a new Route to the executable found by which.
+
+		# [ Engineering ]
+		# Relocating to &.execution.
 		"""
 
 		rp = shutil.which(exe)
@@ -137,17 +159,11 @@ class Path(routes.Selector):
 		return Class(Class.from_absolute(dn), (rp[len(dn)+1:],))
 
 	def __repr__(self):
-		parts = [self.points]
-		cur = self
-
-		while cur.context is not None:
-			cur = cur.context
-			parts.append(cur.points)
-
-		string = ','.join([repr('/'.join(y)) for y in reversed(parts[:-1])])
-		start = repr(self._path_separator.join(parts[-1]))[1:-1]
-
-		return "{0}.{1}.from_absolute_parts('/{2}',{3})".format(__name__, self.__class__.__name__, start, string)
+		parts = ["/".join(p) for p in self.partitions() if p]
+		if not parts:
+			return "(file@'/')"
+		parts[0] = "/" + parts[0]
+		return "(file@%r)" %("//".join(parts),)
 
 	def __str__(self):
 		return self.fullpath
