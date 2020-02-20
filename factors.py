@@ -105,7 +105,7 @@ class IntegralFinder(object):
 		"""
 
 		# Only package module roots are identified.
-		if (route/'Projects').exists():
+		if (route/'Projects').fs_type() != 'void':
 			dirs = [route/x for x in (route/'Projects').get_text_content().split('\n')]
 		else:
 			dirs = route.subdirectories()
@@ -155,19 +155,19 @@ class IntegralFinder(object):
 
 		root = self.index[prefix]
 
-		ipath = name.split('.')
-		route = root + ipath
+		route = root + name.split('.')
+		ftype = route.fs_type()
 		parent = route.container
 
-		final = ipath[-1]
+		final = route.identifier
 		pkg = False
 
 		# Check for extensions first.
-		if not route.exists():
+		if ftype == 'void':
 			# Find `extensions` factor.
 
 			cur = parent
-			while not (cur/'extensions').exists():
+			while (cur/'extensions').fs_type() == 'void':
 				cur = cur.container
 				if str(cur) in (str(root), '/'):
 					# No extensions.
@@ -179,7 +179,7 @@ class IntegralFinder(object):
 				rroute = exts//ints.segment(cur)
 				extfactor = exts//xpath
 
-				if extfactor.exists():
+				if extfactor.fs_type() != 'void':
 					# .extension entry is present
 					leading, filename, fformat = self._ext
 					path = rroute//leading/fformat(final)
@@ -190,17 +190,17 @@ class IntegralFinder(object):
 					return spec
 
 		# Not an extension; path is selecting a directory.
-		if route.is_directory():
+		if ftype == 'directory':
 			pkg = True
 			pysrc = route / '__init__.py'
 			final = '__init__'
 			idir = route / self.integral_container_name
 
-			if not pysrc.exists():
+			if pysrc.fs_type() == 'void':
 				# Handle enclosures.
 				for encpkg in ('context', 'category'):
 					# Context Enclosure
-					if (route/encpkg).exists():
+					if (route/encpkg).fs_type() != 'void':
 						pysrc = route/encpkg/'root.py'
 						final = 'root'
 						idir = pysrc * self.integral_container_name
@@ -213,8 +213,8 @@ class IntegralFinder(object):
 			# Regular Python module
 			idir = parent / self.integral_container_name
 			for x in self.suffixes:
-				pysrc = route.suffix(x)
-				if pysrc.is_regular_file():
+				pysrc = route.suffix_filename(x)
+				if pysrc.fs_type() == 'data':
 					break
 			else:
 				# No recognized sources.
