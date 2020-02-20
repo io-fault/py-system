@@ -277,6 +277,28 @@ def test_Path_fs_mkdir(test):
 	test/s.fs_type() == 'directory'
 	test/s.identifier == 'subdir'
 
+def test_Path_type_void(test):
+	"""
+	# - &lib.Path.fs_type
+	"""
+
+	t = test.exits.enter_context(lib.Path.fs_tmpdir())
+	l = t / 'deadlink.txt'
+	d = t / 'directory'
+	f = t / 'data-file.txt'
+	d.fs_mkdir()
+	f.fs_init(b'nothing')
+	l.fs_link_relative(d/'no-such-target')
+
+	v1 = d / 'subdirectory'
+	test/v1.fs_type() == 'void'
+
+	v2 = f / 'erroneous-subfile'
+	test/v2.fs_type() == 'void'
+
+	v3 = l
+	test/v3.fs_type() == 'void'
+
 def test_Path_extension(test):
 	f = lib.Path.from_path('test')
 	test/f.extension == None

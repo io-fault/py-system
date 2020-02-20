@@ -327,7 +327,7 @@ class Path(routes.Selector):
 		fp = self.fullpath
 		try:
 			s = stat(fp)
-		except FileNotFoundError:
+		except (FileNotFoundError, NotADirectoryError):
 			return 'void'
 
 		return type_map.get(ifmt(s.st_mode), 'unknown')
