@@ -1059,7 +1059,7 @@ class Endpoint(tuple):
 		if not l.is_link():
 			return self
 
-		for x in l.follow_links():
+		for x in l.fs_follow_links():
 			l = x
 
 		return self.from_route(l)

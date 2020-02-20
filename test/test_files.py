@@ -620,7 +620,7 @@ def test_Path_recursive_since(test):
 
 def test_Path_follow_links(test):
 	"""
-	# - &lib.Path.follow_links
+	# - &lib.Path.fs_follow_links
 	"""
 	td = test.exits.enter_context(lib.Path.fs_tmpdir())
 
@@ -636,10 +636,10 @@ def test_Path_follow_links(test):
 	l3 = (td/'link3')
 	l3.fs_link_relative(l2)
 
-	test/list(map(str, l3.follow_links())) == list(map(str, [l3, l2, l1, t]))
-	test/list(map(str, l2.follow_links())) == list(map(str, [l2, l1, t]))
-	test/list(map(str, l1.follow_links())) == list(map(str, [l1, t]))
-	test/list(map(str, t.follow_links())) == list(map(str, [t]))
+	test/list(map(str, l3.fs_follow_links())) == list(map(str, [l3, l2, l1, t]))
+	test/list(map(str, l2.fs_follow_links())) == list(map(str, [l2, l1, t]))
+	test/list(map(str, l1.fs_follow_links())) == list(map(str, [l1, t]))
+	test/list(map(str, t.fs_follow_links())) == list(map(str, [t]))
 
 def test_Path_io(test):
 	"""
