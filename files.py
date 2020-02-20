@@ -226,6 +226,27 @@ class Path(routes.Selector):
 
 		return '/'.join((ctxstr, '/'.join(subpath)))
 
+	@property
+	def filename(self):
+		"""
+		# Filesystem specific alias for &identifier.
+		"""
+		return self.identifier
+
+	@property
+	def extension(self):
+		"""
+		# Return the last dot-extension of the filename.
+		# &None if the filename has no `.` characters at all.
+		"""
+
+		i = self.identifier
+		p = i.rfind('.')
+		if p == -1:
+			return None
+
+		return i[p+1:]
+
 	def suffix_filename(self, appended_suffix):
 		"""
 		# Modify the name of the file adding the given suffix.
@@ -245,19 +266,6 @@ class Path(routes.Selector):
 
 		return self * (prefix_string + self.identifier)
 	prefix = prefix_filename
-
-	@property
-	def extension(self):
-		"""
-		# Return the dot-extension of the filename.
-		"""
-
-		i = self.identifier
-		p = i.rfind('.')
-		if p == -1:
-			return None
-
-		return i[p+1:]
 
 	_type_map = {
 		stat.S_IFIFO: 'pipe',

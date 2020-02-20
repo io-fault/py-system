@@ -28,6 +28,14 @@ def test_Path(test):
 	test/(rd/'foo').fullpath == os.path.join(dir, 'foo')
 	test/lib.Path.from_absolute('/foo/bar.tar.gz').extension == 'gz'
 
+def test_Path_filename(test):
+	p = lib.Path.from_absolute('/no/such/path')
+
+	f = p/'data.tar.xz'
+	test/p.filename == 'path'
+	test/f.filename == 'data.tar.xz'
+	test/f.extension == 'xz'
+
 def test_Path_from_home(test):
 	hd = lib.Path.home()
 	test/str(hd) == os.environ['HOME']
