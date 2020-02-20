@@ -509,47 +509,6 @@ def test_Path_void(test):
 	test/sd.exists() == False
 	test/sf.exists() == False
 
-def test_Path_link(test):
-	"""
-	# Test &lib.Path.symbolic_link.
-	"""
-	t = test.exits.enter_context(lib.Path.fs_tmpdir())
-
-	target = t / 'file'
-	with target.open('wb') as f:
-		f.write(b'test file')
-
-	# Relative Mode
-	sym = t / 'symbolic'
-	test/sym.exists() == False
-	test/sym.is_link() == False
-	sym.link(target)
-	test/sym.is_link() == True
-
-	test/sym.exists() == True
-	with sym.open('rb') as f:
-		test/f.read() == b'test file'
-	target.fs_void()
-	test/target.exists() == False
-	test/sym.exists() == False
-	test/sym.is_link() == True
-
-	common = t / 'dir' / 'subdir'
-	common.fs_mkdir()
-	dst = common / 'from-1' / 'from-2' / 'file'
-	src = common / 'to-1' / 'to-2' / 'to-3' / 'file'
-	src.fs_init()
-
-	with src.open('wb') as f:
-		f.write(b'source data')
-
-	dst.fs_init()
-	dst.fs_void()
-	dst.link(src)
-	test/dst.is_link() == True
-	with dst.open('rb') as f:
-		test/f.read() == b'source data'
-
 def link_checks(test, create_link):
 	t = test.exits.enter_context(lib.Path.fs_tmpdir())
 
@@ -615,7 +574,7 @@ def test_Path_recursive_since(test):
 
 	# create recursion
 	l = d / 'link'
-	l.link(t / 'dir')
+	l.fs_link_relative(t / 'dir')
 	test/list(t.since(ago10mins.rollback(minute=10)))[0][1] == f
 
 def test_Path_follow_links(test):
@@ -683,17 +642,17 @@ def test_Endpoint_target(test):
 	t = (td/'target.s')
 	t.fs_init()
 	l = (td/'link1')
-	l.link(t)
+	l.fs_link_relative(t)
 
 	ep = lib.Endpoint.from_route(l)
 	test/str(ep.target()) == str(t)
 
 	l2 = (td/'link2')
-	l2.link(l)
+	l2.fs_link_relative(l)
 	ep = lib.Endpoint.from_route(l2)
 	test/str(ep.target()) == str(t)
 
 	l3 = (td/'link3')
-	l3.link(l2)
+	l3.fs_link_relative(l2)
 	ep = lib.Endpoint.from_route(l3)
 	test/str(ep.target()) == str(t)
