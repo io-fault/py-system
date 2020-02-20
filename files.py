@@ -14,12 +14,24 @@ import itertools
 import functools
 import operator
 
+from ..context.tools import cachedcalls
 from ..time import types as timetypes # Import needs to be delayed somehow.
 from .. import routes
+
+@cachedcalls(32)
+def path_string_cache(path):
+	if path.context is not None:
+		prefix = path_string_cache(path.context)
+		segment = '/'.join(path.points)
+		return '/'.join(x for x in (prefix, segment) if x)
+	else:
+		return '/'.join(path.points)
 
 class Path(routes.Selector):
 	"""
 	# &routes.Selector subclass for local filesystem paths.
+
+	# Methods starting with `fs_` perform filesystem operations.
 	"""
 	_path_separator = os.path.sep
 
@@ -121,25 +133,26 @@ class Path(routes.Selector):
 
 	@classmethod
 	@contextlib.contextmanager
-	def temporary(Class, TemporaryDirectory=tempfile.mkdtemp):
+	def fs_tmpdir(Class, TemporaryDirectory=tempfile.mkdtemp):
 		"""
-		# Create a temporary directory at the route using a context manager.
-		# This is a wrapper around &tempfile.TemporaryDirectory that returns a &Path.
+		# Create a temporary directory at a new route using a context manager.
 
+		# A &Path to the temporary directory is returned on entrance,
+		# and that same path is destroyed on exit.
+
+		# [ Engineering ]
 		# The use of specific temporary files is avoided as they have inconsistent
-		# behavior on certain platforms.
-
-		# A &Path route to the temporary directory is returned on entrance,
-		# so the (keyword)`as` target *must* be specified in order to refer
-		# files inside the directory.
+		# behavior on some platforms.
 		"""
 
 		d = TemporaryDirectory()
 		try:
-			r = Class.from_absolute(d)
-			yield Class(r, ())
+			r = Class.from_absolute(d).delimit()
+			yield r
 		finally:
-			r.void()
+			assert str(r) == d
+			r.fs_void()
+	temporary = fs_tmpdir
 
 	@classmethod
 	def which(Class, exe, dirname=os.path.dirname):
@@ -168,26 +181,21 @@ class Path(routes.Selector):
 	def __str__(self):
 		return self.fullpath
 
+	def __fspath__(self) -> str:
+		return self.fullpath
+
 	@property
-	def fullpath(self, sep=os.path.sep) -> str:
+	def fullpath(self) -> str:
 		"""
 		# Returns the full filesystem path designated by the route.
 		"""
 
+		l = ['']
 		if self.context is not None:
-			# let the outermost context handle the root /, if any
-			prefix = self.context.fullpath
-			if not self.points:
-				return prefix
-		else:
-			if not self.points:
-				return sep
-			# Covers the case for a leading '/'
-			prefix = ''
+			l.append(path_string_cache(self.context))
+		l.extend(self.points)
 
-		rpath = sep.join(self.points)
-
-		return sep.join((prefix, rpath))
+		return '/'.join(l) or '/'
 
 	@property
 	def bytespath(self, encoding=sys.getfilesystemencoding()) -> bytes:
@@ -199,38 +207,49 @@ class Path(routes.Selector):
 
 		return self.fullpath.encode(encoding, "surrogateescape")
 
-	def suffix(self, appended_suffix):
+	def join(self, *parts:str) -> str:
+		"""
+		# Construct a string path using &self as the prefix and appending the path
+		# fragments from &parts.
+
+		# Segment instances should be given with an asterisk applied to the argument.
+		"""
+
+		if self.context is not None:
+			ctxstr = self.context.fullpath
+		else:
+			ctxstr = ''
+
+		subpath = self.points + parts
+		if not subpath:
+			return ctxstr or '/'
+
+		return '/'.join((ctxstr, '/'.join(subpath)))
+
+	def suffix_filename(self, appended_suffix):
 		"""
 		# Modify the name of the file adding the given suffix.
 
 		# Returns a new &Path Route.
 		"""
 
-		*prefix, basename = self.points
-		prefix.append(basename + appended_suffix)
+		return self * (self.identifier + appended_suffix)
+	suffix = suffix_filename
 
-		return self.__class__(self.context, tuple(prefix))
-
-	def prefix(self, s):
+	def prefix_filename(self, prefix_string):
 		"""
 		# Modify the name of the file adding the given prefix.
 
 		# Returns a new &Path Route.
 		"""
 
-		*prefix, basename = self.points
-		prefix.append(s + basename)
-
-		return self.__class__(self.context, tuple(prefix))
+		return self * (prefix_string + self.identifier)
+	prefix = prefix_filename
 
 	@property
 	def extension(self):
 		"""
-		# Return the dot-extension of the file path.
-
-		# Given a route to a file with a '.' in the final point, return the remainder of
-		# the string after the '.'. Dot-extensions are often a useful indicator for the
-		# consistency of the file's content.
+		# Return the dot-extension of the filename.
 		"""
 
 		i = self.identifier
@@ -274,21 +293,75 @@ class Path(routes.Selector):
 
 		return type_map[ifmt(s.st_mode)]
 
-	def executable(self, get_stat=os.stat, mask=stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH) -> bool:
+	_fs_type_map = {
+		stat.S_IFIFO: 'pipe',
+		stat.S_IFLNK: 'link',
+		stat.S_IFREG: 'data',
+		stat.S_IFDIR: 'directory',
+		stat.S_IFSOCK: 'socket',
+		stat.S_IFBLK: 'device',
+		stat.S_IFCHR: 'device',
+	}
+
+	_fs_subtype_map = {
+		stat.S_IFBLK: 'block',
+		stat.S_IFCHR: 'character',
+	}
+
+	def fs_type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=_fs_type_map, le=os.path.lexists) -> str:
+		"""
+		# The type of file the route points to. Transforms the result of an &os.stat
+		# call into a string describing the (python/attribute)`st_mode` field.
+
+		# [ Returns ]
+		# - `'directory'`
+		# - `'data'`
+		# - `'pipe'`
+		# - `'socket'`
+		# - `'device'`
+		# - `'void'`
+
+		# If no file is present at the route or a broken link is present, `'void'` will be returned.
+		"""
+
+		fp = self.fullpath
+		try:
+			s = stat(fp)
+		except FileNotFoundError:
+			return 'void'
+
+		return type_map.get(ifmt(s.st_mode), 'unknown')
+
+	def fs_test(self, type:str=None, exists=os.stat) -> bool:
+		"""
+		# Perform a set of tests against a fresh status record.
+
+		# Returns &True is all the tests pass. &False if one fails or
+		# the file does not exist.
+		"""
+		t = self.fs_type()
+		if t == 'void':
+			return False
+		elif type is not None and type != t:
+			return False
+
+		return True
+
+	def fs_executable(self, get_stat=os.stat, mask=stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH) -> bool:
 		"""
 		# Whether the file at the route is considered to be an executable.
 		"""
 
 		mode = get_stat(self.fullpath).st_mode
 		return (mode & mask) != 0
+	executable = fs_executable
 
-	def is_container(self, isdir=os.path.isdir) -> bool:
+	def is_directory(self, isdir=os.path.isdir) -> bool:
 		"""
 		# Whether or not the referent is a directory.
 		"""
 
 		return isdir(self.fullpath)
-	is_directory = is_container
 
 	def is_regular_file(self):
 		"""
@@ -296,7 +369,7 @@ class Path(routes.Selector):
 		# Uses &os.stat to query the local file system to discover the type.
 		"""
 
-		return self.type() == 'file'
+		return self.fs_type() == 'data'
 
 	def is_link(self, islink=os.path.islink):
 		"""
@@ -309,7 +382,7 @@ class Path(routes.Selector):
 		except FileNotFoundError:
 			return False
 
-	def follow_links(self, readlink=os.readlink) -> typing.Iterator[routes.Selector]:
+	def fs_follow_links(self, readlink=os.readlink) -> typing.Iterator[routes.Selector]:
 		"""
 		# Iterate through the links in a chain until a non-symbolic link file is reached.
 
@@ -330,6 +403,7 @@ class Path(routes.Selector):
 				r = Class.from_relative(r.container, target)
 
 		yield r
+	follow_links = fs_follow_links
 
 	def subnodes(self, listdir=os.listdir, isdir=os.path.isdir, join=os.path.join):
 		"""
@@ -362,15 +436,17 @@ class Path(routes.Selector):
 
 	def subdirectories(self):
 		"""
-		# Query the file system and return a sequences of routes to directories
-		# contained by &self. If &self is not a directory or contains no directories,
-		# an empty list will be returned.
+		# Query the file system and return the directories contained by the referent directory, &self.
+
+		# If &self is not a directory or contains no directories, an empty list will be returned.
 		"""
 		return self.subnodes()[0]
 
 	def files(self):
 		"""
-		# Query the file system returning non-directory nodes contained by the directory &self.
+		# Query the file system and return the regular files contained by the referent directory, &self.
+
+		# If &self is not a directory or contains no files, an empty list will be returned.
 		"""
 		return self.subnodes()[1]
 
@@ -395,7 +471,159 @@ class Path(routes.Selector):
 
 		return dirs, files
 
-	def since(self, since:timetypes.Timestamp,
+	def fs_list(self, scandir=os.scandir):
+		"""
+		# Retrieve the list of files contained by the directory referred to by &self.
+		# Returns a pair, the sequence of directories and the sequence of data files.
+
+		# Sockets, pipes, devices, and other non-data files are not retained in the list.
+		"""
+
+		try:
+			dl = scandir(self.fullpath)
+		except OSError:
+			# Error indifferent.
+			# User must make explicit checks to interrogate permission/existence.
+			return ([], [])
+
+		ld = {
+			'directory': [],
+			'data': [],
+		}
+		exceptions = []
+
+		with dl as scan:
+			for de in scan:
+				sub = self/de.name
+				if de.is_dir():
+					ld['directory'].append(sub)
+				else:
+					typ = sub.fs_type()
+					ld.get(typ, exceptions).append(sub)
+
+				if len(exceptions) > 32:
+					# Handle odd case.
+					del exceptions[:]
+
+		del exceptions
+		return (ld['directory'], ld['data'])
+
+	def fs_index(self, Queue=collections.deque):
+		"""
+		# Construct a mapping of directories associated with their content.
+
+		# Sockets, pipes, devices, and other non-data files are not retained in the lists.
+		"""
+
+		dirs, files = self.fs_list()
+		if not dirs and not files:
+			return {}
+
+		cseq = Queue(dirs)
+		tm = {self: files}
+
+		while cseq:
+			subdir = cseq.popleft()
+			sd, sf = subdir.fs_list()
+
+			# extend output
+			tm[subdir] = sf
+
+			# process subdirectories
+			cseq.extend(sd)
+
+		return tm
+
+	def fs_snapshot(self,
+			filter=(lambda x: x[0] == 'exception'),
+			depth=8, limit=2048,
+			ifmt=stat.S_IFMT, Queue=collections.deque, scandir=os.scandir,
+			le=os.path.lexists
+		):
+		"""
+		# Construct an element tree of files from the directory referenced by &self.
+
+		# [ Parameters ]
+		# /filter/
+			# Boolean callable determining whether or not a file's record should
+			# be included in the resulting element tree.
+			# Defaults to a lambda excluding `'exception'` types.
+		# /depth/
+			# The maximum filesystem depth to descend from &self.
+			# If &None, no depth constraint is enforced.
+			# Defaults to `8`.
+		# /limit/
+			# The maximum number of elements to accumulate.
+			# If &None, no limit constraint is enforced.
+			# Defaults to `2048`.
+		"""
+
+		ftype = self._fs_type_map.get
+
+		nelements = 0
+		elements = []
+		cseq = Queue()
+		getnext = cseq.popleft
+
+		cseq.append((self, elements, self.fullpath))
+
+		cdepth = 0
+		ncount = 0
+		count = len(cseq)
+		while cseq:
+			subdir, dirlist, fp = getnext()
+			count -= 1
+
+			add = dirlist.append
+			try:
+				scan = scandir(fp)
+			except OSError:
+				continue
+
+			with scan as scan:
+				for de in scan:
+					file = subdir/de.name
+					try:
+						st = de.stat()
+						typ = ftype(ifmt(st.st_mode), 'unknown')
+					except FileNotFoundError:
+						if le(file.fullpath):
+							st = None
+							typ = 'void'
+						else:
+							# Probably race.
+							continue
+					except OSError as err:
+						# Filtered by default.
+						st = None
+						typ = 'exception'
+
+					attrs = {'status': st, 'identifier': de.name}
+					record = (typ, [], attrs)
+
+					if filter(record):
+						continue
+
+					add(record)
+					nelements += 1
+
+					if de.is_dir():
+						cseq.append((file, record[1], file.fullpath))
+						ncount += 1 # avoid len() call on deque
+
+			if limit is not None and nelements > limit:
+				break
+
+			if count <= 0 and ncount:
+				cdepth += 1
+				if depth is not None and cdepth >= depth:
+					break
+				count = ncount
+				ncount = 0
+
+		return elements
+
+	def fs_since(self, since:timetypes.Timestamp,
 			traversed=None,
 		) -> typing.Iterable[typing.Tuple[timetypes.Timestamp, routes.Selector]]:
 		"""
@@ -431,6 +659,7 @@ class Path(routes.Selector):
 
 		for x in dirs:
 			yield from x.since(since, traversed=traversed)
+	since = fs_since
 
 	def real(self, exists=os.path.exists):
 		"""
@@ -443,6 +672,17 @@ class Path(routes.Selector):
 				return x
 			x = x.container
 
+	def fs_real(self, exists=os.path.exists):
+		"""
+		# Return the part of the Path that actually exists on the filesystem.
+		"""
+
+		for x in ~self:
+			if exists(x.fullpath):
+				return x
+
+		return root
+
 	def exists(self, exists=os.path.exists) -> bool:
 		"""
 		# Query the filesystem and return whether or not the file exists.
@@ -452,7 +692,7 @@ class Path(routes.Selector):
 
 		return exists(self.fullpath)
 
-	def size(self, stat=os.stat) -> int:
+	def fs_size(self, stat=os.stat) -> int:
 		"""
 		# Return the size of the file as depicted by &os.stat.
 
@@ -502,61 +742,66 @@ class Path(routes.Selector):
 
 		return (unix(st.st_ctime), unix(st.st_mtime), st.st_size)
 
-	def void(self, rmtree=shutil.rmtree, remove=os.remove):
+	def fs_void(self, rmtree=shutil.rmtree, remove=os.remove):
 		"""
-		# Remove the entire tree or file that this &Route points to.
-		# No file will survive. Unless it's not owned by the user.
+		# Remove the file that is referenced by this path.
 
 		# If the Route refers to a symbolic link, only the link file will be removed.
+		# If the Route refers to a directory, the contents and the directory will be removed.
 		"""
 		fp = self.fullpath
 
-		if self.is_link():
-			remove(fp)
-		elif self.exists():
-			if self.is_directory():
-				rmtree(fp)
-			else:
-				remove(fp)
+		try:
+			typ = self.fs_type(stat=os.lstat)
+		except FileNotFoundError:
+			# Work complete.
+			return
 
-	def replace(self, replacement, copytree=shutil.copytree, copyfile=shutil.copy):
+		if typ == 'directory':
+			return rmtree(fp)
+		else:
+			# typ is 'void' for broken links.
+			return remove(fp)
+	void = fs_void
+
+	def fs_replace(self, replacement, copytree=shutil.copytree, copyfile=shutil.copy) -> None:
 		"""
 		# Drop the existing file or directory, &self, and replace it with the
 		# file or directory at the given route, &replacement.
 
 		# [ Parameters ]
-
 		# /replacement/
 			# The route to the file or directory that will be used to replace
 			# the one at &self.
 		"""
 
-		self.void()
 		src = replacement.fullpath
 		dst = self.fullpath
+		self.fs_void()
 
-		if replacement.is_directory():
+		if replacement.fs_type() == 'directory':
 			copytree(src, dst, symlinks=True, copy_function=copyfile)
 		else:
 			copyfile(src, dst)
+	replace = fs_replace
 
-	def link(self, to, relative:bool=True, link=os.symlink, exists=os.path.lexists):
+	def link(self, path, relative:bool=True, link=os.symlink, exists=os.path.lexists) -> None:
 		"""
-		# Create a *symbolic* link at &self pointing to &to, the target file.
+		# Create a *symbolic* link at &self pointing to &path, the target file.
 
 		# [ Parameters ]
-		# /to/
-			# The target of the symbolic link.
+		# /path/
+			# The target path of the symbolic link.
 		# /relative/
 			# Whether or not to resolve the link as a relative path.
 		"""
 
 		if relative:
-			relcount, segment = self.correlate(to)
+			relcount, segment = self.correlate(path)
 			target = '../' * (relcount - 1)
 			target += '/'.join(segment)
 		else:
-			target = str(to)
+			target = str(path)
 
 		dst = str(self)
 		if exists(dst):
@@ -564,15 +809,52 @@ class Path(routes.Selector):
 
 		link(target, dst)
 
+	def fs_link_relative(self, path, link=os.symlink) -> None:
+		"""
+		# Create or update a *symbolic* link at &self pointing to &path, the target file.
+		# The linked target path will be relative to &self' route.
+
+		# Returns &self, the newly created link.
+
+		# [ Parameters ]
+		# /path/
+			# The route identifying the target path of the symbolic link.
+		"""
+
+		relcount, segment = self.correlate(path)
+		target = '../' * (relcount - 1)
+		target += '/'.join(segment)
+
+		link(target, self.fullpath)
+
+		return self
+
+	def fs_link_absolute(self, path, link=os.symlink) -> None:
+		"""
+		# Create or update a *symbolic* link at &self pointing to &path, the target file.
+		# The linked target path will be absolute.
+
+		# Returns &self, the newly created link.
+
+		# [ Parameters ]
+		# /path/
+			# The route identifying the target path of the symbolic link.
+		"""
+
+		target = path.fullpath
+		link(target, self.fullpath)
+
+		return self
+
 	def init(self, type, mkdir=os.mkdir, exists=os.path.lexists):
 		"""
-		# Create the filesystem node described by the type parameter at this route.
+		# Create the file described by the type parameter at this route.
 		# Any directories leading up to the node will be automatically created if
 		# they do not exist.
 
 		# If a node of any type already exists at this route, nothing happens.
 
-		# &type is one of: `'file'`, `'directory'`, `'pipe'`.
+		# &type is one of: `'data'`, `'directory'`, `'pipe'`.
 		"""
 
 		fp = self.fullpath
@@ -580,17 +862,16 @@ class Path(routes.Selector):
 			return
 
 		routes = []
-		x = self.container
-		while not exists(x.fullpath):
-			routes.append(x)
-			x = x.container
+		for p in ~self.container:
+			if p.exists():
+				break
+			routes.append(p)
 
 		# create directories
-		routes.reverse()
-		for x in routes:
+		for x in reversed(routes):
 			mkdir(x.fullpath)
 
-		if type == "file":
+		if type in {"file", "data"}:
 			# touch the file.
 			with open(fp, 'x'): # Save ACL errors, concurrent op created file
 				pass
@@ -598,6 +879,63 @@ class Path(routes.Selector):
 			mkdir(fp)
 		elif type == "pipe":
 			os.mkfifo(fp)
+
+	def fs_init(self, data:typing.Optional[bytes]=None, mkdir=os.mkdir, exists=os.path.exists):
+		"""
+		# Create and initialize a data file at the route using the given &data.
+
+		# If &data is &None, no write operation will occur for pre-existing files.
+		# If &data is not &None, the bytes will be written regardless.
+
+		# Returns the route instance.
+		# Leading directories will be created as needed.
+		"""
+
+		fp = self.fullpath
+		if exists(fp):
+			if data is not None:
+				self.store(data) #* Re-initialize data file.
+			return self
+
+		routes = []
+		for p in ~self.container:
+			if p.fs_type() != 'void':
+				break
+			routes.append(p)
+
+		# Create leading directories.
+		for x in reversed(routes):
+			mkdir(x.fullpath)
+
+		with open(fp, 'xb') as f: #* Save ACL errors, concurrent op created file
+			f.write(data or b'')
+
+		return self
+
+	def fs_mkdir(self, mkdir=os.mkdir, exists=os.path.exists):
+		"""
+		# Create and initialize a directory file at the route.
+
+		# Returns the route instance.
+		# Leading directories will be created as needed.
+		"""
+
+		fp = self.fullpath
+		if exists(fp):
+			return self
+
+		routes = []
+		for p in ~self.container:
+			if p.fs_type() != 'void':
+				break
+			routes.append(p)
+
+		# Create leading directories.
+		for x in reversed(routes):
+			mkdir(x.fullpath)
+
+		mkdir(fp)
+		return self
 
 	@contextlib.contextmanager
 	def open(self, *args, **kw):
@@ -611,48 +949,50 @@ class Path(routes.Selector):
 		f = None
 
 		try:
-			self.init('file')
+			self.fs_init()
 			f = open(self.fullpath, *args, **kw)
 			with f:
 				yield f
 		finally:
 			pass
 
-	def load(self, mode='rb') -> bytes:
+	def fs_load(self, mode='rb') -> bytes:
 		"""
 		# Open the file, and return the entire contents as a &bytes instance.
 		# If the file does not exist, an *empty bytes instance* is returned.
 
 		# Unlike &store, this will not initialize the file.
 		"""
-		if not self.exists():
+		try:
+			with open(self.fullpath, mode) as f:
+				return f.read()
+		except FileNotFoundError:
 			return b''
+	load = fs_load
 
-		with self.open(mode) as f:
-			return f.read()
-
-	def store(self, data:bytes, mode='wb'):
+	def fs_store(self, data:bytes, mode='wb'):
 		"""
 		# Given a &bytes instance, &data, store the contents at the location referenced
 		# by the &Route. If the file does not exist, *it will be created* along with
 		# the leading directories.
 		"""
-		with self.open(mode) as f:
+		with open(self.fullpath, mode) as f:
 			return f.write(data)
+	store = fs_store
 
 	@contextlib.contextmanager
-	def cwd(self, chdir=os.chdir, getcwd=os.getcwd):
+	def fs_chdir(self, chdir=os.chdir, getcwd=os.getcwd):
 		"""
 		# Context manager using the &Path route as the current working directory within the
 		# context. On exit, restore the current working directory to that the operating system
 		# reported:
 
 			#!/pl/python
-				root = fault.system.files.Path.from_absolute('/')
-				with root.cwd() as oldcwd:
+				root = files.Path.from_absolute('/')
+				with root.fs_chdir() as oldcwd:
 					assert str(root) == os.getcwd()
 
-				# Restored.
+				# # Restored at exit.
 				assert str(oldcwd) == os.getcwd()
 
 		# The old current working directory is yielded as a &Path instance.
@@ -665,6 +1005,9 @@ class Path(routes.Selector):
 			yield self.from_absolute(cwd)
 		finally:
 			chdir(cwd)
+	cwd = fs_chdir
+
+root = Path(None, ())
 
 class Endpoint(tuple):
 	"""

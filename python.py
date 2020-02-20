@@ -282,7 +282,7 @@ class Import(routes.Selector):
 
 					# Filter entries identified as being a Python module,
 					# but are not regular files or do not exist.
-					if ir.spec() is None or ir.file().type() != 'file':
+					if ir.spec() is None or ir.file().fs_type() != 'data':
 						# This applies to package modules as well as
 						# the __init__.py file should be available saving
 						# a namespace loader.
