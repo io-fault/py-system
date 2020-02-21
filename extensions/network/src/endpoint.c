@@ -279,7 +279,7 @@ ip4_from_object(PyObj ob, void *out)
 {
 	ip4_addr_t *ref = out;
 	char *address;
-	unsigned short port;
+	unsigned short port = 0;
 	Py_ssize_t len = 0;
 	int r;
 
@@ -299,8 +299,18 @@ ip4_from_object(PyObj ob, void *out)
 		memcpy(((char *) ref), ((char *) Endpoint_GetAddress(E)), Endpoint_GetLength(E));
 		return(1);
 	}
-	else if (!PyArg_ParseTuple(ob, "s#H", &address, &len, &port))
-		return(0);
+	else if (PyUnicode_Check(ob))
+	{
+		address = PyUnicode_AsUTF8AndSize(ob, NULL);
+		if (address == NULL)
+			return(0);
+	}
+	else if (PyArg_ParseTuple(ob, "s#H", &address, &len, &port))
+	{
+		ip4_port_field(ref) = htons(port);
+	}
+	else
+		return(0); /* ParseTuple failure */
 
 	ERRNO_RECEPTACLE(0, &r, inet_pton, ip4_pf, address, (void *) &ip4_addr_field(ref));
 	if (r < 1)
@@ -308,8 +318,6 @@ ip4_from_object(PyObj ob, void *out)
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(0);
 	}
-
-	ip4_port_field(ref) = htons(port);
 
 	/*
 		// Allows receiver to detect that the struct was filled out.
@@ -328,7 +336,7 @@ ip6_from_object(PyObj ob, void *out)
 {
 	ip6_addr_t *ref = out;
 	char *address;
-	unsigned short port;
+	unsigned short port = 0;
 	Py_ssize_t len = 0;
 	uint32_t flowinfo = 0;
 	int r;
@@ -349,8 +357,18 @@ ip6_from_object(PyObj ob, void *out)
 		memcpy(((char *) ref), ((char *) Endpoint_GetAddress(E)), Endpoint_GetLength(E));
 		return(1);
 	}
-	else if (!PyArg_ParseTuple(ob, "s#H|I", &address, &len, &port, &flowinfo))
-		return(0);
+	else if (PyUnicode_Check(ob))
+	{
+		address = PyUnicode_AsUTF8AndSize(ob, NULL);
+		if (address == NULL)
+			return(0);
+	}
+	else if (PyArg_ParseTuple(ob, "s#H|I", &address, &len, &port, &flowinfo))
+	{
+		ip6_port_field(ref) = htons(port);
+	}
+	else
+		return(0); /* ParseTuple failure */
 
 	ERRNO_RECEPTACLE(0, &r, inet_pton, ip6_pf, address, (void *) &ip6_addr_field(ref));
 	if (r < 1)
@@ -358,8 +376,6 @@ ip6_from_object(PyObj ob, void *out)
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(0);
 	}
-
-	ip6_port_field(ref) = htons(port);
 
 	/*
 		// Allows receiver to detect that the struct was filled out.
@@ -518,18 +534,20 @@ endpoint_replace(PyObj self, PyObj args, PyObj kw)
 
 	if (address != NULL)
 	{
+		int r = 0;
+
 		switch (Endpoint_GetFamily(E))
 		{
 			case ip4_pf:
-				ip4_from_object(address, Endpoint_GetAddress(E));
+				r = ip4_from_object(address, Endpoint_GetAddress(E));
 			break;
 
 			case ip6_pf:
-				ip6_from_object(address, Endpoint_GetAddress(E));
+				r = ip6_from_object(address, Endpoint_GetAddress(E));
 			break;
 
 			case local_pf:
-				local_from_object(address, Endpoint_GetAddress(E));
+				r = local_from_object(address, Endpoint_GetAddress(E));
 			break;
 
 			default:
@@ -540,6 +558,9 @@ endpoint_replace(PyObj self, PyObj args, PyObj kw)
 			}
 			break;
 		}
+
+		if (r == 0)
+			goto error;
 	}
 
 	if (port != NULL)
