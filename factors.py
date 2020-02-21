@@ -162,9 +162,8 @@ class IntegralFinder(object):
 		final = route.identifier
 		pkg = False
 
-		# Check for extensions first.
 		if ftype == 'void':
-			# Find `extensions` factor.
+			# Check for `extensions` factor.
 
 			cur = parent
 			while (cur/'extensions').fs_type() == 'void':
@@ -189,24 +188,26 @@ class IntegralFinder(object):
 					spec = self.ModuleSpec(name, l, origin=path, is_package=False)
 					return spec
 
-		# Not an extension; path is selecting a directory.
 		if ftype == 'directory':
+			# Not an extension; path is selecting a directory.
 			pkg = True
 			pysrc = route / '__init__.py'
+			module__path__ = str(pysrc.container)
 			final = '__init__'
 			idir = route / self.integral_container_name
 
 			if pysrc.fs_type() == 'void':
-				# Handle enclosures.
-				for encpkg in ('context', 'category'):
-					# Context Enclosure
-					if (route/encpkg).fs_type() != 'void':
-						pysrc = route/encpkg/'root.py'
-						final = 'root'
-						idir = pysrc * self.integral_container_name
-						break
-				else:
+				# Handle context enclosures.
+				ctx = (route/'context')
+				if ctx.fs_type() == 'void':
 					return None
+
+				module__path__ = str(route)
+				pysrc = ctx/'root.py'
+				final = 'root'
+				idir = pysrc * self.integral_container_name
+			else:
+				module__path__ = str(pysrc.container)
 
 			origin = str(pysrc)
 		else:
@@ -220,15 +221,18 @@ class IntegralFinder(object):
 				# No recognized sources.
 				return None
 
+			module__path__ = str(pysrc.container)
 			origin = str(pysrc)
 
 		leading, filename, fformat = self._pbc
 		cached = idir//leading/fformat(final)
+
 		l = self.Loader(str(cached), name, str(pysrc))
 		spec = self.ModuleSpec(name, l, origin=origin, is_package=pkg)
 		spec.cached = str(cached)
+
 		if pkg:
-			spec.submodule_search_locations = [str(pysrc.container)]
+			spec.submodule_search_locations = [module__path__]
 
 		return spec
 
