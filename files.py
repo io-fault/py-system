@@ -151,7 +151,10 @@ class Path(routes.Selector):
 			yield r
 		finally:
 			assert str(r) == d
-			r.fs_void()
+			try:
+				r.fs_void()
+			except NameError:
+				os.rmdir(d)
 	temporary = fs_tmpdir
 
 	@classmethod
