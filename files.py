@@ -949,7 +949,7 @@ class Path(routes.Selector):
 		return self
 
 	@contextlib.contextmanager
-	def open(self, *args, **kw):
+	def fs_open(self, *args, **kw):
 		"""
 		# Open the file pointed to by the route.
 
@@ -957,15 +957,15 @@ class Path(routes.Selector):
 		# leading up to the file don't exist, create the directories too.
 		"""
 
-		f = None
-
+		f = open(self.fullpath, *args, **kw)
 		try:
-			self.fs_init()
-			f = open(self.fullpath, *args, **kw)
-			with f:
-				yield f
-		finally:
-			pass
+			f.__enter__()
+			yield f
+		except BaseException as err:
+			f.__exit__(err.__class__, err, err.__traceback__)
+		else:
+			f.__exit__(None, None, None)
+	open = fs_open
 
 	def fs_load(self, mode='rb') -> bytes:
 		"""
@@ -975,7 +975,7 @@ class Path(routes.Selector):
 		# Unlike &store, this will not initialize the file.
 		"""
 		try:
-			with open(self.fullpath, mode) as f:
+			with self.fs_open(mode) as f:
 				return f.read()
 		except FileNotFoundError:
 			return b''
@@ -987,7 +987,7 @@ class Path(routes.Selector):
 		# by the &Route. If the file does not exist, *it will be created* along with
 		# the leading directories.
 		"""
-		with open(self.fullpath, mode) as f:
+		with self.fs_open(mode) as f:
 			return f.write(data)
 	store = fs_store
 

@@ -485,6 +485,30 @@ def test_Path_properties(test):
 	moddir = module.container
 	test/moddir.fs_type() == 'directory'
 
+def test_Path_open(test):
+	"""
+	# - &lib.File.fs_open
+	"""
+	d = test.exits.enter_context(lib.Path.fs_tmpdir())
+
+	r = d/'test'
+	with r.fs_open('wb') as f:
+		f.write(b'test-content')
+
+	test/r.fs_load() == b'test-content'
+
+	with r.fs_open('w', encoding='utf-8') as f:
+		f.write('test-content-2')
+
+	test/r.fs_load() == b'test-content-2'
+
+	fnf = d/'no-such-file'
+	try:
+		with fnf.fs_open('r') as f:
+			pass
+	except Exception as err:
+		test.isinstance(err, FileNotFoundError)
+
 def test_Path_void(test):
 	"""
 	# File.fs_void operation.
