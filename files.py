@@ -731,14 +731,14 @@ class Path(routes.Selector):
 		"""
 		# Retrieve the entire contents of the file as a &str.
 		"""
-		with open(str(self), encoding=encoding) as f:
+		with self.fs_open('rt', encoding=encoding) as f:
 			return f.read()
 
 	def set_text_content(self, string:str, encoding:str='utf-8') -> None:
 		"""
 		# Modify the regular file identified by &self to contain the given &string.
 		"""
-		with open(str(self), 'w', encoding=encoding) as f:
+		with self.fs_open('w', encoding=encoding) as f:
 			f.write(string)
 
 	def meta(self, stat=os.stat, unix=timetypes.from_unix_timestamp):
@@ -884,7 +884,7 @@ class Path(routes.Selector):
 
 		if type in {"file", "data"}:
 			# touch the file.
-			with open(fp, 'x'): # Save ACL errors, concurrent op created file
+			with self.fs_open('x'): #* Save ACL errors, concurrent op created file
 				pass
 		elif type == "directory":
 			mkdir(fp)
@@ -905,7 +905,7 @@ class Path(routes.Selector):
 		fp = self.fullpath
 		if exists(fp):
 			if data is not None:
-				self.store(data) #* Re-initialize data file.
+				self.fs_store(data) #* Re-initialize data file.
 			return self
 
 		routes = []
@@ -918,7 +918,7 @@ class Path(routes.Selector):
 		for x in reversed(routes):
 			mkdir(x.fullpath)
 
-		with open(fp, 'xb') as f: #* Save ACL errors, concurrent op created file
+		with self.fs_open('xb') as f: #* Save ACL errors, concurrent op created file
 			f.write(data or b'')
 
 		return self

@@ -212,21 +212,21 @@ def test_Path_replace(test):
 	# Regular file replacement.
 	t = test.exits.enter_context(lib.Path.fs_tmpdir())
 	src = t / 'srcfile'
-	with open(src, 'wb') as f:
+	with src.fs_open('wb') as f:
 		f.write(b'sources')
 
 	dst = t / 'dstfile'
-	with open(dst, 'wb') as f:
+	with dst.fs_open('wb') as f:
 		f.write(b'dest')
 
 	dst.replace(src)
-	with open(dst, 'rb') as f:
+	with dst.fs_open('rb') as f:
 		test/f.read() == b'sources'
 
 	src = t / 'srcdir'
 	srcfile = src / 's' / 's'
 	srcfile.fs_init()
-	with open(srcfile, 'wb') as f:
+	with srcfile.fs_open('wb') as f:
 		f.write(b'subdir_sources')
 
 	dst.replace(src)
@@ -235,7 +235,7 @@ def test_Path_replace(test):
 	dir = dst / 's'
 	test/dir.fs_type() == 'directory'
 	file = dir / 's'
-	with open(file, 'rb') as f:
+	with file.fs_open('rb') as f:
 		test/f.read() == b'subdir_sources'
 
 def test_Path_chdir(test):
@@ -333,7 +333,7 @@ def test_Path_get_last_modified(test):
 
 	d = test.exits.enter_context(lib.Path.fs_tmpdir())
 	r = d / 'last_modified_testfile'
-	with open(r, 'w') as f:
+	with r.fs_open('w') as f:
 		f.write('data\n')
 
 	test/r.exists() == True
@@ -343,7 +343,7 @@ def test_Path_get_last_modified(test):
 	# sleep one whole second in case the filesystem's
 	# precision is at the one second mark.
 
-	with open(r, 'a') as f:
+	with r.fs_open('a') as f:
 		f.write('appended\n')
 
 	mtime2 = r.get_last_modified()
@@ -358,7 +358,7 @@ def test_Path_set_last_modified(test):
 
 	d = test.exits.enter_context(lib.Path.fs_tmpdir())
 	r = d / 'last_modified_testfile'
-	with open(r, 'w') as f:
+	with r.fs_open('w') as f:
 		f.write('data\n')
 
 	test/r.exists() == True
@@ -379,7 +379,7 @@ def test_Path_get_text_content(test):
 
 	d = test.exits.enter_context(lib.Path.fs_tmpdir())
 	r = d / 'tf'
-	with open(str(r), 'w', encoding='utf-8') as f:
+	with r.fs_open('w', encoding='utf-8') as f:
 		f.write("data\n")
 	test/r.exists() == True # sanity
 	test/r.get_text_content() == "data\n"
@@ -392,7 +392,7 @@ def test_Path_set_text_content(test):
 	d = test.exits.enter_context(lib.Path.fs_tmpdir())
 	r = d / 'tf'
 	test/r.set_text_content("data\n")
-	with open(str(r), encoding='utf-8') as f:
+	with r.fs_open(encoding='utf-8') as f:
 		test/f.read() == "data\n"
 
 def test_Path_since(test):
@@ -511,7 +511,7 @@ def test_Path_open(test):
 
 def test_Path_void(test):
 	"""
-	# File.fs_void operation.
+	# - &lib.Path.fs_void
 	"""
 
 	d = test.exits.enter_context(lib.Path.fs_tmpdir())
@@ -519,7 +519,7 @@ def test_Path_void(test):
 	sf = sd / 'subfile'
 	sf.fs_init()
 
-	with open(sf, 'wb') as x:
+	with sf.fs_open('wb') as x:
 		x.write(b'data')
 
 	test/sd.exists() == True
@@ -548,7 +548,7 @@ def link_checks(test, create_link):
 	test/sym.is_link() == True
 
 	test/sym.exists() == True
-	with open(sym, 'rb') as f:
+	with sym.fs_open('rb') as f:
 		test/f.read() == b'test file'
 	target.fs_void()
 	test/target.exists() == False
@@ -569,13 +569,13 @@ def link_checks(test, create_link):
 
 def test_Path_fs_relative_links(test):
 	"""
-	# &lib.Path.fs_link_relative.
+	# &lib.Path.fs_link_relative
 	"""
 	link_checks(test, lib.Path.fs_link_relative)
 
 def test_Path_fs_absolute_links(test):
 	"""
-	# &lib.Path.fs_link_absolute.
+	# &lib.Path.fs_link_absolute
 	"""
 	link_checks(test, lib.Path.fs_link_absolute)
 
@@ -637,12 +637,12 @@ def test_Path_io(test):
 
 	f.fs_store(b'bytes-data')
 	test/f.fs_load() == b'bytes-data'
-	with open(str(f)) as fp:
+	with f.fs_open() as fp:
 		test/fp.read() == "bytes-data"
 
 	f.fs_store(b'overwritten')
 	test/f.fs_load() == b'overwritten'
-	with open(str(f)) as fp:
+	with f.fs_open() as fp:
 		test/fp.read() == "overwritten"
 
 def test_Endpoint_properties(test):
