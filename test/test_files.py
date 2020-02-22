@@ -219,7 +219,7 @@ def test_Path_replace(test):
 	with dst.fs_open('wb') as f:
 		f.write(b'dest')
 
-	dst.replace(src)
+	dst.fs_replace(src)
 	with dst.fs_open('rb') as f:
 		test/f.read() == b'sources'
 
@@ -229,9 +229,9 @@ def test_Path_replace(test):
 	with srcfile.fs_open('wb') as f:
 		f.write(b'subdir_sources')
 
-	dst.replace(src)
-	test/(dst / 's').exists() == True
-	test/(dst / 's' / 's').exists() == True
+	dst.fs_replace(src)
+	test/(dst / 's').fs_type() != 'void'
+	test/(dst / 's' / 's').fs_type() != 'void'
 	dir = dst / 's'
 	test/dir.fs_type() == 'directory'
 	file = dir / 's'
@@ -246,7 +246,7 @@ def test_Path_chdir(test):
 		test/os.getcwd() == str(os.path.realpath(str(t)))
 		test/str(lib.Path.from_cwd()) == os.path.realpath(str(t))
 
-def test_Path_fs_init(test):
+def test_Path_init(test):
 	"""
 	# Test &lib.Path.fs_init checking that the parent directories are
 	# properly created regardless of the selected type.
@@ -257,7 +257,6 @@ def test_Path_fs_init(test):
 
 	f2 = f.fs_init(b'content')
 	test/f2 == f
-	test/f.exists() == True
 	test/f.fs_type() == 'data'
 	test/f.identifier == 'filename'
 
@@ -265,7 +264,7 @@ def test_Path_fs_init(test):
 	test/f.fs_init(b'content-2').fs_load() == b'content-2'
 	test/f.fs_init().fs_load() == b'content-2'
 
-def test_Path_fs_mkdir(test):
+def test_Path_mkdir(test):
 	"""
 	# Test &lib.Path.fs_mkdir checking that the parent directories are
 	# properly created regardless of the selected type.
@@ -276,12 +275,10 @@ def test_Path_fs_mkdir(test):
 
 	d2 = d.fs_mkdir()
 	test/d2 == d
-	test/d.exists() == True
 	test/d.fs_type() == 'directory'
 	test/d.identifier == 'directory'
 
 	s = (d/'subdir').fs_mkdir()
-	test/s.exists() == True
 	test/s.fs_type() == 'directory'
 	test/s.identifier == 'subdir'
 
@@ -311,6 +308,9 @@ def test_Path_extension(test):
 	f = lib.Path.from_path('test')
 	test/f.extension == None
 
+	f = lib.Path.from_path('test.xyz')
+	test/f.extension == 'xyz'
+
 def test_Path_size(test):
 	r = lib.Path.from_path(__file__)
 
@@ -336,7 +336,7 @@ def test_Path_get_last_modified(test):
 	with r.fs_open('w') as f:
 		f.write('data\n')
 
-	test/r.exists() == True
+	test/r.fs_type() != 'void'
 
 	mtime1 = r.get_last_modified()
 	time.sleep(1.1)
@@ -361,7 +361,7 @@ def test_Path_set_last_modified(test):
 	with r.fs_open('w') as f:
 		f.write('data\n')
 
-	test/r.exists() == True
+	test/r.fs_type() != 'void'
 	original_time = r.get_last_modified()
 
 	ttime = sysclock.now().update('minute', -10, 'hour')
@@ -381,7 +381,7 @@ def test_Path_get_text_content(test):
 	r = d / 'tf'
 	with r.fs_open('w', encoding='utf-8') as f:
 		f.write("data\n")
-	test/r.exists() == True # sanity
+	test/r.fs_type() != 'void' # sanity
 	test/r.get_text_content() == "data\n"
 
 def test_Path_set_text_content(test):
@@ -397,7 +397,7 @@ def test_Path_set_text_content(test):
 
 def test_Path_since(test):
 	"""
-	# &lib.Path.since
+	# &lib.Path.fs_since
 	"""
 
 	root = test.exits.enter_context(lib.Path.fs_tmpdir())
@@ -413,9 +413,9 @@ def test_Path_since(test):
 	times.sort(reverse=True)
 	y = times[0]
 
-	test/list(root.since(sysclock.now())) == []
+	test/list(root.fs_since(sysclock.now())) == []
 
-	m = root.since(sysclock.now().rollback(minute=1))
+	m = root.fs_since(sysclock.now().rollback(minute=1))
 	test/set(x[1] for x in m) == set(files)
 
 def test_Path_construct(test):
@@ -522,16 +522,16 @@ def test_Path_void(test):
 	with sf.fs_open('wb') as x:
 		x.write(b'data')
 
-	test/sd.exists() == True
-	test/sf.exists() == True
+	test/sd.fs_type() != 'void'
+	test/sf.fs_type() != 'void'
 	sf.fs_void()
-	test/sf.exists() == False
+	test/sf.fs_type() == 'void'
 	sf.fs_init()
-	test/sf.exists() == True
+	test/sf.fs_type() != 'void'
 
 	sd.fs_void()
-	test/sd.exists() == False
-	test/sf.exists() == False
+	test/sd.fs_type() == 'void'
+	test/sf.fs_type() == 'void'
 
 def link_checks(test, create_link):
 	t = test.exits.enter_context(lib.Path.fs_tmpdir())
@@ -541,18 +541,18 @@ def link_checks(test, create_link):
 
 	# Relative Mode
 	sym = t / 'symbolic'
-	test/sym.exists() == False
+	test/sym.fs_type() == 'void'
 	test/sym.is_link() == False
 
 	create_link(sym, target)
 	test/sym.is_link() == True
 
-	test/sym.exists() == True
+	test/sym.fs_type() != 'void'
 	with sym.fs_open('rb') as f:
 		test/f.read() == b'test file'
 	target.fs_void()
-	test/target.exists() == False
-	test/sym.exists() == False
+	test/target.fs_type() == 'void'
+	test/sym.fs_type() == 'void'
 	test/sym.is_link() == True
 
 	common = t / 'dir' / 'subdir'
@@ -567,13 +567,13 @@ def link_checks(test, create_link):
 	test/dst.is_link() == True
 	test/dst.fs_load() == b'source data'
 
-def test_Path_fs_relative_links(test):
+def test_Path_relative_links(test):
 	"""
 	# &lib.Path.fs_link_relative
 	"""
 	link_checks(test, lib.Path.fs_link_relative)
 
-def test_Path_fs_absolute_links(test):
+def test_Path_absolute_links(test):
 	"""
 	# &lib.Path.fs_link_absolute
 	"""
@@ -581,7 +581,7 @@ def test_Path_fs_absolute_links(test):
 
 def test_Path_recursive_since(test):
 	"""
-	# &lib.Path.since with recursive directories.
+	# &lib.Path.fs_since with recursive directories.
 	"""
 	import itertools
 	ago10mins = sysclock.now().rollback(minute=10)
@@ -599,7 +599,7 @@ def test_Path_recursive_since(test):
 	# create recursion
 	l = d / 'link'
 	l.fs_link_relative(t / 'dir')
-	test/list(t.since(ago10mins.rollback(minute=10)))[0][1] == f
+	test/list(t.fs_since(ago10mins.rollback(minute=10)))[0][1] == f
 
 def test_Path_follow_links(test):
 	"""

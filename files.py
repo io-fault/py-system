@@ -560,7 +560,7 @@ class Path(routes.Selector):
 		stat.S_IFCHR: 'character',
 	}
 
-	def fs_type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=_fs_type_map, le=os.path.lexists) -> str:
+	def fs_type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=_fs_type_map) -> str:
 		"""
 		# The type of file the route points to. Transforms the result of an &os.stat
 		# call into a string describing the (python/attribute)`st_mode` field.
@@ -584,17 +584,21 @@ class Path(routes.Selector):
 
 		return type_map.get(ifmt(s.st_mode), 'unknown')
 
-	def fs_test(self, type:str=None, exists=os.stat) -> bool:
+	def fs_test(self, type:str=None) -> bool:
 		"""
 		# Perform a set of tests against a fresh status record.
 
-		# Returns &True is all the tests pass. &False if one fails or
-		# the file does not exist.
+		# Returns &True when all the tests pass.
+		# &False if one fails or the file does not exist.
 		"""
 		t = self.fs_type()
-		if t == 'void':
-			return False
-		elif type is not None and type != t:
+		if type is None:
+			if t == 'void':
+				return False
+			else:
+				pass
+				# Default to continue when no type is present.
+		elif type != t:
 			return False
 
 		return True
@@ -910,19 +914,7 @@ class Path(routes.Selector):
 				yield (mt, x)
 
 		for x in dirs:
-			yield from x.since(since, traversed=traversed)
-	since = fs_since
-
-	def real(self, exists=os.path.exists):
-		"""
-		# Return the part of the Path route that actually exists on the File system.
-		"""
-
-		x = self.__class__.from_absolute(self.fullpath)
-		while x.points:
-			if exists(x.fullpath):
-				return x
-			x = x.container
+			yield from x.fs_since(since, traversed=traversed)
 
 	def fs_real(self, exists=os.path.exists):
 		"""
@@ -1014,7 +1006,6 @@ class Path(routes.Selector):
 		else:
 			# typ is 'void' for broken links.
 			return remove(fp)
-	void = fs_void
 
 	def fs_replace(self, replacement, copytree=shutil.copytree, copyfile=shutil.copy) -> None:
 		"""
@@ -1035,31 +1026,6 @@ class Path(routes.Selector):
 			copytree(src, dst, symlinks=True, copy_function=copyfile)
 		else:
 			copyfile(src, dst)
-	replace = fs_replace
-
-	def link(self, path, relative:bool=True, link=os.symlink, exists=os.path.lexists) -> None:
-		"""
-		# Create a *symbolic* link at &self pointing to &path, the target file.
-
-		# [ Parameters ]
-		# /path/
-			# The target path of the symbolic link.
-		# /relative/
-			# Whether or not to resolve the link as a relative path.
-		"""
-
-		if relative:
-			relcount, segment = self.correlate(path)
-			target = '../' * (relcount - 1)
-			target += '/'.join(segment)
-		else:
-			target = str(path)
-
-		dst = str(self)
-		if exists(dst):
-			os.remove(dst)
-
-		link(target, dst)
 
 	def fs_link_relative(self, path, link=os.symlink) -> None:
 		"""
@@ -1097,40 +1063,6 @@ class Path(routes.Selector):
 		link(target, self.fullpath)
 
 		return self
-
-	def init(self, type, mkdir=os.mkdir, exists=os.path.lexists):
-		"""
-		# Create the file described by the type parameter at this route.
-		# Any directories leading up to the node will be automatically created if
-		# they do not exist.
-
-		# If a node of any type already exists at this route, nothing happens.
-
-		# &type is one of: `'data'`, `'directory'`, `'pipe'`.
-		"""
-
-		fp = self.fullpath
-		if exists(fp):
-			return
-
-		routes = []
-		for p in ~self.container:
-			if p.exists():
-				break
-			routes.append(p)
-
-		# create directories
-		for x in reversed(routes):
-			mkdir(x.fullpath)
-
-		if type in {"file", "data"}:
-			# touch the file.
-			with self.fs_open('x'): #* Save ACL errors, concurrent op created file
-				pass
-		elif type == "directory":
-			mkdir(fp)
-		elif type == "pipe":
-			os.mkfifo(fp)
 
 	def fs_init(self, data:typing.Optional[bytes]=None, mkdir=os.mkdir, exists=os.path.exists):
 		"""
@@ -1206,7 +1138,6 @@ class Path(routes.Selector):
 			f.__exit__(err.__class__, err, err.__traceback__)
 		else:
 			f.__exit__(None, None, None)
-	open = fs_open
 
 	def fs_load(self, mode='rb') -> bytes:
 		"""
@@ -1220,7 +1151,6 @@ class Path(routes.Selector):
 				return f.read()
 		except FileNotFoundError:
 			return b''
-	load = fs_load
 
 	def fs_store(self, data:bytes, mode='wb'):
 		"""
@@ -1230,18 +1160,16 @@ class Path(routes.Selector):
 		"""
 		with self.fs_open(mode) as f:
 			return f.write(data)
-	store = fs_store
 
 	@contextlib.contextmanager
 	def fs_chdir(self, chdir=os.chdir, getcwd=os.getcwd):
 		"""
-		# Context manager using the &Path route as the current working directory within the
-		# context. On exit, restore the current working directory to that the operating system
-		# reported:
+		# Context manager setting the &Path as the current working directory during the
+		# context. On exit, restore the current working directory and PWD environment.
 
 			#!/pl/python
 				root = files.Path.from_absolute('/')
-				with root.fs_chdir() as oldcwd:
+				with root.fs_chdir() as oldpwd:
 					assert str(root) == os.getcwd()
 
 				# # Restored at exit.
@@ -1250,14 +1178,23 @@ class Path(routes.Selector):
 		# The old current working directory is yielded as a &Path instance.
 		"""
 
+		# RLock may be appropriate here.
+
 		cwd = getcwd()
+		oldpwd = os.environ.get('PWD')
 
 		try:
+			if oldpwd is not None:
+				os.environ['OLDPWD'] = oldpwd
+
+			os.environ['PWD'] = self.fullpath
 			chdir(self.fullpath)
-			yield self.from_absolute(cwd)
+			yield self.from_absolute(oldpwd or cwd)
 		finally:
 			chdir(cwd)
-	cwd = fs_chdir
+			if oldpwd is not None:
+				os.environ['PWD'] = oldpwd
+				os.environ['OLDPWD'] = self.fullpath
 
 root = Path(None, ())
 
