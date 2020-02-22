@@ -87,19 +87,9 @@ class Status(tuple):
 		return NotImplemented
 
 	@property
-	def units(self) -> str:
-		"""
-		# The base units counted by &size.
-		"""
-		if self.type == 'directory':
-			return 'files'
-		else:
-			return 'bytes'
-
-	@property
 	def size(self):
 		"""
-		# Number of bytes contained by a data file or a the number of files contained by the directory.
+		# Number of bytes contained by the file.
 		"""
 		return self.system.st_size
 
