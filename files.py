@@ -38,6 +38,72 @@ class Path(routes.Selector):
 
 	__slots__ = ('context', 'points',)
 
+	class Void(Exception):
+		"""
+		# Exception thrown by methods that require files at the Path to exist.
+
+		# Instances are using the bad path and a context argument.
+		# The context argument is user data describing where the path came from.
+
+		# [ Engineering ]
+		# Expiremental. Currently, only raised by &fs_select.
+		"""
+
+		rtype = 'system-file'
+
+		def __init__(self, badpath, context=None):
+			self.path = badpath
+			self.context = context
+
+		def __str__(self):
+			if self.context is not None:
+				return "[%s: %s] path did not exist" %(self.context, str(self.path))
+			else:
+				return "[%s] path did not exist" %(str(self.path),)
+
+		def fragments(self):
+			"""
+			# Construct the real portion and segment pair.
+
+			# Calculates the part of the path that actually exists on the filesytem,
+			# and the remaining invalid part.
+			"""
+			r = self.path.fs_real()
+			return (r, self.path.segment(r))
+
+	@classmethod
+	def fs_select(Class, *path:str, pwd=None, context=None):
+		"""
+		# Construct a &Path from user input, the given string &path segments.
+
+		# If the first segment starts with a `'/'`, the path will be interpreted as absolute.
+		# Otherwise, the path will be interpreted as relative to the current working directory.
+
+		# If the path does not exists, a &Void exception will be raised.
+
+		# [ Engineering ]
+		# Expiremental. Constructor intended for user input; likely replacement for from_path.
+		"""
+		start = path[0] if path else ''
+
+		if start[0:1] == '/':
+			fsr = Class.from_absolute(start)
+		else:
+			if pwd is None:
+				try:
+					pwd = Class.from_absolute(os.environ['PWD'])
+				except KeyError:
+					pwd = Class.from_absolute(os.getcwd())
+			fsr = pwd @ start
+
+		for x in path[1:]:
+			fsr @= x
+
+		if fsr.fs_type() == 'void':
+			raise Class.Void(fsr, context)
+
+		return fsr
+
 	@classmethod
 	def from_path(Class, path:str, getcwd=os.getcwd):
 		"""
