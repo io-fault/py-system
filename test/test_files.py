@@ -151,7 +151,7 @@ def test_Path_index(test):
 	f = t / 'file'
 	f.fs_init()
 	test/f.fs_list() == ([],[]) # OSError
-	test/f.fs_index() == {}
+	test/dict(f.fs_index()) == {}
 
 	d = t / 'dir'
 	s = d / 'subdir'
@@ -163,7 +163,7 @@ def test_Path_index(test):
 		d: [],
 		s: [l],
 	}
-	queried = t.fs_index()
+	queried = dict(t.fs_index())
 
 	test/queried == expect
 

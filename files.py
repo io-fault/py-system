@@ -766,29 +766,26 @@ class Path(routes.Selector):
 
 	def fs_index(self, Queue=collections.deque):
 		"""
-		# Construct a mapping of directories associated with their content.
+		# Generate pairs of directories associated with their files.
 
-		# Sockets, pipes, devices, and other non-data files are not retained in the lists.
+		# Sockets, pipes, devices, broken links, and other non-data files are not retained in the lists.
 		"""
 
-		dirs, files = self.fs_list()
+		dirs, files = self.delimit().fs_list()
 		if not dirs and not files:
-			return {}
+			return
 
+		yield self, files
 		cseq = Queue(dirs)
-		tm = {self: files}
 
 		while cseq:
 			subdir = cseq.popleft()
 			sd, sf = subdir.fs_list()
 
-			# extend output
-			tm[subdir] = sf
+			yield subdir, sf
 
-			# process subdirectories
+			# continue with subdirectories
 			cseq.extend(sd)
-
-		return tm
 
 	def fs_snapshot(self,
 			filter=(lambda x: x[0] == 'exception'),
