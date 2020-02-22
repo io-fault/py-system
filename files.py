@@ -19,6 +19,180 @@ from ..time import types as timetypes
 from ..context.tools import cachedcalls
 from .. import routes
 
+class Status(tuple):
+	"""
+	# File status interface providing symbolic names for the data packed in
+	# the system's status record, &system.
+
+	# [ Engineering ]
+	# Expiremental. Helps isolate delayed imports.
+	# Likely undesired noise if a stat-cache is employed by &Path.
+	"""
+	__slots__ = ()
+
+	_fs_type_map = {
+		stat.S_IFIFO: 'pipe',
+		stat.S_IFLNK: 'link',
+		stat.S_IFREG: 'data',
+		stat.S_IFDIR: 'directory',
+		stat.S_IFSOCK: 'socket',
+		stat.S_IFBLK: 'device',
+		stat.S_IFCHR: 'device',
+	}
+
+	_fs_subtype_map = {
+		stat.S_IFBLK: 'block',
+		stat.S_IFCHR: 'character',
+	}
+
+	@property
+	def _interpret_time(self):
+		from ..time.types import from_unix_timestamp
+		self.__class__._interpret_time = from_unix_timestamp
+		return from_unix_timestamp
+
+	@property
+	def _read_user(self):
+		from pwd import getpwuid
+		self.__class__._read_user = getpwuid
+		return getpwuid
+
+	@property
+	def _read_group(self):
+		from grp import getgrgid
+		self.__class__._read_group = getgrgid
+		return getgrgid
+
+	@classmethod
+	def from_route(Class, route):
+		return Class((os.stat(route), route.identifier))
+
+	@property
+	def system(self):
+		"""
+		# The status record produced by the system.
+		"""
+		return self[0]
+
+	@property
+	def filename(self):
+		"""
+		# The name of the file.
+		"""
+		return self[1]
+
+	def __add__(self, operand):
+		# Protect from unexpected addition.
+		# tuple() + Status(...) is still possible.
+		return NotImplemented
+
+	@property
+	def units(self) -> str:
+		"""
+		# The base units counted by &size.
+		"""
+		if self.type == 'directory':
+			return 'files'
+		else:
+			return 'bytes'
+
+	@property
+	def size(self):
+		"""
+		# Number of bytes contained by a data file or a the number of files contained by the directory.
+		"""
+		return self.system.st_size
+
+	@property
+	def type(self, ifmt=stat.S_IFMT):
+		"""
+		# /`'directory'`/
+			# A file containing other files.
+		# /`'data'`/
+			# A regular file.
+		# /`'pipe'`/
+			# A named pipe; also known as a FIFO.
+		# /`'socket'`/
+			# A unix domain socket.
+		# /`'device'`/
+			# A character or block device file.
+		# /`'void'`/
+			# A broken link.
+		# /`'link'`/
+			# Status record of a link to a file.
+		"""
+		return self._fs_type_map.get(ifmt(self.system.st_mode), 'unknown')
+
+	@property
+	def subtype(self, ifmt=stat.S_IFMT):
+		"""
+		# For POSIX-type systems, designates the kind of `'device'`: `'block'` or `'character'`.
+		# Returns &None for types other than `'device'`.
+		"""
+		return self._fs_subtype_map.get(ifmt(self.system.st_mode))
+
+	@property
+	def created(self):
+		"""
+		# Time of creation; UTC. Not available on all systems.
+		"""
+		return self._interpret_time(self.system.st_birthtime)
+
+	@property
+	def last_modified(self):
+		"""
+		# Time of last modification; UTC.
+		"""
+		return self._interpret_time(self.system.st_mtime)
+
+	@property
+	def last_accessed(self):
+		"""
+		# Time of last access; UTC.
+		"""
+		return self._interpret_time(self.system.st_atime)
+
+	@property
+	def meta_last_modified(self):
+		"""
+		# Time of last status change; UTC.
+		"""
+		return self._interpret_time(self.system.st_ctime)
+
+	@property
+	def owner(self):
+		return self._read_user(self.system.st_uid)
+
+	@property
+	def group(self):
+		return self._read_group(self.system.st_gid)
+
+	@property
+	def setuid(self):
+		return (self.system.st_mode & S_ISUID)
+
+	@property
+	def setgid(self):
+		return (self.system.st_mode & stat.S_ISGID)
+
+	@property
+	def sticky(self):
+		return (self.system.st_mode & stat.S_ISVTX)
+
+	@property
+	def executable(self, mask=stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH) -> bool:
+		"""
+		# Whether the data file is considered executable by anyone.
+		"""
+		return (self.system.st_mode & mask) != 0 and self.type == 'data'
+
+	@property
+	def searchable(self, mask=stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH) -> bool:
+		"""
+		# Whether the directory file is considered searchable by anyone.
+		"""
+		return (self.system.st_mode & mask) != 0 and self.type == 'directory'
+
 @cachedcalls(32)
 def path_string_cache(path):
 	if path.context is not None:
