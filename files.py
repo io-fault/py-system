@@ -1043,7 +1043,14 @@ class Path(routes.Selector):
 		target = '../' * (relcount - 1)
 		target += '/'.join(segment)
 
-		link(target, self.fullpath)
+		try:
+			link(target, self.fullpath)
+		except FileExistsError:
+			self.fs_void()
+			if self.fs_type() != 'void':
+				raise
+
+			link(target, self.fullpath)
 
 		return self
 
@@ -1060,7 +1067,15 @@ class Path(routes.Selector):
 		"""
 
 		target = path.fullpath
-		link(target, self.fullpath)
+
+		try:
+			link(target, self.fullpath)
+		except FileExistsError:
+			self.fs_void()
+			if self.fs_type() != 'void':
+				raise
+
+			link(target, self.fullpath)
 
 		return self
 
