@@ -48,19 +48,19 @@ class Status(tuple):
 	@property
 	def _interpret_time(self):
 		from ..time.types import from_unix_timestamp
-		self.__class__._interpret_time = from_unix_timestamp
+		self.__class__._interpret_time = staticmethod(from_unix_timestamp)
 		return from_unix_timestamp
 
 	@property
 	def _read_user(self):
 		from pwd import getpwuid
-		self.__class__._read_user = getpwuid
+		self.__class__._read_user = staticmethod(getpwuid)
 		return getpwuid
 
 	@property
 	def _read_group(self):
 		from grp import getgrgid
-		self.__class__._read_group = getgrgid
+		self.__class__._read_group = staticmethod(getgrgid)
 		return getgrgid
 
 	@classmethod
@@ -539,7 +539,7 @@ class Path(routes.Selector):
 		"""
 		# Construct a &Status instance using a system status record.
 		"""
-		return Status(stat(self.fullpath), self.identifier)
+		return Status((stat(self.fullpath), self.identifier))
 
 	def fs_type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=Status._fs_type_map) -> str:
 		"""
