@@ -108,7 +108,7 @@ class IntegralFinder(object):
 		if (route/'Projects').fs_type() != 'void':
 			dirs = [route/x for x in (route/'Projects').get_text_content().split('\n')]
 		else:
-			dirs = route.subdirectories()
+			dirs = route.fs_iterfiles('directory')
 		roots = [(x.identifier, route) for x in dirs]
 		self.index.update(roots)
 		self.routes.add(route)
