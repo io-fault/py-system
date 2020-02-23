@@ -152,6 +152,48 @@ def test_Path_list(test):
 
 	test/dl == expect
 
+def test_Path_iterfiles(test):
+	"""
+	# - &lib.Path.fs_iterfiles
+	"""
+	K = (lambda x: int(x.identifier))
+
+	t = test.exits.enter_context(lib.Path.fs_tmpdir())
+	test/list(t.fs_iterfiles()) == []
+
+	expect_files = [t/str(i) for i in range(16)]
+	expect_dirs = [t/str(i) for i in range(24, 32)]
+	expect_both = expect_files + expect_dirs
+	expect_files.sort(key=K)
+	expect_dirs.sort(key=K)
+	expect_both.sort(key=K)
+
+	for i in range(16):
+		(t/str(i)).fs_init()
+
+	dl = list(t.fs_iterfiles())
+	dl.sort(key=K)
+	test/dl == expect_files
+
+	for i in range(24, 32):
+		(t/str(i)).fs_mkdir()
+
+	dl = list(t.fs_iterfiles())
+	dl.sort(key=K)
+	test/dl == expect_files + expect_dirs
+
+	dl = list(t.fs_iterfiles('directory'))
+	dl.sort(key=K)
+	test/dl == expect_dirs
+
+	dl = list(t.fs_iterfiles('data'))
+	dl.sort(key=K)
+	test/dl == expect_files
+
+	test/list(t.fs_iterfiles('socket')) == []
+	test/list(t.fs_iterfiles('device')) == []
+	test/list(t.fs_iterfiles('pipe')) == []
+
 def test_Path_index(test):
 	"""
 	# - &lib.Path.fs_index

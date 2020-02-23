@@ -698,6 +698,7 @@ class Path(routes.Selector):
 			else:
 				# stat call needed (fs_type) to filter here.
 				for de in scan:
+					r = self/de.name
 					if type == r.fs_type():
 						yield r
 
