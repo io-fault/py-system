@@ -2,9 +2,20 @@
 # Check the implementation of filesystem routes.
 """
 import sys
+import functools
 import os.path
+
 from .. import files as lib
 from ...time import sysclock
+
+@functools.singledispatch
+def d_setup(x:bytes, path:lib.Path):
+	path.fs_init(x)
+
+@d_setup.register
+def _(x:dict, path:lib.Path):
+	for k, v in x.items():
+		d_setup(v, path/k)
 
 def test_root(test):
 	"""
@@ -591,8 +602,11 @@ def test_Path_recursive_since(test):
 	d = t / 'dir' / 'subdir'
 	f = d / 'file'
 	f.fs_init()
-	for r in itertools.chain(*t.tree()):
-		r.set_last_modified(thirty)
+
+	for dd, files in t.fs_index():
+		dd.set_last_modified(thirty)
+		for x in files:
+			x.set_last_modified(thirty)
 
 	f.set_last_modified(ago10mins)
 
@@ -644,6 +658,111 @@ def test_Path_io(test):
 	test/f.fs_load() == b'overwritten'
 	with f.fs_open() as fp:
 		test/fp.read() == "overwritten"
+
+def test_Path_snapshot_sanity(test):
+	"""
+	# - &lib.Path.fs_snapshot
+	"""
+
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	d_setup({
+		'subdir': {
+			'name-1': b'-' * 256,
+			'name-2': b'+' * 256,
+		},
+		'file-1': b'data1',
+		'file-2': b'data2',
+	}, td)
+
+	elements = td.fs_snapshot()
+
+	test/len(elements) == 3
+	test/set(x[2]['identifier'] for x in elements) == {'subdir', 'file-1', 'file-2'}
+
+	sub = [x for x in elements if x[2]['identifier'] == 'subdir'][0][1]
+	test/set(x[2]['identifier'] for x in sub) == {'name-1', 'name-2'}
+	test/sum(x[2]['status'].st_size for x in sub) == 512
+
+def test_Path_snapshot_limit(test):
+	"""
+	# - &lib.Path.fs_snapshot
+	"""
+
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	d_setup({
+		'subdir': {
+			'name-1': b'-' * 256,
+			'name-2': b'+' * 256,
+		},
+		'file-1': b'data1',
+		'file-2': b'data2',
+	}, td)
+
+	elements = td.fs_snapshot(limit=0)
+	test/len(elements) == 0
+
+	elements = td.fs_snapshot(limit=1)
+	test/len(elements) == 1
+
+	elements = td.fs_snapshot(limit=4)
+	test/len(elements) == 3
+	sub = [x for x in elements if x[2]['identifier'] == 'subdir'][0][1]
+	test/len(sub) == 1
+
+def test_Path_snapshot_depth(test):
+	"""
+	# - &lib.Path.fs_snapshot
+	"""
+
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	d_setup({
+		'subdir': {
+			'name-1': b'-' * 256,
+			'name-2': b'+' * 256,
+		},
+		'file-1': b'data1',
+		'file-2': b'data2',
+		'nesting': {
+			'nesting': {
+				'nesting': {
+					'end-of-nest': b'data'
+				},
+			},
+		},
+	}, td)
+
+	elements = td.fs_snapshot(depth=0)
+	test/len(elements) == 0
+
+	elements = td.fs_snapshot(depth=1)
+	test/len(elements) == 4
+
+	# Check for empty directories caused by the depth limit.
+	sub = [x for x in elements if x[0] == 'directory']
+	xcount = 0
+	for x in elements:
+		if x[0] == 'directory':
+			test/len(x[1]) == 0
+			xcount += 1
+	test/xcount == 2
+
+	# Further depths.
+	elements = td.fs_snapshot(depth=2)
+	test/len(elements) == 4
+
+	sub = [x for x in elements if x[2]['identifier'] == 'subdir'][0][1]
+	test/len(sub) == 2
+	sub = [x for x in elements if x[2]['identifier'] == 'nesting'][0][1]
+	test/len(sub) == 1
+	test/len(sub[0][1]) == 0
+
+	elements = td.fs_snapshot(depth=3)
+	sub = [x for x in elements if x[2]['identifier'] == 'nesting'][0][1]
+	test/len(sub[0][1][0][1]) == 0
+
+	elements = td.fs_snapshot(depth=4)
+	sub = [x for x in elements if x[2]['identifier'] == 'nesting'][0][1]
+	test/len(sub[0][1][0][1][0][1]) == 0
 
 def test_Endpoint_properties(test):
 	ep = lib.Endpoint.from_absolute_path('/dev')

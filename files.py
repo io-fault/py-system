@@ -781,18 +781,21 @@ class Path(routes.Selector):
 			cseq.extend(sd)
 
 	def fs_snapshot(self,
-			filter=(lambda x: x[0] == 'exception'),
+			process=(lambda x, y: y[0] == 'exception'),
 			depth=8, limit=2048,
 			ifmt=stat.S_IFMT, Queue=collections.deque, scandir=os.scandir,
-			le=os.path.lexists
+			lstat=os.lstat,
 		):
 		"""
 		# Construct an element tree of files from the directory referenced by &self.
+		# Exceptions raised by the &os.stat and &os.scandir are stored in the tree
+		# as `'exception'` elements.
 
 		# [ Parameters ]
-		# /filter/
-			# Boolean callable determining whether or not a file's record should
-			# be included in the resulting element tree.
+		# /process/
+			# Boolean callable allowing attribute transformation and determining
+			# whether or not an element should be included in the
+			# resulting element tree.
 			# Defaults to a lambda excluding `'exception'` types.
 		# /depth/
 			# The maximum filesystem depth to descend from &self.
@@ -804,17 +807,22 @@ class Path(routes.Selector):
 			# Defaults to `2048`.
 		"""
 
+		if depth == 0 or limit == 0:
+			# Allows presumption >= 1 or None.
+			return []
+
 		ftype = Status._fs_type_map.get
 
+		cdepth = 0
+		ncount = 0
 		nelements = 0
+
 		elements = []
 		cseq = Queue()
 		getnext = cseq.popleft
 
-		cseq.append((self, elements, self.fullpath))
+		cseq.append((self.delimit(), elements, self.fullpath))
 
-		cdepth = 0
-		ncount = 0
 		count = len(cseq)
 		while cseq:
 			subdir, dirlist, fp = getnext()
@@ -824,46 +832,48 @@ class Path(routes.Selector):
 			try:
 				scan = scandir(fp)
 			except OSError:
+				add(('exception', [], {'status': None, 'error': err}))
 				continue
 
 			with scan as scan:
 				for de in scan:
 					file = subdir/de.name
+
 					try:
 						st = de.stat()
 						typ = ftype(ifmt(st.st_mode), 'unknown')
+						attrs = {'status': st, 'identifier': de.name}
 					except FileNotFoundError:
-						if le(file.fullpath):
-							st = None
-							typ = 'void'
-						else:
-							# Probably race.
+						try:
+							st = lstat(subdir.join(de.name))
+						except FileNotFoundError:
+							# Probably concurrent delete in this case.
 							continue
-					except OSError as err:
-						# Filtered by default.
-						st = None
-						typ = 'exception'
 
-					attrs = {'status': st, 'identifier': de.name}
+						typ = 'void'
+						attrs = {'status': st, 'identifier': de.name}
+					except Exception as err:
+						typ = 'exception'
+						attrs = {'status': st, 'identifier': de.name, 'error': err}
+
 					record = (typ, [], attrs)
 
-					if filter(record):
+					if process(file, record):
 						continue
-
 					add(record)
+
 					nelements += 1
+					if limit is not None and nelements >= limit:
+						return elements
 
 					if de.is_dir():
 						cseq.append((file, record[1], file.fullpath))
 						ncount += 1 # avoid len() call on deque
 
-			if limit is not None and nelements > limit:
-				break
-
 			if count <= 0 and ncount:
 				cdepth += 1
 				if depth is not None and cdepth >= depth:
-					break
+					return elements
 				count = ncount
 				ncount = 0
 
