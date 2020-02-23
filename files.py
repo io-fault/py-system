@@ -702,10 +702,10 @@ class Path(routes.Selector):
 					if type == r.fs_type():
 						yield r
 
-	def directories(self):
-		return self.fs_iterfiles('directory')
+	def subdirectories(self):
+		return list(self.fs_iterfiles('directory'))
 	def files(self):
-		return self.fs_iterfiles('data')
+		return list(self.fs_iterfiles('data'))
 
 	def tree(self, Queue=collections.deque):
 		"""
