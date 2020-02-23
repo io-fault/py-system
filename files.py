@@ -535,22 +535,13 @@ class Path(routes.Selector):
 
 		return type_map[ifmt(s.st_mode)]
 
-	_fs_type_map = {
-		stat.S_IFIFO: 'pipe',
-		stat.S_IFLNK: 'link',
-		stat.S_IFREG: 'data',
-		stat.S_IFDIR: 'directory',
-		stat.S_IFSOCK: 'socket',
-		stat.S_IFBLK: 'device',
-		stat.S_IFCHR: 'device',
-	}
+	def fs_status(self, stat=os.stat) -> Status:
+		"""
+		# Construct a &Status instance using a system status record.
+		"""
+		return Status(stat(self.fullpath), self.identifier)
 
-	_fs_subtype_map = {
-		stat.S_IFBLK: 'block',
-		stat.S_IFCHR: 'character',
-	}
-
-	def fs_type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=_fs_type_map) -> str:
+	def fs_type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=Status._fs_type_map) -> str:
 		"""
 		# The type of file the route points to. Transforms the result of an &os.stat
 		# call into a string describing the (python/attribute)`st_mode` field.
@@ -566,9 +557,8 @@ class Path(routes.Selector):
 		# If no file is present at the route or a broken link is present, `'void'` will be returned.
 		"""
 
-		fp = self.fullpath
 		try:
-			s = stat(fp)
+			s = stat(self.fullpath)
 		except (FileNotFoundError, NotADirectoryError):
 			return 'void'
 
@@ -814,7 +804,7 @@ class Path(routes.Selector):
 			# Defaults to `2048`.
 		"""
 
-		ftype = self._fs_type_map.get
+		ftype = Status._fs_type_map.get
 
 		nelements = 0
 		elements = []
