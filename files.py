@@ -680,33 +680,53 @@ class Path(routes.Selector):
 
 		return directories, files
 
-	def subdirectories(self):
+	def fs_iterfiles(self, type=None, scandir=os.scandir):
 		"""
-		# Query the file system and return the directories contained by the referent directory, &self.
+		# Generate &Path instances identifying the files held by the directory, &self.
+		# By default, all file types are included, but if the &type parameter is given,
+		# only files of that type are returned.
 
-		# If &self is not a directory or contains no directories, an empty list will be returned.
+		# If &self is not a directory or cannot be searched, an empty iterator is returned.
 		"""
-		return self.subnodes()[0]
+		try:
+			dl = scandir(self.fullpath)
+		except OSError:
+			# Error indifferent.
+			# User must make explicit checks to interrogate permission/existence.
+			return
 
+		with dl as scan:
+			if type is None:
+				# No type constraint.
+				for de in scan:
+					yield self/de.name
+			elif type == 'directory':
+				# Avoids the stat call in the last branch.
+				for de in scan:
+					if de.is_dir():
+						yield self/de.name
+			else:
+				# stat call needed (fs_type) to filter here.
+				for de in scan:
+					if type == r.fs_type():
+						yield r
+
+	def directories(self):
+		return self.fs_iterfiles('directory')
 	def files(self):
-		"""
-		# Query the file system and return the regular files contained by the referent directory, &self.
-
-		# If &self is not a directory or contains no files, an empty list will be returned.
-		"""
-		return self.subnodes()[1]
+		return self.fs_iterfiles('data')
 
 	def tree(self, Queue=collections.deque):
 		"""
 		# Return a directory's full tree as a pair of lists of &Path
 		# instances referring to the contained directories and files.
 		"""
-		dirs, files = self.subnodes()
+		dirs, files = self.fs_list()
 		cseq = Queue(dirs)
 
 		while cseq:
 			dir = cseq.popleft()
-			sd, sf = dir.subnodes()
+			sd, sf = dir.fs_list()
 
 			# extend output
 			dirs.extend(sd)
@@ -717,7 +737,7 @@ class Path(routes.Selector):
 
 		return dirs, files
 
-	def fs_list(self, scandir=os.scandir):
+	def fs_list(self, type='data', scandir=os.scandir):
 		"""
 		# Retrieve the list of files contained by the directory referred to by &self.
 		# Returns a pair, the sequence of directories and the sequence of data files.
@@ -732,36 +752,29 @@ class Path(routes.Selector):
 			# User must make explicit checks to interrogate permission/existence.
 			return ([], [])
 
-		ld = {
-			'directory': [],
-			'data': [],
-		}
-		exceptions = []
+		dirs = []
+		files = []
 
 		with dl as scan:
 			for de in scan:
 				sub = self/de.name
 				if de.is_dir():
-					ld['directory'].append(sub)
+					dirs.append(sub)
 				else:
 					typ = sub.fs_type()
-					ld.get(typ, exceptions).append(sub)
+					if sub.fs_type() == type:
+						files.append(sub)
 
-				if len(exceptions) > 32:
-					# Handle odd case.
-					del exceptions[:]
+		return (dirs, files)
 
-		del exceptions
-		return (ld['directory'], ld['data'])
-
-	def fs_index(self, Queue=collections.deque):
+	def fs_index(self, type='data', Queue=collections.deque):
 		"""
 		# Generate pairs of directories associated with their files.
 
 		# Sockets, pipes, devices, broken links, and other non-data files are not retained in the lists.
 		"""
 
-		dirs, files = self.delimit().fs_list()
+		dirs, files = self.delimit().fs_list(type=type)
 		if not dirs and not files:
 			return
 
@@ -770,7 +783,7 @@ class Path(routes.Selector):
 
 		while cseq:
 			subdir = cseq.popleft()
-			sd, sf = subdir.fs_list()
+			sd, sf = subdir.fs_list(type=type)
 
 			yield subdir, sf
 
@@ -893,7 +906,7 @@ class Path(routes.Selector):
 			else:
 				traversed.add(rpath)
 
-		dirs, files = self.subnodes()
+		dirs, files = self.fs_list()
 
 		for x in files:
 			mt = x.get_last_modified()
