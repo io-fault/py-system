@@ -94,12 +94,10 @@ def test_Path_temporary(test):
 	with lib.Path.fs_tmpdir() as t:
 		path = t.fullpath
 		test/os.path.exists(path) == True
-		test/t.is_directory() == True
-		test/t.get_last_modified() != None
+		test/t.fs_type() == 'directory'
 
 	# temporary context over, should not exist.
 	test/os.path.exists(path) == False
-	test/OSError ^ t.get_last_modified
 
 def test_Path_old_tree(test):
 	"""
@@ -528,11 +526,11 @@ def test_Path_join(test):
 def test_Path_properties(test):
 	# executable
 	sysexe = lib.Path.from_absolute(sys.executable)
-	test/sysexe.executable() == True
+	test/sysexe.fs_status().executable == True
 	test/sysexe.fs_type() == 'data'
 
 	module = lib.Path.from_absolute(__file__)
-	test/module.executable() == False
+	test/module.fs_status().executable == False
 	test/module.fs_type() == 'data'
 
 	moddir = module.container
@@ -595,10 +593,9 @@ def link_checks(test, create_link):
 	# Relative Mode
 	sym = t / 'symbolic'
 	test/sym.fs_type() == 'void'
-	test/sym.is_link() == False
 
 	create_link(sym, target)
-	test/sym.is_link() == True
+	test/list(sym.fs_follow_links())[-1] == target
 
 	test/sym.fs_type() != 'void'
 	with sym.fs_open('rb') as f:
@@ -606,7 +603,7 @@ def link_checks(test, create_link):
 	target.fs_void()
 	test/target.fs_type() == 'void'
 	test/sym.fs_type() == 'void'
-	test/sym.is_link() == True
+	test/list(sym.fs_follow_links())[-1] == target
 
 	common = t / 'dir' / 'subdir'
 	common.fs_mkdir()
@@ -617,7 +614,7 @@ def link_checks(test, create_link):
 	dst.fs_init()
 	dst.fs_void()
 	create_link(dst, src)
-	test/dst.is_link() == True
+	test/list(dst.fs_follow_links())[-1] == src
 	test/dst.fs_load() == b'source data'
 
 def test_Path_relative_links(test):

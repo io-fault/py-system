@@ -70,7 +70,7 @@ class Status(tuple):
 	@property
 	def system(self):
 		"""
-		# The status record produced by the system.
+		# The status record produced by the system (&os.stat).
 		"""
 		return self[0]
 
@@ -501,40 +501,6 @@ class Path(routes.Selector):
 		return self * (prefix_string + self.identifier)
 	prefix = prefix_filename
 
-	_type_map = {
-		stat.S_IFIFO: 'pipe',
-		stat.S_IFLNK: 'link',
-		stat.S_IFREG: 'file',
-		stat.S_IFDIR: 'directory',
-		stat.S_IFSOCK: 'socket',
-		stat.S_IFBLK: 'device',
-		stat.S_IFCHR: 'device',
-	}
-
-	def type(self, ifmt=stat.S_IFMT, stat=os.stat, type_map=_type_map) -> str:
-		"""
-		# The kind of node the route points to. Transforms the result of an &os.stat
-		# call into a string describing the (python/attribute)`st_mode` field.
-
-		# [ Returns ]
-		# - `'pipe'`
-		# - `'link'`
-		# - `'file'`
-		# - `'directory'`
-		# - `'socket'`
-		# - `'device'`
-		# - &None
-
-		# Where &None means the route does not exist or is not accessible.
-		"""
-
-		try:
-			s = stat(self.fullpath)
-		except FileNotFoundError:
-			return None
-
-		return type_map[ifmt(s.st_mode)]
-
 	def fs_status(self, stat=os.stat) -> Status:
 		"""
 		# Construct a &Status instance using a system status record.
@@ -590,35 +556,8 @@ class Path(routes.Selector):
 
 		mode = get_stat(self.fullpath).st_mode
 		return (mode & mask) != 0
-	executable = fs_executable
 
-	def is_directory(self, isdir=os.path.isdir) -> bool:
-		"""
-		# Whether or not the referent is a directory.
-		"""
-
-		return isdir(self.fullpath)
-
-	def is_regular_file(self):
-		"""
-		# Whether or not the &Selection is a regular file.
-		# Uses &os.stat to query the local file system to discover the type.
-		"""
-
-		return self.fs_type() == 'data'
-
-	def is_link(self, islink=os.path.islink):
-		"""
-		# Whether the Route refers to a symbolic link.
-		# Returns &False in the case of a nonexistent file.
-		"""
-
-		try:
-			return islink(self.fullpath)
-		except FileNotFoundError:
-			return False
-
-	def fs_follow_links(self, readlink=os.readlink) -> typing.Iterator[routes.Selector]:
+	def fs_follow_links(self, readlink=os.readlink, islink=os.path.islink) -> typing.Iterator[routes.Selector]:
 		"""
 		# Iterate through the links in a chain until a non-symbolic link file is reached.
 
@@ -628,7 +567,7 @@ class Path(routes.Selector):
 		Class = self.__class__
 		r = self
 
-		while r.is_link():
+		while islink(str(r)):
 			yield r
 
 			target = readlink(str(r))
@@ -639,7 +578,6 @@ class Path(routes.Selector):
 				r = Class.from_relative(r.container, target)
 
 		yield r
-	follow_links = fs_follow_links
 
 	def subnodes(self, listdir=os.listdir, isdir=os.path.isdir, join=os.path.join):
 		"""
@@ -1253,8 +1191,6 @@ class Endpoint(tuple):
 		# &self if there are no links or the endpoint's Path does not exist.
 		"""
 		l = self[0]/self[1]
-		if not l.is_link():
-			return self
 
 		for x in l.fs_follow_links():
 			l = x
