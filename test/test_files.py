@@ -400,7 +400,8 @@ def test_Path_get_last_modified(test):
 	mtime2 = r.get_last_modified()
 
 	test/mtime2 > mtime1
-	test/mtime1.measure(mtime2) >= lib.timetypes.Measure.of(second=1)
+	m = mtime2.__class__.Measure.of(second=1)
+	test/mtime1.measure(mtime2) >= m
 
 def test_Path_set_last_modified(test):
 	"""

@@ -14,7 +14,6 @@ import functools
 # Moving to cached class properties.
 import shutil
 import tempfile
-from ..time import types as timetypes
 
 from ..context.tools import cachedcalls
 from .. import routes
@@ -818,9 +817,9 @@ class Path(routes.Selector):
 
 		return elements
 
-	def fs_since(self, since:timetypes.Timestamp,
+	def fs_since(self, since:int,
 			traversed=None,
-		) -> typing.Iterable[typing.Tuple[timetypes.Timestamp, routes.Selector]]:
+		) -> typing.Iterable[typing.Tuple[int, routes.Selector]]:
 		"""
 		# Identify the set of files that have been modified
 		# since the given point in time.
@@ -848,7 +847,7 @@ class Path(routes.Selector):
 		dirs, files = self.fs_list()
 
 		for x in files:
-			mt = x.get_last_modified()
+			mt = x.fs_status().last_modified
 			if mt.follows(since):
 				yield (mt, x)
 
@@ -885,14 +884,14 @@ class Path(routes.Selector):
 
 		return stat(self.fullpath, follow_symlinks=True).st_size
 
-	def get_last_modified(self, stat=os.stat, unix=timetypes.from_unix_timestamp) -> timetypes.Timestamp:
+	def get_last_modified(self) -> int:
 		"""
 		# Return the modification time of the file.
 		"""
 
-		return unix(stat(self.fullpath).st_mtime)
+		return self.fs_status().last_modified
 
-	def set_last_modified(self, time:timetypes.Timestamp, utime=os.utime):
+	def set_last_modified(self, time, utime=os.utime):
 		"""
 		# Set the modification time of the file identified by the &Route.
 		"""
@@ -913,7 +912,7 @@ class Path(routes.Selector):
 		with self.fs_open('w', encoding=encoding) as f:
 			f.write(string)
 
-	def meta(self, stat=os.stat, unix=timetypes.from_unix_timestamp):
+	def meta(self):
 		"""
 		# Return file specific meta data.
 
@@ -921,9 +920,8 @@ class Path(routes.Selector):
 			# Preliminary API.
 		"""
 
-		st = stat(self.fullpath)
-
-		return (unix(st.st_ctime), unix(st.st_mtime), st.st_size)
+		st = self.fs_status()
+		return (st.created, st.last_modified, st.st_size)
 
 	def fs_void(self, rmtree=shutil.rmtree, remove=os.remove):
 		"""
