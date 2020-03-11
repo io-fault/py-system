@@ -1087,7 +1087,8 @@ class Path(routes.Selector):
 			f.__enter__()
 			yield f
 		except BaseException as err:
-			f.__exit__(err.__class__, err, err.__traceback__)
+			if not f.__exit__(err.__class__, err, err.__traceback__):
+				raise
 		else:
 			f.__exit__(None, None, None)
 

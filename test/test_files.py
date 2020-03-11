@@ -561,6 +561,21 @@ def test_Path_open(test):
 	except Exception as err:
 		test.isinstance(err, FileNotFoundError)
 
+def test_Path_open_exception(test):
+	"""
+	# - &lib.File.fs_open
+	"""
+	d = test.exits.enter_context(lib.Path.fs_tmpdir())
+
+	r = d/'test'
+	try:
+		with r.fs_open('rb') as f:
+			pass
+	except FileNotFoundError:
+		pass
+	else:
+		test.fail("file not found not raised by context manager")
+
 def test_Path_void(test):
 	"""
 	# - &lib.Path.fs_void
