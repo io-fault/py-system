@@ -8,6 +8,8 @@
 
 /project-c-interfaces/
 	- &.include
+	- &<http://fault.io/engineering/posix#include>
+	- &<http://fault.io/engineering/python#include>
 
 /bsd/
 	Abstract symbol used to refer to BSD conventions and interfaces.

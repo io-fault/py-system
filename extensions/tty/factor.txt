@@ -5,6 +5,5 @@
 /type/
 	`extension`
 /symbols/
-	- `fault:c-interfaces`
 	- `python-extension`
 	- `project-c-interfaces`
