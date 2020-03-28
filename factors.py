@@ -11,6 +11,8 @@ from .. import routes
 from . import files
 from . import identity
 
+from ..project import root
+
 class IntegralFinder(object):
 	"""
 	# Select an integral based on the configured variants querying the connected factor paths.
@@ -67,7 +69,7 @@ class IntegralFinder(object):
 		"""
 		# Initialize a finder instance for use with the given variants.
 		"""
-		self.routes = set()
+		self.context = root.Context()
 		self.index = dict()
 		self.groups = groups
 		self.integral_container_name = integral_container_name
@@ -97,22 +99,15 @@ class IntegralFinder(object):
 
 		return leading, final, final.format
 
-	def connect(self, route):
+	def connect(self, route:files.Path):
 		"""
 		# Add the route to finder connecting its subdirectories for import purposes.
 
 		# Similar to adding a filesystem path to Python's &sys.path.
 		"""
 
-		# Only package module roots are identified.
-		if (route/'Projects').fs_type() != 'void':
-			dirs = [route/x for x in (route/'Projects').get_text_content().split('\n')]
-		else:
-			dirs = route.fs_iterfiles('directory')
-		roots = [(x.identifier, route) for x in dirs]
-		self.index.update(roots)
-		self.routes.add(route)
-
+		pd = self.context.connect(route)
+		self.index.update((x, pd) for x in map(str, pd.roots) if x not in self.index)
 		return self
 
 	def disconnect(self, route):
@@ -121,12 +116,32 @@ class IntegralFinder(object):
 		"""
 
 		keys = []
+		pds = set()
+
 		for k, v in self.index:
-			if v == route:
+			if v.route == route:
 				keys.append(k)
+				pds.add(v)
+
 		for k in keys:
 			del self.index[k]
-		self.routes.discard(route)
+
+		for pd in pds:
+			self.context.product_sequence.remove(pd)
+
+		ids = set()
+		for key, instance in self.context.instance_cache.items():
+			typ, id = key
+			if typ == 'project':
+				pd = instance.product
+			else:
+				pd = instance
+
+			if pd in pds:
+				ids.add(key)
+
+		for key in ids:
+			del self.context.instance_cache[key]
 
 		return self
 
@@ -134,13 +149,10 @@ class IntegralFinder(object):
 	def invalidate_caches(self):
 		pass
 
-	def find_spec(self, name, path, target=None):
+	def find(self, name):
 		"""
-		# Using the &index, check for the presence of &name's initial package.
-		# If found, the integrals contained by the connected directory will be
-		# used to load either an extension module or a Python bytecode module.
+		# Retrieve the product with a root that matches the start of the given &name.
 		"""
-
 		soa = name.find('.')
 		if soa == -1:
 			if name not in self.index:
@@ -149,13 +161,25 @@ class IntegralFinder(object):
 			else:
 				soa = len(name)
 
+		# Accessible modules are expected to be anchored to the product directory.
 		prefix = name[:soa]
 		if prefix not in self.index:
 			return None
 
-		root = self.index[prefix]
+		return self.index[prefix]
 
-		route = root + name.split('.')
+	def find_spec(self, name, path, target=None):
+		"""
+		# Using the &index, check for the presence of &name's initial package.
+		# If found, the integrals contained by the connected directory will be
+		# used to load either an extension module or a Python bytecode module.
+		"""
+
+		pd = self.find(name)
+		if pd is None:
+			return None
+
+		route = pd.route + name.split('.')
 		ftype = route.fs_type()
 		parent = route.container
 
@@ -168,7 +192,7 @@ class IntegralFinder(object):
 			cur = parent
 			while (cur/'extensions').fs_type() == 'void':
 				cur = cur.container
-				if str(cur) in (str(root), '/'):
+				if str(cur) in (str(pd.route), '/'):
 					# No extensions.
 					break
 			else:
