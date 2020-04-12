@@ -221,7 +221,7 @@ class IntegralFinder(object):
 			idir = route / self.integral_container_name
 
 			if pysrc.fs_type() == 'void':
-				# Handle context enclosures.
+				# Handle context enclosure case.
 				ctx = (route/'context')
 				if ctx.fs_type() == 'void':
 					return None
@@ -290,12 +290,15 @@ def activate(intention='debug'):
 	"""
 	# Install loaders for the (envvar)`FACTORPATH` products.
 	"""
+	global Activated
 	import os
 
 	sfif = IntegralFinder.create(intention)
+	Activated = sfif
 	paths = os.environ.get('FACTORPATH', '').split(':')
 	for x in paths:
 		if not x:
+			# Ignore empty fields.
 			continue
 		x = files.Path.from_absolute(x)
 		sfif.connect(x)
