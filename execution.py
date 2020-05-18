@@ -150,7 +150,7 @@ class Delta(object):
 	def cored(self):
 		return self.event == 'exit' and self.core is True
 	@property
-	def continueed(self):
+	def continued(self):
 		return self.event == 'continue'
 	@property
 	def stopped(self):
@@ -172,7 +172,7 @@ def decode_process_status(
 		wascore = os.WCOREDUMP,
 	) -> Delta:
 	"""
-	# the process or SIGCHLD signals. This is an abstraction to &os.waitpid
+	# The process or SIGCHLD signals. This is an abstraction to &os.waitpid
 	# and can only be used with child processes.
 
 	# [ Parameters ]
@@ -198,7 +198,7 @@ def decode_process_status(
 		cored = None
 	elif wascontinued(status):
 		event = 'continue'
-		code = None
+		code = 0
 		cored = None
 	else:
 		raise ValueError("unrecognized process status") # Could not create &Delta
