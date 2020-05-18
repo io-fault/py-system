@@ -137,7 +137,7 @@ class Delta(object):
 	"""
 	event:(str) = None
 	status:(int) = None
-	core:(bool) = None
+	core:(typing.Optional[bool]) = None
 
 	@property
 	def running(self):
