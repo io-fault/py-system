@@ -207,8 +207,8 @@ def decode_process_status(
 
 def reap(
 		pid:int,
-		waitpid = os.waitpid,
-		options = os.WNOHANG | os.WUNTRACED,
+		options=(os.WNOHANG | os.WUNTRACED),
+		sysop=os.waitpid,
 	) -> typing.Optional[Delta]:
 	"""
 	# Transform pending process events such as exits into a &Delta describing
@@ -231,14 +231,41 @@ def reap(
 	"""
 
 	try:
-		rpid, code = waitpid(pid, options)
+		rpid, code = sysop(pid, options) # waitpid
 	except OSError:
+		# The silenced exception is desired.
+		# &reap is charged with intent where waitpid is not.
+		# When this function is used, the caller should only be
+		# interested in completing termination of the child.
 		return None
 
 	if (rpid, code) == (0, 0):
 		return Delta('none', None, None)
 
 	return decode_process_status(code)
+
+if hasattr(os, 'wait4'):
+	def waitrusage(receiver, pid:int, options, sysop=os.wait4) -> typing.Tuple[int, int]:
+		"""
+		# &os.wait4 abstraction sending the child's resource usage to &receiver.
+
+		# Using, &functools.partial to provide a &receiver, this should be given
+		# to &reap as the &sysop keyword parameter.
+		"""
+		rpid, rstatus, rusage = sysop(pid, options) # wait4
+		receiver(rusage)
+		return (rpid, rstatus)
+else:
+	def waitrusage(receiver, pid:int, options, sysop=os.waitpid) -> typing.Tuple[int, int]:
+		"""
+		# &os.wait4 is not present on this system and &receiver will always be called
+		# with &None and the child will be reaped using &os.waitpid.
+
+		# Using, &functools.partial to provide a &receiver, this should be given
+		# to &reap as the &sysop keyword parameter.
+		"""
+		receiver(None)
+		return sysop(pid, options) # waitpid
 
 del dataclass
 
