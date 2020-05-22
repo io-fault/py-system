@@ -2,7 +2,5 @@
 	/protocol/
 		&<http://if.fault.io/project/factor>
 
-/domain/
-	`source`
 /type/
-	`library`
+	`source-tree`
