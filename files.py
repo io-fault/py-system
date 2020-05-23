@@ -98,7 +98,7 @@ class Status(tuple):
 		# /`'directory'`/
 			# A file containing other files.
 		# /`'data'`/
-			# A regular file.
+			# A regular file containing bytes.
 		# /`'pipe'`/
 			# A named pipe; also known as a FIFO.
 		# /`'socket'`/
@@ -172,6 +172,8 @@ class Status(tuple):
 	def executable(self, mask=stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH) -> bool:
 		"""
 		# Whether the data file is considered executable by anyone.
+
+		# This does not check extended attributes.
 		"""
 		return (self.system.st_mode & mask) != 0 and self.type == 'data'
 
@@ -179,6 +181,8 @@ class Status(tuple):
 	def searchable(self, mask=stat.S_IXUSR|stat.S_IXGRP|stat.S_IXOTH) -> bool:
 		"""
 		# Whether the directory file is considered searchable by anyone.
+
+		# This does not check extended attributes.
 		"""
 		return (self.system.st_mode & mask) != 0 and self.type == 'directory'
 
