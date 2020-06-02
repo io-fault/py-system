@@ -505,6 +505,23 @@ InvocationType = {
 };
 
 static PyObj
+get_hostname(PyObj mod)
+{
+	char buf[512];
+	int r;
+
+	r = gethostname(buf, 512);
+	if (r != 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+	buf[511] = '\0';
+
+	return(PyBytes_FromString(buf));
+}
+
+static PyObj
 set_process_title(PyObj mod, PyObj title)
 {
 	PyObj bytes;
@@ -873,6 +890,9 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		released, kport_set_cloexec, METH_O, \
 			"Configure the file descriptors to be released when the process is substituted(exec).") \
+	PYMETHOD( \
+		hostname, get_hostname, METH_NOARGS, \
+			"Retrieve the hostname of the system using gethostname(2).") \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \

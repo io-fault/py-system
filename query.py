@@ -76,7 +76,7 @@ def usertitle() -> str:
 
 def shell() -> files.Path:
 	"""
-	# Retrieve the path to the user's shell.
+	# Retrieve the path to the user's login shell.
 
 	# If the system has no such concept or it cannot be resolved, &None is returned.
 	"""
@@ -85,3 +85,10 @@ def shell() -> files.Path:
 		return pwd.getpwnam(username()).pw_shell
 	except:
 		return None
+
+def hostname() -> str:
+	"""
+	# Retrieve the hostname using the POSIX (system/manual)`gethostname(2)` call.
+	"""
+	from . import kernel
+	return kernel.hostname().decode('idna')
