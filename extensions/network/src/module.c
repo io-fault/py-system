@@ -180,8 +180,7 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *service
 				if (addrlist == NULL)
 					return(NULL);
 
-				rob = Py_BuildValue("OO", Py_None, addrlist);
-				Py_DECREF(addrlist);
+				rob = Py_BuildValue("ON", Py_None, addrlist);
 
 				return(rob);
 			}
@@ -207,10 +206,8 @@ nw_getaddrinfo(const char *stream_type, const char *namestr, const char *service
 			goto error;
 	}
 
-	rob = Py_BuildValue("sO", (info->ai_canonname?info->ai_canonname:""), addrlist);
-
+	rob = Py_BuildValue("sN", (info->ai_canonname?info->ai_canonname:""), addrlist);
 	freeaddrinfo(info);
-	Py_DECREF(addrlist);
 
 	return(rob);
 
