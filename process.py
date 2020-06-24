@@ -734,7 +734,7 @@ def timeout(duration=4, update=signal.alarm, signo=signal.SIGALRM):
 		update(0)
 		signal.signal(signo, prior)
 
-def concurrently(controller:typing.Callable, exe=Fork.dispatch):
+def concurrently(controller:typing.Callable, exe=Fork.dispatch, waitpid=os.waitpid):
 	"""
 	# Dispatch the given controller in a child process of a &control controlled process.
 	# The returned object is a reference to the result that will block until the child
@@ -789,7 +789,7 @@ def concurrently(controller:typing.Callable, exe=Fork.dispatch):
 		except EOFError:
 			result = None
 
-		status = os.waitpid(pid, 0)
+		status = waitpid(pid, 0)
 		if status_ref is not None:
 			status_ref(status)
 
