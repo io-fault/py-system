@@ -178,6 +178,7 @@ ClockworkType = {
 
 #define ClockType(NAME, DOCS) \
 	NAME##ClockType = { \
+		PyVarObject_HEAD_INIT(NULL, 0) \
 		.tp_name = PYTHON_MODULE_PATH(#NAME), \
 		.tp_basicsize = sizeof(struct Clockwork), \
 		.tp_base = &ClockworkType, \
