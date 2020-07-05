@@ -92,3 +92,11 @@ def hostname() -> str:
 	"""
 	from . import kernel
 	return kernel.hostname().decode('idna')
+
+def frequency() -> int:
+	"""
+	# Retrieve the clock ticks necessary for calculating processing usage from
+	# the POSIX (system/manual)`sysconf` call with (id)`SC_CLK_TCK`.
+	"""
+	from . import kernel
+	return kernel.clockticks()

@@ -3,6 +3,7 @@
 #include <pthread.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <unistd.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
@@ -522,6 +523,14 @@ get_hostname(PyObj mod)
 }
 
 static PyObj
+get_clock_ticks(PyObj mod)
+{
+	int r;
+	r = sysconf(_SC_CLK_TCK);
+	return(PyLong_FromLong((long) r));
+}
+
+static PyObj
 set_process_title(PyObj mod, PyObj title)
 {
 	PyObj bytes;
@@ -893,6 +902,9 @@ initialize(PyObj mod, PyObj ctx)
 	PYMETHOD( \
 		hostname, get_hostname, METH_NOARGS, \
 			"Retrieve the hostname of the system using gethostname(2).") \
+	PYMETHOD( \
+		clockticks, get_clock_ticks, METH_NOARGS, \
+			"Retrieve the (system/manual)`sysconf` value of (id)`SC_CLK_TCK`.") \
 	PYMETHOD( \
 		set_process_title, set_process_title, METH_O, \
 			"Set the process title on platforms supporting " \
