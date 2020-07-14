@@ -39,27 +39,6 @@ ChannelPyTypeObject
 	PortsType;
 
 /**
-	// Start of all Channel structures.
-*/
-#define Channel_HEAD \
-	PyObject_HEAD \
-	Port port;          /* Port for Kernel communication */ \
-	Array array;        /* channel controller */ \
-	PyObj link;         /* User storage usually used by callbacks. */ \
-	Channel prev, next; /* channel ring */ \
-	Channel lltransfer; /* linked list pointer to next evented Channel */ \
-	\
-	transfer_window_t window; /* The area of the resource that was transferred. */ \
-	union channel_choice choice; /* Array or Memory Channel */ \
-	\
-	/* state flags */ \
-	uint8_t delta;  /* delta to apply to the state; new internal equals (GIL) */ \
-	/* */ \
-	uint8_t state;  /* bit map of equals (event qualifications) */ \
-	/* */ \
-	uint8_t events; /* bit map of produced events */
-
-/**
 	// Generalized events used by all channels
 */
 typedef enum {
@@ -92,29 +71,6 @@ enum channel_control {
 /* Used to manage the current transfer window of a Channel */
 typedef uint32_t transfer_window_t[2];
 const static uint32_t transfer_window_limit = (0-1);
-
-/**
-	// Regular Channel or Array (collection of active channels)
-*/
-union channel_choice {
-	struct {
-		PyObj resource;
-		Py_buffer view;
-	} buffer;
-
-	struct {
-		kevent_t *kevents;
-		uint8_t will_wait;
-		Py_ssize_t nchannels; /* volume */
-		uint32_t ntransfers;
-
-		#ifdef EVMECH_EPOLL
-			int efd;
-			int wfd;
-			uint8_t haswrites;
-		#endif
-	} array;
-};
 
 #define TS_INTERNAL 0
 #define TS_EXTERNAL 1
@@ -169,12 +125,12 @@ union channel_choice {
 #define Channel_ExpandWindow(t, count) (Channel_GetWindowStop(t) += count)
 #define Channel_CollapseWindow(t) (Channel_SetWindowStart(t, Channel_GetWindowStop(t)))
 
-#define Channel_GetResource(t)           ((t)->choice.buffer.resource)
+#define Channel_GetResource(t)           ((t)->resource)
 #define Channel_HasResource(t)           (Channel_GetResource(t) != NULL)
 #define Channel_SetResource(t, r)        (Channel_GetResource(t) = r)
-#define Channel_GetResourceView(t)       (&((t)->choice.buffer.view))
-#define Channel_GetResourceBuffer(t)     ((t)->choice.buffer.view.buf)
-#define Channel_GetResourceSize(t)       ((t)->choice.buffer.view.len)
+#define Channel_GetResourceView(t)       (&((t)->view))
+#define Channel_GetResourceBuffer(t)     ((t)->view.buf)
+#define Channel_GetResourceSize(t)       ((t)->view.len)
 
 /*
 	// If internal termination is requested do it or
@@ -243,7 +199,7 @@ union channel_choice {
 #define Array_HasTransfers(J)         (Channel_GetNextTransfer(J) != (Channel) J)
 #define Array_ShouldWait(J)           (Array_HasTransfers(J) ? 0 : 1)
 
-#define Array_GetKEvents(J)           (J->choice.array.kevents)
+#define Array_GetKEvents(J)           (J->kevents)
 #define Array_SetKEvents(J, K)        (Array_GetKEvents(J) = K)
 #define Array_GetKEventSlot(J, slot)  (&(Array_GetKEvents(J)[slot]))
 
@@ -263,15 +219,40 @@ union channel_choice {
 #define Array_ConsumeKEventSlot(t) Channel_NarrowWindow(t, 1)
 #endif
 
-#define Array_GetTransferCount(J) (J->choice.array.ntransfers)
+#define Array_GetTransferCount(J) (J->ntransfers)
 #define Array_IncrementTransferCount(t) (++ Array_GetTransferCount(t))
 #define Array_ResetTransferCount(t) (Array_GetTransferCount(t) = 0)
 
 /**
-	// Base Channel structure.
+	// Start of all Channel structures.
+*/
+#define Channel_HEAD \
+	PyObject_HEAD \
+	Array array;        /* channel controller */ \
+	PyObj link;         /* User storage usually used by callbacks. */ \
+	Channel prev, next; /* channel ring */ \
+	Channel lltransfer; /* linked list pointer to next evented Channel */ \
+	Port port;          /* Port for Kernel communication */ \
+	\
+	transfer_window_t window; /* The area of the resource that was transferred. */ \
+	\
+	/* state flags */ \
+	uint8_t delta;  /* delta to apply to the state; new internal equals (GIL) */ \
+	/* */ \
+	uint8_t state;  /* bit map of equals (event qualifications) */ \
+	/* */ \
+	uint8_t events; /* bit map of produced events */
+
+#define Channel_BODY \
+	PyObj resource; \
+	Py_buffer view;
+
+/**
+	// Normal Channel structure.
 */
 struct Channel {
 	Channel_HEAD
+	Channel_BODY
 };
 
 /**
@@ -280,4 +261,14 @@ struct Channel {
 */
 struct Array {
 	Channel_HEAD
+	kevent_t *kevents;
+	uint8_t will_wait;
+	Py_ssize_t nchannels; /* volume */
+	uint32_t ntransfers;
+
+	#ifdef EVMECH_EPOLL
+		int efd;
+		int wfd;
+		uint8_t haswrites;
+	#endif
 };

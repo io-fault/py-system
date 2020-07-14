@@ -705,6 +705,7 @@ static PyMethodDef endpoint_methods[] = {
 */
 struct Datagrams {
 	Channel_HEAD
+	Channel_BODY
 };
 
 #define INIT_CHANNEL(t, J) do { \
@@ -729,8 +730,8 @@ struct Datagrams {
 } while(0)
 
 #define Array_Cycling(J)               (J->lltransfer != NULL)
-#define Array_GetChannelCount(J)       ((J->choice.array.nchannels))
-#define Array_ResetChannelCount(J)     ((J->choice.array.nchannels) = 0)
+#define Array_GetChannelCount(J)       ((J->nchannels))
+#define Array_ResetChannelCount(J)     ((J->nchannels) = 0)
 #define Array_IncrementChannelCount(J) (++ Array_GetChannelCount(J))
 #define Array_DecrementChannelCount(t) (-- Array_GetChannelCount(t))
 
@@ -873,7 +874,7 @@ kfilter_cancel(Channel t, kevent_t *kev)
 
 	if (kev->events & EPOLLOUT)
 	{
-		wp.point = Channel_GetArray(t)->choice.array.wfd;
+		wp.point = Channel_GetArray(t)->wfd;
 		p = &wp;
 	}
 	else
@@ -895,7 +896,7 @@ kfilter_attach(Channel t, kevent_t *kev)
 
 	if (kev->events & EPOLLOUT)
 	{
-		wp.point = Channel_GetArray(t)->choice.array.wfd;
+		wp.point = Channel_GetArray(t)->wfd;
 		p = &wp;
 	}
 	else
@@ -1927,6 +1928,42 @@ alloc_port(void)
 		p->latches = 0;
 	}
 	return(p);
+}
+
+static PyObj
+allockq(PyObj isubtype, Port *out)
+{
+	Array A;
+	PyObj rob;
+	Port p;
+
+	p = alloc_port();
+	if (p == NULL)
+		return(NULL);
+
+	PYTHON_RECEPTACLE(NULL, &rob, PyAllocate, isubtype);
+
+	if (rob == NULL)
+	{
+		Py_DECREF(p);
+		return(NULL);
+	}
+
+	A = (Array) rob;
+	Channel_SetArray(A, NULL);
+	Channel_SetNextTransfer(A, NULL);
+	Channel_SetLink(A, NULL);
+	Channel_ClearWindow(A);
+	Channel_State(A) = 0;
+	Channel_SetDelta(A, 0);
+	Channel_SetEvents(A, 0);
+	Channel_SetControl(A, ctl_polarity);
+	Channel_SetPort(A, p);
+	p->latches = 1;
+
+	*out = p;
+
+	return(rob);
 }
 
 static PyObj
@@ -3104,17 +3141,17 @@ array_init(Array J)
 			struct Port wp;
 			port_epoll_create(&wp);
 
-			J->choice.array.wfd = wp.point;
-			J->choice.array.efd = eventfd(0, EFD_CLOEXEC);
+			J->wfd = wp.point;
+			J->efd = eventfd(0, EFD_CLOEXEC);
 
 			k.events = EPOLLERR | EPOLLHUP | EPOLLIN;
 			k.data.ptr = NULL;
 
-			epoll_ctl(p->point, EPOLL_CTL_ADD, J->choice.array.efd, &k);
+			epoll_ctl(p->point, EPOLL_CTL_ADD, J->efd, &k);
 
 			k.events = EPOLLERR | EPOLLHUP | EPOLLIN | EPOLLOUT;
 			k.data.ptr = J;
-			epoll_ctl(p->point, EPOLL_CTL_ADD, J->choice.array.wfd, &k);
+			epoll_ctl(p->point, EPOLL_CTL_ADD, J->wfd, &k);
 		}
 	#else
 		/* kqueue */
@@ -3191,23 +3228,23 @@ array_kevent_collect(Array J, int waiting)
 			// and the other to the writers. The interface doesn't provide details about
 			// whether reading is possible or writing can occur, so it has to be split up.
 		*/
-		switch (J->choice.array.haswrites)
+		switch (J->haswrites)
 		{
 			case 1:
 			{
 				struct Port wp;
-				wp.point = J->choice.array.wfd;
+				wp.point = J->wfd;
 				port_epoll_wait(&wp, &nkevents, kevs, Channel_GetWindowStop(J), (waiting ? wait : nowait));
 
 				if (nkevents < Channel_GetWindowStop(J))
-					J->choice.array.haswrites = 0;
+					J->haswrites = 0;
 				else
-					J->choice.array.haswrites = 2;
+					J->haswrites = 2;
 			}
 			break;
 
 			case 2:
-				J->choice.array.haswrites = 1; /* alternates between reads and writes */
+				J->haswrites = 1; /* alternates between reads and writes */
 			case 0:
 				port_epoll_wait(port, &nkevents, kevs, Channel_GetWindowStop(J), (waiting ? wait : nowait));
 			break;
@@ -3424,7 +3461,7 @@ array_kevent_transform(Array J)
 		if (t == NULL)
 		{
 			uint64_t buf;
-			read(J->choice.array.efd, &buf, sizeof(buf));
+			read(J->efd, &buf, sizeof(buf));
 			continue;
 		}
 		else if (t == J)
@@ -3432,7 +3469,7 @@ array_kevent_transform(Array J)
 			/*
 				// Writes signal.
 			*/
-			J->choice.array.haswrites = 1;
+			J->haswrites = 1;
 		}
 
 		p = Channel_GetPort(t);
@@ -3531,13 +3568,13 @@ array_fall(Array J, int force)
 	kevent_t kev;
 	int out = 0;
 
-	if (!force && J->choice.array.will_wait == 0)
+	if (!force && J->will_wait == 0)
 		return(0);
 
 	#ifdef EVMECH_EPOLL
 	{
 		uint64_t buf = 1;
-		write(J->choice.array.efd, &buf, sizeof(buf));
+		write(J->efd, &buf, sizeof(buf));
 	}
 	#else
 	{
@@ -3594,8 +3631,8 @@ _array_terminate(Channel J)
 
 	#ifdef EVMECH_EPOLL
 	{
-		close(J->choice.array.efd);
-		close(J->choice.array.wfd);
+		close(J->efd);
+		close(J->wfd);
 	}
 	#endif
 
@@ -3647,7 +3684,7 @@ _array_flow(Array J)
 
 			// If not set, we can avoid a syscall.
 		*/
-		J->choice.array.will_wait = 1;
+		J->will_wait = 1;
 	}
 
 	/*
@@ -3673,7 +3710,7 @@ _array_flow(Array J)
 			// Wait *iff* there are no transfers available for processing.
 		*/
 		array_kevent_collect(J, Array_ShouldWait(J));
-		J->choice.array.will_wait = 0; /* clear flag to avoid superfluous falls */
+		J->will_wait = 0; /* clear flag to avoid superfluous falls */
 
 		array_kevent_transform(J);
 
@@ -4003,8 +4040,8 @@ array_void(PyObj self)
 	port_unlatch(Channel_GetPort(J), 0);
 
 	#ifdef EVMECH_EPOLL
-		close(J->choice.array.efd);
-		close(J->choice.array.wfd);
+		close(J->efd);
+		close(J->wfd);
 	#endif
 
 	Py_RETURN_NONE;
@@ -4132,7 +4169,7 @@ array_methods[] = {
 };
 
 static PyMemberDef array_members[] = {
-	{"volume", T_PYSSIZET, offsetof(struct Array, choice.array.nchannels), READONLY,
+	{"volume", T_PYSSIZET, offsetof(struct Array, nchannels), READONLY,
 		PyDoc_STR("The number of channels being managed by the Array instance.")},
 	{NULL,},
 };
@@ -4189,7 +4226,7 @@ array_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "", kwlist))
 		return(NULL);
 
-	J = (Array) alloci((PyObj) subtype, &p);
+	J = (Array) allockq((PyObj) subtype, &p);
 	if (J == NULL)
 		return(NULL);
 	p->type = kt_kqueue;
@@ -4278,6 +4315,7 @@ _talloc_sockets_input(PyObj module, PyObj param)
 	rob = alloci(typ, &p);
 	if (rob == NULL)
 		return(NULL);
+	Channel_SetResource(((Channel) rob), NULL);
 
 	p->freight = f_sockets;
 	p->point = fd;
