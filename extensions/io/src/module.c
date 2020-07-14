@@ -1959,6 +1959,8 @@ allockq(PyObj isubtype, Port *out)
 	Channel_SetEvents(A, 0);
 	Channel_SetControl(A, ctl_polarity);
 	Channel_SetPort(A, p);
+
+	Array_SetWaitLimit(A, 8000);
 	p->latches = 1;
 
 	*out = p;
@@ -3221,7 +3223,8 @@ array_kevent_collect(Array J, int waiting)
 	int nkevents = 0;
 
 	#ifdef EVMECH_EPOLL
-		const static int nowait = 0, wait = 9 * 1000;
+		const static int nowait = 0;
+		int wait = J->waitlimit;
 
 		/*
 			// For epoll, there are two file descriptors; one epoll referring to readers
@@ -3251,9 +3254,8 @@ array_kevent_collect(Array J, int waiting)
 		}
 	#else
 		const static struct timespec nowait = {0,0};
-		const static struct timespec waitfor = {9,0};
+		struct timespec *wait = (struct timespec *) (waiting ? Array_GetWaitLimit(J) : &nowait);
 
-		struct timespec *wait = (struct timespec *) (waiting ? &waitfor : &nowait);
 		port_kevent(port, 1, &nkevents, NULL, 0, kevs, Channel_GetWindowStop(J), wait);
 	#endif
 
@@ -3607,6 +3609,21 @@ array_force(PyObj self)
 	rob = array_fall(J, 1) == 0 ? Py_False : Py_True;
 	Py_INCREF(rob);
 	return(rob);
+}
+
+static PyObj
+array_wait(PyObj self, PyObj args)
+{
+	int wait_ms = -1;
+	Array A = (Array) self;
+
+	if (!PyArg_ParseTuple(args, "|i", &wait_ms))
+		return(NULL);
+
+	Array_SetWaitLimit(A, wait_ms);
+
+	Py_INCREF(self);
+	return(self);
 }
 
 static void
@@ -4124,6 +4141,15 @@ array_methods[] = {
 			"Terminate events will not be generated, the current cycle, if any, will be exited.\n\n"
 			"! NOTE:\n"
 			"\tNormally, this function should be only be used by child processes destroying the parent's state."
+		)
+	},
+
+	{"wait",
+		(PyCFunction) array_wait, METH_VARARGS,
+		PyDoc_STR(
+			"Set the time limit for transaction wait.\n"
+			"\n"
+			"Returns the Array instance for use as a context manager.\n"
 		)
 	},
 

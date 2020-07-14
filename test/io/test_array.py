@@ -53,6 +53,16 @@ def test_array_termination(test):
 	J.terminate()
 	test/J.terminated == True
 
+def test_array_wait(test):
+	import time
+	A = io.Array()
+	test/A.terminated == False
+	before = time.time()
+	with A.wait(1000) as CM:
+		test/(CM is A) == True
+	after = time.time()
+	test/(after - before) >= 1
+
 def test_array_exceptions(test):
 	try:
 		J = io.Array()

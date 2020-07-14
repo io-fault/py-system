@@ -254,5 +254,5 @@ def test_Datagrams_invalid(test):
 		J.void()
 
 if __name__ == '__main__':
-	import sys; from ....test import library as libtest
+	import sys; from ....test import engine as libtest
 	libtest.execute(sys.modules['__main__'])

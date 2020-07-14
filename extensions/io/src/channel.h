@@ -222,6 +222,16 @@ const static uint32_t transfer_window_limit = (0-1);
 #define Array_GetTransferCount(J) (J->ntransfers)
 #define Array_IncrementTransferCount(t) (++ Array_GetTransferCount(t))
 #define Array_ResetTransferCount(t) (Array_GetTransferCount(t) = 0)
+#define Array_GetWaitLimit(t) &(t->waitlimit)
+
+#ifdef EVMECH_EPOLL
+	#define Array_SetWaitLimit(A, MS) do { (A)->waitlimit = MS; } while(0)
+#else
+	#define Array_SetWaitLimit(A, MS) do { \
+		(A)->waitlimit.tv_sec = MS / 1000; \
+		(A)->waitlimit.tv_nsec = (MS % 1000) * 1000000; \
+	} while(0)
+#endif
 
 /**
 	// Start of all Channel structures.
@@ -262,13 +272,16 @@ struct Channel {
 struct Array {
 	Channel_HEAD
 	kevent_t *kevents;
+	uint32_t ntransfers;
 	uint8_t will_wait;
 	Py_ssize_t nchannels; /* volume */
-	uint32_t ntransfers;
 
 	#ifdef EVMECH_EPOLL
 		int efd;
 		int wfd;
 		uint8_t haswrites;
+		int waitlimit;
+	#else
+		struct timespec waitlimit;
 	#endif
 };
