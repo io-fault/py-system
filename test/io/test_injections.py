@@ -3,9 +3,6 @@ import os
 import errno
 from ... import io
 
-def __test__(test):
-	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
-
 def nomem(x):
 	raise MemoryError(x)
 
@@ -29,6 +26,7 @@ def errno_retry_callback(ctx):
 # for coverage purposes. They use __ERRNO_RECEPTACLE__ to exercise
 # error cases.
 def test_cannot_allocate_array(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	try:
 		io.__ERRNO_RECEPTACLE__['port_kqueue'] = errno_retry_callback
@@ -38,6 +36,7 @@ def test_cannot_allocate_array(test):
 		io.__ERRNO_RECEPTACLE__.clear()
 
 def test_array_force_eintr(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -55,6 +54,7 @@ def test_array_force_eintr(test):
 			pass
 
 def test_array_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -105,6 +105,7 @@ def test_array_retry_fail(test):
 			pass
 
 def test_sockets_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	J = io.Array()
 	try:
@@ -150,6 +151,7 @@ def test_sockets_retry_fail(test):
 			pass
 
 def test_datagrams_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -191,6 +193,7 @@ def test_datagrams_retry_fail(test):
 			pass
 
 def test_octets_tcpip_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	J = io.Array()
 	try:
 		io.__ERRNO_RECEPTACLE__['port_connect'] = \
@@ -235,6 +238,7 @@ def test_octets_tcpip_retry_fail(test):
 			pass
 
 def test_octets_udpip_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	J = io.Array()
 	try:
 		io.__ERRNO_RECEPTACLE__['port_connect'] = \
@@ -263,6 +267,7 @@ def test_octets_udpip_retry_fail(test):
 			pass
 
 def test_octets_pipe_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -287,6 +292,7 @@ def test_octets_pipe_retry_fail(test):
 			pass
 
 def test_octets_socketpair_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -315,6 +321,7 @@ def test_octets_socketpair_retry_fail(test):
 			pass
 
 def test_acquire_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -338,6 +345,7 @@ def test_acquire_retry_fail(test):
 			pass
 
 def test_octets_file_retry_fail(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -373,6 +381,7 @@ def test_octets_file_retry_fail(test):
 #
 
 def test_sockets_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -398,6 +407,7 @@ def test_sockets_retry(test):
 			pass
 
 def test_octets_tcpip_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -422,6 +432,7 @@ def test_octets_tcpip_retry(test):
 			pass
 
 def test_octets_udpip_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -446,6 +457,7 @@ def test_octets_udpip_retry(test):
 			pass
 
 def test_datagrams_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -464,6 +476,7 @@ def test_datagrams_retry(test):
 		J.void()
 
 def test_octets_file_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -485,6 +498,7 @@ def test_octets_file_retry(test):
 			pass
 
 def test_octets_spawn_u_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -509,6 +523,7 @@ def test_octets_spawn_u_retry(test):
 			pass
 
 def test_octets_spawn_b_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit.
 	try:
 		J = io.Array()
@@ -541,6 +556,7 @@ def test_octets_spawn_b_retry(test):
 			pass
 
 def test_octets_io_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should *not* trigger the limit with EINTR
 	try:
 		J = io.Array()
@@ -578,6 +594,7 @@ def test_octets_io_retry(test):
 			pass
 
 def test_octets_io_nomem_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should trigger the limit with ENOMEM
 	try:
 		J = io.Array()
@@ -617,6 +634,7 @@ def test_octets_io_nomem_retry(test):
 			pass
 
 def test_datagrams_io_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should *not* trigger the limit with EINTR
 	J = io.Array()
 	try:
@@ -658,6 +676,7 @@ def test_datagrams_io_retry(test):
 			pass
 
 def test_datagrams_io_nomem_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# Should *not* trigger the limit with EINTR
 	J = io.Array()
 	try:
@@ -699,7 +718,10 @@ def test_datagrams_io_nomem_retry(test):
 			pass
 
 def test_datagrams_io_again(test):
-	'trigger EAGAIN on datagrams output'
+	"""
+	# Trigger EAGAIN on datagrams output.
+	"""
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	J = io.Array()
 	try:
 		# send one and then trigger EAGAIN
@@ -740,6 +762,7 @@ def test_datagrams_io_again(test):
 			pass
 
 def test_sockets_io_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	# Should *not* trigger the limit with EINTR
 	try:
@@ -765,6 +788,7 @@ def test_sockets_io_retry(test):
 			pass
 
 def test_sockets_io_nomem(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# ENOMEM retry in accept()
 	try:
 		J = io.Array()
@@ -819,6 +843,7 @@ def test_sockets_io_nomem(test):
 		J.void()
 
 def test_octets_resize_error(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		J = io.Array()
 		g1 = io.__ERRNO_RECEPTACLE__['port_set_socket_option'] = error(8, errno.EINTR)
@@ -847,6 +872,7 @@ def test_octets_resize_error(test):
 		J.void()
 
 def test_ports_io_nomem(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# This is a repeat of test_ports.test_io with one difference: error injection.
 	J = io.Array()
 	files = []
@@ -934,6 +960,7 @@ def test_ports_io_nomem(test):
 			os.close(x)
 
 def test_ports_io_again(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	# This is a repeat of test_ports.test_io with one difference: error injection.
 	test.skip(sys.platform == 'linux')
 	J = io.Array()
@@ -960,6 +987,7 @@ def test_ports_io_again(test):
 		J.void()
 
 def test_array_alloc_port_memory_errors(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		J = io.Array()
 
@@ -999,6 +1027,7 @@ def test_array_alloc_port_memory_errors(test):
 		J.void()
 
 def test_array_alloc_i_o_memory_errors(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		J = io.Array()
 
@@ -1025,6 +1054,7 @@ def test_array_alloc_i_o_memory_errors(test):
 		J.void()
 
 def test_array_allocio_memory_errors(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		J = io.Array()
 
@@ -1056,6 +1086,7 @@ def test_array_allocio_memory_errors(test):
 		J.void()
 
 def test_array_allocioio_memory_errors(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		J = io.Array()
 		# identifiers used inside allocioio.
@@ -1083,6 +1114,7 @@ def test_array_allocioio_memory_errors(test):
 		J.void()
 
 def test_nosigpipe(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(not getattr(io, 'F_SETNOSIGPIPE', None))
 	try:
 		J = io.Array()
@@ -1130,6 +1162,7 @@ def test_nosigpipe(test):
 		J.void()
 
 def test_close_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		J = io.Array()
 
@@ -1155,6 +1188,7 @@ def test_close_retry(test):
 		J.void()
 
 def test_octets_acquire_retry(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	# Should trigger the limit.
 	try:
@@ -1187,6 +1221,7 @@ def test_octets_acquire_retry(test):
 			pass
 
 def test_octets_acquire_mustblock(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	test.skip(sys.platform == 'linux')
 	try:
 		J = io.Array()
@@ -1225,6 +1260,7 @@ def test_octets_acquire_mustblock(test):
 			pass
 
 def test_endpoint_nomem(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		s = io.Array.rallocate("sockets://ip4", ('127.0.0.1', 0))
 		try:
@@ -1238,6 +1274,7 @@ def test_endpoint_nomem(test):
 		io.__PYTHON_RECEPTACLE__.clear()
 
 def test_datagramarray_nomem(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		io.__PYTHON_RECEPTACLE__['allocdga.tp_alloc'] = nomem
 		io.__PYTHON_RECEPTACLE__['allocdga.new_ba'] = nomem
@@ -1259,6 +1296,7 @@ def test_datagramarray_nomem(test):
 		io.__PYTHON_RECEPTACLE__.clear()
 
 def test_datagramarray_index_nomem(test):
+	test.skip(not '__ERRNO_RECEPTACLE__' in dir(io))
 	try:
 		io.__PYTHON_RECEPTACLE__['datagramarray_getitem.new_tuple'] = nomem
 		io.__PYTHON_RECEPTACLE__['datagramarray_getitem.get_endpoint'] = nomem
