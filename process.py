@@ -795,4 +795,4 @@ def concurrently(controller:typing.Callable, exe=Fork.dispatch, waitpid=os.waitp
 
 		return result
 
-	return read_child_result
+	return pid, read_child_result
