@@ -16,7 +16,7 @@ import typing
 # however, they are included to allow a developer to impose a variation for some
 # experimental purposes.
 import sys
-_python_architecture = sys.implementation.name + ''.join(map(str, sys.version_info[:2])) + sys.abiflags
+_python_architecture = sys.implementation.name + ''.join(map(str, sys.version_info[:2]))
 _python_architecture = _python_architecture.replace('-', '')
 del sys
 
