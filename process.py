@@ -1,7 +1,7 @@
 """
 # Main thread protection, thread primitives, and system process invocation interfaces.
 
-# &.library provides access to functionality for managing a process invoked by the system, and the
+# &.process provides access to functionality for managing a process invoked by the system, and the
 # invocation of other system processes and forks. File system interfaces are primarily implemented
 # by &.files.Path, but are explicitly blocking.
 
@@ -239,30 +239,6 @@ class Invocation(object):
 	# /args/
 		# The sequence of arguments given to the command by the system.
 		# This does not include the command name that is normally the first argument in &sys.argv.
-
-	# [ Parameters ]
-
-	# Description of the &parameters property normally holding a dictionary with the given keys:
-
-	# /`'structured'`/
-		# The designated location for storing parsed arguments.
-		# Provides high-level access to original parameters often for reference by usage error messages.
-	# /`'type'`/
-		# The type of invocation. Usually `'system'`.
-	# /`'system'`/
-		# The original system arguments and environment variables of interest.
-		# This information is normally gathered from the process when the &Invocation
-		# is created in order to provide a consistent snapshot.
-
-		# A mapping consisting of:
-		# /`'name'`/
-			# The first argument identifying the name used to execute the process.
-		# /`'arguments'`/
-			# The sequence of arguments following `'name'`.
-		# /`'directory'`/
-			# The current working directory of the process when the Invocation was created.
-		# /`'environment'`/
-			# A snapshot of the environment variables that were listed for collection.
 	"""
 
 	def __init__(self, exit_method, context=None):
