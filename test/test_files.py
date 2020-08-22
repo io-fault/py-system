@@ -818,39 +818,3 @@ def test_Path_snapshot_depth(test):
 	elements = td.fs_snapshot(depth=4)
 	sub = [x for x in elements if x[2]['identifier'] == 'nesting'][0][1]
 	test/len(sub[0][1][0][1][0][1]) == 0
-
-def test_Endpoint_properties(test):
-	ep = lib.Endpoint.from_absolute_path('/dev')
-	str(ep) == '/dev'
-	str(ep.address) == '/'
-	str(ep.port) == 'dev'
-	test.isinstance(ep.address, lib.Path)
-
-	ep = lib.Endpoint.from_route(lib.Path.from_absolute('/dev'))
-	str(ep) == '/dev'
-	str(ep.address) == '/'
-	str(ep.port) == 'dev'
-	test.isinstance(ep.address, lib.Path)
-
-def test_Endpoint_target(test):
-	"""
-	# - &lib.Endpoint.target
-	"""
-	td = test.exits.enter_context(lib.Path.fs_tmpdir())
-	t = (td/'target.s')
-	t.fs_init()
-	l = (td/'link1')
-	l.fs_link_relative(t)
-
-	ep = lib.Endpoint.from_route(l)
-	test/str(ep.target()) == str(t)
-
-	l2 = (td/'link2')
-	l2.fs_link_relative(l)
-	ep = lib.Endpoint.from_route(l2)
-	test/str(ep.target()) == str(t)
-
-	l3 = (td/'link3')
-	l3.fs_link_relative(l2)
-	ep = lib.Endpoint.from_route(l3)
-	test/str(ep.target()) == str(t)
