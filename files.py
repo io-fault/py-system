@@ -973,8 +973,6 @@ class Path(routes.Selector):
 		# Create or update a *symbolic* link at &self pointing to &path, the target file.
 		# The linked target path will be relative to &self' route.
 
-		# Returns &self, the newly created link.
-
 		# [ Parameters ]
 		# /path/
 			# The route identifying the target path of the symbolic link.
@@ -993,14 +991,10 @@ class Path(routes.Selector):
 
 			link(target, self.fullpath)
 
-		return self
-
 	def fs_link_absolute(self, path, link=os.symlink) -> None:
 		"""
 		# Create or update a *symbolic* link at &self pointing to &path, the target file.
 		# The linked target path will be absolute.
-
-		# Returns &self, the newly created link.
 
 		# [ Parameters ]
 		# /path/
@@ -1017,8 +1011,6 @@ class Path(routes.Selector):
 				raise
 
 			link(target, self.fullpath)
-
-		return self
 
 	def fs_init(self, data:typing.Optional[bytes]=None, mkdir=os.mkdir, exists=os.path.exists):
 		"""
