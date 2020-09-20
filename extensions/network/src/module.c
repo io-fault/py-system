@@ -61,6 +61,16 @@ Endpoint endpoint_copy(PyObj);
 	X_EAI(EAI_SYSTEM) \
 	X_EAI(EAI_OVERFLOW)
 
+/**
+	// Lookup the name of the EAI define that is associated with the given error code.
+
+	// [ Parameters ]
+	// /code/
+		// The EAI error.
+
+	// [ Returns ]
+	// Constant string pointer.
+*/
 static const char *
 error_name_gai(int code)
 {
@@ -485,6 +495,9 @@ nw_connect_endpoint(Endpoint ep)
 	return(rob);
 }
 
+/**
+	// Python interface to POSIX connect.
+*/
 static PyObj
 nw_connect(PyObj module, PyObj args, PyObj kw)
 {
@@ -500,6 +513,9 @@ nw_connect(PyObj module, PyObj args, PyObj kw)
 	return(nw_connect_endpoint((Endpoint) ob));
 }
 
+/**
+	// Python interface to POSIX bind and listen.
+*/
 static PyObj
 nw_service(PyObj module, PyObj args, PyObj kw)
 {
@@ -516,6 +532,9 @@ nw_service(PyObj module, PyObj args, PyObj kw)
 	return(nw_service_endpoint((Endpoint) ob, backlog));
 }
 
+/**
+	// Python interface to POSIX bind.
+*/
 static PyObj
 nw_bind(PyObj module, PyObj args, PyObj kw)
 {
@@ -531,8 +550,8 @@ nw_bind(PyObj module, PyObj args, PyObj kw)
 	return(nw_bind_endpoint((Endpoint) ob));
 }
 
-/*
-	// Works with statically defined types.
+/**
+	// Capsule target providing access to &EndpointType creation and duplication.
 */
 struct EndpointAPI _ep_apis = {
 	&EndpointType,

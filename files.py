@@ -74,7 +74,7 @@ class Status(tuple):
 		return self[0]
 
 	@property
-	def filename(self):
+	def filename(self) -> str:
 		"""
 		# The name of the file.
 		"""
@@ -86,14 +86,14 @@ class Status(tuple):
 		return NotImplemented
 
 	@property
-	def size(self):
+	def size(self) -> int:
 		"""
 		# Number of bytes contained by the file.
 		"""
 		return self.system.st_size
 
 	@property
-	def type(self, ifmt=stat.S_IFMT):
+	def type(self, ifmt=stat.S_IFMT) -> str:
 		"""
 		# /`'directory'`/
 			# A file containing other files.
@@ -113,7 +113,7 @@ class Status(tuple):
 		return self._fs_type_map.get(ifmt(self.system.st_mode), 'unknown')
 
 	@property
-	def subtype(self, ifmt=stat.S_IFMT):
+	def subtype(self, ifmt=stat.S_IFMT) -> str:
 		"""
 		# For POSIX-type systems, designates the kind of `'device'`: `'block'` or `'character'`.
 		# Returns &None for types other than `'device'`.
@@ -724,7 +724,8 @@ class Path(routes.Selector):
 
 	def fs_snapshot(self,
 			process=(lambda x, y: y[0] == 'exception'),
-			depth=8, limit=2048,
+			depth:typing.Optional[int]=8,
+			limit:typing.Optional[int]=2048,
 			ifmt=stat.S_IFMT, Queue=collections.deque, scandir=os.scandir,
 			lstat=os.lstat,
 		):

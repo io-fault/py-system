@@ -7,13 +7,13 @@
 
 # In order to eliminate a potential point of confusion:
 # &Invocation, notably with no prefix character classifying its purpose, describes the invocation
-# of the *executed* process being ran. This is semantically distinct from &KInvocation and
-# &PInvocation which describe the parameters to the execution *of another*.
+# of the *executed* process being ran. This is semantically distinct from &.execution.KInvocation and
+# &.execution.PInvocation which describe the parameters to the execution of *another* process.
 
 #!/pl/python
 	from fault.system import process
 
-# [ Properties ]
+# [ Elements ]
 
 # /signals/
 	# Mapping of generalized signal names to signal identifiers.
@@ -227,19 +227,16 @@ class Invocation(object):
 	# For system invocation, the &parameters dictionary will have two entries by default:
 	# `'system'` and `'type'`.
 
-	# [ Properties ]
+	# [ Elements ]
 	# /context/
 		# The Invocation that caused the creation of this &Invocation.
 		# By default and when created from &system, this property is &None.
 	# /parameters/
 		# Arbitrary storage for the parameteres of the invocation. Usually, `'type'`, `'system'`,
-		# and `'structured'` keys are present. &[Parameters] describes this in more detail.
-	# /environ/
-		# A &collections.Mapping containing the environment variables that are of interest to the process.
-	# /args/
-		# The sequence of arguments given to the command by the system.
-		# This does not include the command name that is normally the first argument in &sys.argv.
+		# and `'structured'` keys are present.
 	"""
+	context = None
+	parameters = None
 
 	def __init__(self, exit_method, context=None):
 		self.exit_method = exit_method
@@ -267,10 +264,14 @@ class Invocation(object):
 		"""
 		return self.parameters['system']['environment']
 
-	def imports(self, envvars):
+	def imports(self, envvars:typing.Iterable[str]):
 		"""
 		# Copy the given &envvars from &os.environ into the invocation's &parameters.
 		# The snapshot of imported environment variables may be accessed using &environ.
+
+		# [ Parameters ]
+		# /envvars/
+			# The collection of variables to copy from the environment.
 		"""
 
 		try:

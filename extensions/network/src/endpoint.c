@@ -22,6 +22,16 @@ extern PyTypeObject EndpointType;
 	#include <stdint.h>
 #endif
 
+/**
+	// Retrieve the string identifier of the given socket type code, &socktype.
+
+	// [ Parameters ]
+	// /socktype/
+		// The integer code of the socket type to resolve.
+
+	// [ Returns ]
+	// A constant string used by the Python interfaces to select a socket type.
+*/
 static const char *
 transport_type_string(int socktype)
 {
@@ -50,6 +60,8 @@ transport_type_string(int socktype)
 }
 
 /**
+	// Identify the socket type code that is being referred to by the given string, &identifier.
+
 	// [ Engineering ]
 	// Use a real hash.
 */
@@ -243,6 +255,9 @@ get_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
 }
 
 /**
+	// Convert the address referenced by &ss into a string written
+	// into &dst.
+
 	// [ Parameters ]
 	// /ss/
 		// Source address structure.
@@ -252,7 +267,7 @@ get_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
 	// /dstlen/
 		// Length of &dst string.
 
-	// [ Return ]
+	// [ Returns ]
 	// The &ss parameter is the destination of the address
 	// described in &dst.
 */
@@ -273,7 +288,7 @@ get_address(any_addr_t *ss, char *dst, size_t dstlen)
 
 /**
 	// ParseTuple converter for IPv4 addresses.
-**/
+*/
 int
 ip4_from_object(PyObj ob, void *out)
 {
@@ -330,7 +345,7 @@ ip4_from_object(PyObj ob, void *out)
 
 /**
 	// ParseTuple converter for IPv6 addresses.
-**/
+*/
 int
 ip6_from_object(PyObj ob, void *out)
 {
@@ -434,7 +449,7 @@ local_port(struct aport_t *port, size_t dstsize, local_addr_t *addr)
 
 /**
 	// ParseTuple converter for local file system sockets.
-**/
+*/
 int
 local_from_object(PyObj ob, void *out)
 {

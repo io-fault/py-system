@@ -1,24 +1,24 @@
 [ Primary Types ]
 
-/&module.c#Octets/
+/&.extensions.io.Octets/
 	Transfers "octets", bytes of data using read and write.
-/&module.c#Datagrams/
+/&.extensions.io.Datagrams/
 	Transfers datagrams to hosts designated by the datagram.
-/&module.c#Sockets/
+/&.extensions.io.Sockets/
 	Transfers "sockets", file descriptors (listen/accept) for accepting
 	connection.
-/&module.c#Ports/
+/&.extensions.io.Ports/
 	Transfers file descriptors (libancillary for python).
 	However, it is not functioning.
-/&module.c#Junction/
+/&.extensions.io.Array/
 	Transfers Transits that have events ready for processing (I/O).
 
 [ Terminology ]
 
 /`J`/
-	(capital j) refers to the Junction instance.
+	(capital j) refers to the Array instance.
 /`t`/
-	(lowercase t) refers to an arbitrary Transit instance.
+	(lowercase t) refers to an arbitrary Channel instance.
 /`o`/
 	(lowercase o) refers to an arbitrary Octets instance.
 /`S`/
@@ -29,8 +29,6 @@
 	(capital P) refers to an arbitrary Ports (plural) instance.
 /`D`/
 	(capital d) refers to an arbitrary Datagrams instance.
-/`w`/
-	(lowercase w) refers to an arbitrary Wolves instance.
 
 /`equals`/
 	Refers to Event QUALificationS These are state flags that must be present in order for a

@@ -133,7 +133,7 @@ class Segments(object):
 		# created by &MemoryMap.
 
 		# [ Parameters ]
-		# /memory
+		# /memory/
 			# The `mmap.mmap` instance defining the total memory region.
 		"""
 		self.memory = memory

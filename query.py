@@ -26,7 +26,7 @@ def executables(exename:str, environment:str='PATH') -> files.Path:
 	# Iterate over the directories listed in `PATH` and yield paths that exist
 	# when the given &exename is extended on the directory.
 
-	# The produced &files.Path instances may refer to files of any type.
+	# The produced &.files.Path instances may refer to files of any type.
 	# Paths referring to broken links will not be included.
 	"""
 

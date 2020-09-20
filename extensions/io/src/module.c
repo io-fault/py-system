@@ -31,7 +31,7 @@
 struct KPortsAPI *KP = NULL;
 struct EndpointAPI *EP = NULL;
 
-/* Number of kevent structs to allocate when working with kevent(). */
+/** Number of kevent structs to allocate when working with kevent(). */
 #ifndef CONFIG_DEFAULT_ARRAY_SIZE
 	#define CONFIG_DEFAULT_ARRAY_SIZE 16
 #endif
@@ -223,7 +223,7 @@ sockaddr_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
 	// /dstlen/
 		// Length of &dst string.
 
-	// [ Return ]
+	// [ Returns ]
 	// The &ss parameter is the destination of the interface
 	// described in &dst.
 */
@@ -320,6 +320,9 @@ path(kport_t kp)
 	#endif
 }
 
+/**
+	// Set a Python error from the `errno` associated with the port.
+*/
 static PyObj
 port_raised(PyObj self)
 {
@@ -337,6 +340,9 @@ port_raised(PyObj self)
 	return(NULL);
 }
 
+/**
+	// Return a Python error from the `errno` associated with the port.
+*/
 static PyObj
 port_exception(PyObj self)
 {
@@ -389,8 +395,8 @@ port_shatter(PyObj self)
 	return(rob);
 }
 
-/* METH_O, METH_VARARGS, METH_VARKEYWORDS, METH_NOARGS */
 static PyMethodDef port_methods[] = {
+	/* METH_O, METH_VARARGS, METH_VARKEYWORDS, METH_NOARGS */
 	{"shatter",
 		(PyCFunction) port_shatter, METH_NOARGS,
 		PyDoc_STR(
