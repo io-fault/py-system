@@ -443,7 +443,7 @@ class PInvocation(tuple):
 		"""
 		return Class([Class.Invocation(*x) for x in commands])
 
-	def __call__(self, signal=9, pipe=os.pipe, close=os.close, range=range) -> Pipeline:
+	def spawn(self, signal=9, pipe=os.pipe, close=os.close, range=range) -> Pipeline:
 		"""
 		# Execute the series of invocations returning a &Pipeline instance containing
 		# the file descriptors used for input, output and the standard error of all the commands.
@@ -513,6 +513,7 @@ class PInvocation(tuple):
 			if self:
 				close(pipes[0][0])
 				close(pipes[-1][1])
+	__call__ = spawn
 
 def parse_sx_plan(text) -> typing.Tuple[
 		typing.Sequence[typing.Tuple[str, str]],
