@@ -1,6 +1,6 @@
 """
 # System process execution interfaces and
-# process global registry for controlling the composition of &Specification' for system process execution.
+# process global registry for controlling the composition of &Specification for system process execution.
 
 # [ Purpose ]
 
@@ -386,10 +386,8 @@ class Pipeline(tuple):
 
 	def void(self, close=os.close) -> None:
 		"""
-		# Close all file descriptors and kill -9 all processes involved in the pipeline.
-
-		# Normally used in exception cases where the caller failed to construct an interface
-		# to the running pipeline.
+		# Close all file descriptors and terminate all processes (SIGKILL) involved in the pipeline.
+		# Processes are *not* reaped.
 		"""
 		for x in self.standard_errors:
 			close(x)
