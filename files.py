@@ -1,5 +1,9 @@
 """
 # Filesystem interfaces and data structures.
+
+# [ Elements ]
+# /root/
+	# The &Path to the root directory of the operating system.
 """
 import os
 import os.path
@@ -18,13 +22,46 @@ import tempfile
 from ..context.tools import cachedcalls
 from .. import routes
 
+class Void(Exception):
+	"""
+	# Exception thrown by methods that require files at the Path to exist.
+
+	# Instances are using the bad path and a context argument.
+	# The context argument is user data describing where the path came from.
+
+	# [ Engineering ]
+	# Experimental. Currently, only raised by &Path.fs_select.
+	"""
+
+	rtype = 'system-file'
+
+	def __init__(self, badpath, context=None):
+		self.path = badpath
+		self.context = context
+
+	def __str__(self):
+		if self.context is not None:
+			return "[%s: %s] path did not exist" %(self.context, str(self.path))
+		else:
+			return "[%s] path did not exist" %(str(self.path),)
+
+	def fragments(self):
+		"""
+		# Construct the real portion and segment pair.
+
+		# Calculates the part of the path that actually exists on the filesytem,
+		# and the remaining invalid part.
+		"""
+		r = self.path.fs_real()
+		return (r, self.path.segment(r))
+
 class Status(tuple):
 	"""
 	# File status interface providing symbolic names for the data packed in
 	# the system's status record, &system.
 
 	# [ Engineering ]
-	# Expiremental. Helps isolate delayed imports.
+	# Experimental. Helps isolate delayed imports.
 	# Likely undesired noise if a stat-cache is employed by &Path.
 	"""
 	__slots__ = ()
@@ -205,38 +242,27 @@ class Path(routes.Selector):
 
 	__slots__ = ('context', 'points',)
 
-	class Void(Exception):
+	def fs_select(self, *path:str, context=None):
 		"""
-		# Exception thrown by methods that require files at the Path to exist.
-
-		# Instances are using the bad path and a context argument.
-		# The context argument is user data describing where the path came from.
+		# Select a path relative to &self using the given &path strings.
+		# If the targeted path does not exist, raise an exception
+		# detailing the requirements.
 
 		# [ Engineering ]
-		# Expiremental. Currently, only raised by &fs_select.
+		# Experimental. Constructor intended for user input; likely replacement for from_path.
+
+		# [ Exceptions ]
+		# /&Void/
+			# Raised when the selected path does not exist on the filesystem.
 		"""
+		fsr = self
+		for x in path:
+			fsr @= x
 
-		rtype = 'system-file'
+		if fsr.fs_type() == 'void':
+			raise Void(fsr, context)
 
-		def __init__(self, badpath, context=None):
-			self.path = badpath
-			self.context = context
-
-		def __str__(self):
-			if self.context is not None:
-				return "[%s: %s] path did not exist" %(self.context, str(self.path))
-			else:
-				return "[%s] path did not exist" %(str(self.path),)
-
-		def fragments(self):
-			"""
-			# Construct the real portion and segment pair.
-
-			# Calculates the part of the path that actually exists on the filesytem,
-			# and the remaining invalid part.
-			"""
-			r = self.path.fs_real()
-			return (r, self.path.segment(r))
+		return fsr
 
 	@classmethod
 	def fs_select(Class, *path:str, pwd=None, context=None):
@@ -249,7 +275,7 @@ class Path(routes.Selector):
 		# If the path does not exists, a &Void exception will be raised.
 
 		# [ Engineering ]
-		# Expiremental. Constructor intended for user input; likely replacement for from_path.
+		# Experimental. Constructor intended for user input; likely replacement for from_path.
 		"""
 		start = path[0] if path else ''
 
@@ -962,7 +988,7 @@ class Path(routes.Selector):
 
 		src = replacement.fullpath
 		dst = self.fullpath
-		self.fs_void()
+		self.fs_void() #* Removal for replacement.
 
 		if replacement.fs_type() == 'directory':
 			copytree(src, dst, symlinks=True, copy_function=copyfile)
@@ -1020,7 +1046,7 @@ class Path(routes.Selector):
 		# If &data is &None, no write operation will occur for pre-existing files.
 		# If &data is not &None, the bytes will be written regardless.
 
-		# Returns the route instance.
+		# Returns the route instance, &self.
 		# Leading directories will be created as needed.
 		"""
 
@@ -1047,9 +1073,9 @@ class Path(routes.Selector):
 
 	def fs_mkdir(self, mkdir=os.mkdir, exists=os.path.exists):
 		"""
-		# Create and initialize a directory file at the route.
+		# Create a directory at the route.
 
-		# Returns the route instance.
+		# Returns the route instance, &self.
 		# Leading directories will be created as needed.
 		"""
 
@@ -1147,3 +1173,9 @@ class Path(routes.Selector):
 				os.environ['OLDPWD'] = self.fullpath
 
 root = Path(None, ())
+
+def pwd() -> Path:
+	"""
+	# Construct a &Path selecting $PWD.
+	"""
+	return Path.from_absolute(os.environ['PWD'])
