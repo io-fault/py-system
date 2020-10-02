@@ -47,10 +47,6 @@ def test_Path_filename(test):
 	test/f.filename == 'data.tar.xz'
 	test/f.extension == 'xz'
 
-def test_Path_from_home(test):
-	hd = lib.Path.home()
-	test/str(hd) == os.environ['HOME']
-
 def test_Path_repr(test):
 	end = lib.Path.from_absolute('/test')
 	test/repr(end).__contains__('/test') == True
@@ -84,10 +80,6 @@ def test_Path_from_partitioned_string(test):
 def test_Path_bytespath(test):
 	p = lib.Path.from_absolute('/test/path')
 	test/p.bytespath == b'/test/path'
-
-def test_Path_which(test):
-	test/lib.Path.which('cat') / lib.Path
-	test/lib.Path.which('nosuchbin__x__') == None
 
 def test_Path_temporary(test):
 	path = None

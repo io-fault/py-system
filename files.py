@@ -349,16 +349,6 @@ class Path(routes.Selector):
 		return Class(Class.from_absolute(getcwd()), points)
 
 	@classmethod
-	def home(Class):
-		"""
-		# Return a new Route to the home directory defined by the environment.
-
-		# The returned Route's &context is the HOME path.
-		"""
-
-		return Class(Class.from_absolute(os.environ['HOME']), ())
-
-	@classmethod
 	@contextlib.contextmanager
 	def fs_tmpdir(Class, TemporaryDirectory=tempfile.mkdtemp):
 		"""
