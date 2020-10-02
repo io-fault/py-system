@@ -265,39 +265,6 @@ class Path(routes.Selector):
 		return fsr
 
 	@classmethod
-	def fs_select(Class, *path:str, pwd=None, context=None):
-		"""
-		# Construct a &Path from user input, the given string &path segments.
-
-		# If the first segment starts with a `'/'`, the path will be interpreted as absolute.
-		# Otherwise, the path will be interpreted as relative to the current working directory.
-
-		# If the path does not exists, a &Void exception will be raised.
-
-		# [ Engineering ]
-		# Experimental. Constructor intended for user input; likely replacement for from_path.
-		"""
-		start = path[0] if path else ''
-
-		if start[0:1] == '/':
-			fsr = Class.from_absolute(start)
-		else:
-			if pwd is None:
-				try:
-					pwd = Class.from_absolute(os.environ['PWD'])
-				except KeyError:
-					pwd = Class.from_absolute(os.getcwd())
-			fsr = pwd @ start
-
-		for x in path[1:]:
-			fsr @= x
-
-		if fsr.fs_type() == 'void':
-			raise Class.Void(fsr, context)
-
-		return fsr
-
-	@classmethod
 	def from_path(Class, path:str, getcwd=os.getcwd):
 		"""
 		# Construct a &Path instance from the given absolute or relative path
