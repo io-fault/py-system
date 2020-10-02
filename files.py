@@ -417,23 +417,6 @@ class Path(routes.Selector):
 				os.rmdir(d)
 	temporary = fs_tmpdir
 
-	@classmethod
-	def which(Class, exe, dirname=os.path.dirname):
-		"""
-		# Return a new Route to the executable found by which.
-
-		# [ Engineering ]
-		# Relocating to &.execution.
-		"""
-
-		rp = shutil.which(exe)
-		if rp is None:
-			return None
-
-		dn = dirname(rp)
-
-		return Class(Class.from_absolute(dn), (rp[len(dn)+1:],))
-
 	def __repr__(self):
 		parts = ["/".join(p) for p in self.partitions() if p]
 		if not parts:
