@@ -64,7 +64,7 @@ def test_Invocation_file_not_found(test):
 	"""
 	# Validate that a reasonable OSError is raised when the executable doesn't exist.
 	"""
-	tr = test.exits.enter_context(files.Path.temporary())
+	tr = test.exits.enter_context(files.Path.fs_tmpdir())
 	r = tr / 'no-such.exe'
 	i = module.Invocation(str(r), ())
 
