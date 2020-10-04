@@ -372,7 +372,6 @@ class Path(routes.Selector):
 				r.fs_void()
 			except NameError:
 				os.rmdir(d)
-	temporary = fs_tmpdir
 
 	def __repr__(self):
 		parts = ["/".join(p) for p in self.partitions() if p]
