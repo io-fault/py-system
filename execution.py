@@ -120,7 +120,7 @@ class Index:
 			name:typing.Optional[typing.AnyStr]=None
 		) -> Specification:
 		"""
-		# Construct a pair suitable for creating a &.library.KInvocation instance.
+		# Construct a pair suitable for creating a &.KInvocation instance.
 		"""
 		return self._get(method)(self, executable, arguments, name)
 

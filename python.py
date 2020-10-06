@@ -7,12 +7,11 @@ import collections
 import pkgutil
 import importlib
 
-from ..time import types as timetypes
-from .. import routes
+from ..route.types import Selector
 
 from . import files
 
-class Import(routes.Selector):
+class Import(Selector):
 	"""
 	# Route for Python imports.
 	"""
@@ -179,7 +178,7 @@ class Import(routes.Selector):
 				return x
 			x = x.container
 
-	def get_last_modified(self) -> timetypes.Timestamp:
+	def get_last_modified(self):
 		"""
 		# Return the modification time of the module's file as a chronometry Timestamp.
 		"""
@@ -355,7 +354,7 @@ class Reference(object):
 		# While an environment variable references are the primary use-case,
 		# there are certainly others.
 
-		# Also, &routes.Selector might be a more appropriate baseclass;
+		# Also, &Selector might be a more appropriate baseclass;
 		# load instead of value, store for update/overwrite.
 	"""
 	__slots__ = ('type', 'container_get', 'identifier', 'default')

@@ -20,7 +20,7 @@ import shutil
 import tempfile
 
 from ..context.tools import cachedcalls
-from .. import routes
+from ..route.types import Selector, Segment
 
 class Void(Exception):
 	"""
@@ -232,9 +232,9 @@ def path_string_cache(path):
 	else:
 		return '/'.join(path.points)
 
-class Path(routes.Selector):
+class Path(Selector):
 	"""
-	# &routes.Selector subclass for local filesystem paths.
+	# &Selector subclass for local filesystem paths.
 
 	# Methods starting with `fs_` perform filesystem operations.
 	"""
@@ -335,7 +335,7 @@ class Path(routes.Selector):
 		if path[:1] == "/":
 			return self.from_partitions(parts)
 		else:
-			return self // routes.Segment.from_partitions(parts)
+			return self // Segment.from_partitions(parts)
 
 	@classmethod
 	def from_cwd(Class, *points:str, getcwd=os.getcwd):
@@ -525,7 +525,7 @@ class Path(routes.Selector):
 		mode = get_stat(self.fullpath).st_mode
 		return (mode & mask) != 0
 
-	def fs_follow_links(self, readlink=os.readlink, islink=os.path.islink) -> typing.Iterator[routes.Selector]:
+	def fs_follow_links(self, readlink=os.readlink, islink=os.path.islink) -> typing.Iterator[Selector]:
 		"""
 		# Iterate through the links in a chain until a non-symbolic link file is reached.
 
@@ -789,7 +789,7 @@ class Path(routes.Selector):
 
 	def fs_since(self, since:int,
 			traversed=None,
-		) -> typing.Iterable[typing.Tuple[int, routes.Selector]]:
+		) -> typing.Iterable[typing.Tuple[int, Selector]]:
 		"""
 		# Identify the set of files that have been modified
 		# since the given point in time.
@@ -849,7 +849,6 @@ class Path(routes.Selector):
 		# Return the size of the file as depicted by &os.stat.
 
 		# The &os.stat function is used to get the information.
-		# &None is returned if an &OSError is raised by the call.
 		"""
 
 		return stat(self.fullpath, follow_symlinks=True).st_size

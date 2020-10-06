@@ -7,7 +7,6 @@
 """
 import importlib.machinery
 
-from .. import routes
 from . import files
 from . import identity
 
@@ -86,7 +85,8 @@ class IntegralFinder(object):
 
 	@staticmethod
 	def _init_segment(groups, variants):
-		from fault.project import library as libproject
+		from ..route.types import Segment
+		from ..project import library as libproject
 		v = dict(variants)
 		v['name'] = '{0}'
 
@@ -94,7 +94,7 @@ class IntegralFinder(object):
 		final = segments[-1] + '.i'
 		del segments[-1]
 
-		leading = routes.Segment.from_sequence(segments)
+		leading = Segment.from_sequence(segments)
 		assert '{0}' in final # &groups must have 'name' in the final path identifier.
 
 		return leading, final, final.format
