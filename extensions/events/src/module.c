@@ -48,6 +48,7 @@ typedef struct kevent kevent_t; /* kernel event description */
 #define KQ_SIGNALS() \
 	SIGNAME(SIGTERM) \
 	SIGNAME(SIGCONT) \
+	SIGNAME(SIGTSTP) \
 	SIGNAME(SIGWINCH) \
 	SIGNAME(SIGINFO) \
 	SIGNAME(SIGHUP) \
