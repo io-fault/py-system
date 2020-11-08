@@ -9,7 +9,7 @@
 /name/
 	`system`
 /abstract/
-	Python Runtime and Operating System Interfaces
+	Python Runtime and Operating System Interfaces.
 
 /authority/
 	`fault.io`
