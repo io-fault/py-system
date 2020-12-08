@@ -12,6 +12,24 @@ from . import identity
 
 from ..project import root
 
+def compose_image_path(variants, default='void', groups=[["system", "architecture"], ["name"]]):
+	"""
+	# Create a variant path according to the given &groups and &variants.
+	"""
+	segments = []
+
+	for g in groups[:-1]:
+		fields = ([(variants.get(x) or default) for x in g])
+		segment = '-'.join(fields)
+		segments.append(segment)
+
+	# Name must be '.' separated.
+	fields = ([(variants.get(x) or default) for x in groups[-1]])
+	segment = '.'.join(fields)
+	segments.append(segment)
+
+	return segments
+
 class IntegralFinder(object):
 	"""
 	# Select an integral based on the configured variants querying the connected factor paths.
@@ -72,6 +90,7 @@ class IntegralFinder(object):
 		self.index = dict()
 		self.groups = groups
 		self.integral_container_name = integral_container_name
+
 		self.python_bytecode_variants = python_bytecode_variants
 		self.extension_variants = extension_variants
 
@@ -86,11 +105,11 @@ class IntegralFinder(object):
 	@staticmethod
 	def _init_segment(groups, variants):
 		from ..route.types import Segment
-		from ..project import library as libproject
 		v = dict(variants)
 		v['name'] = '{0}'
 
-		segments = (libproject.compose_integral_path(v, groups=groups))
+		# polynomial-1
+		segments = (compose_image_path(v, groups=groups))
 		final = segments[-1] + '.i'
 		del segments[-1]
 
@@ -175,6 +194,8 @@ class IntegralFinder(object):
 		# used to load either an extension module or a Python bytecode module.
 		"""
 
+		# Project Protocols aren't used as they may require recursive imports.
+
 		pd = self.find(name)
 		if pd is None:
 			return None
@@ -235,7 +256,7 @@ class IntegralFinder(object):
 
 			origin = str(pysrc)
 		else:
-			# Regular Python module
+			# Regular Python module or nothing.
 			idir = parent / self.integral_container_name
 			for x in self.suffixes:
 				pysrc = route.suffix_filename(x)
