@@ -286,7 +286,7 @@ class IntegralFinder(object):
 
 		return Class(g, bc, ext)
 
-def activate(intention='debug'):
+def activate(intention='debug', paths=None):
 	"""
 	# Install loaders for the (envvar)`FACTORPATH` products.
 	"""
@@ -295,7 +295,9 @@ def activate(intention='debug'):
 
 	sfif = IntegralFinder.create(intention)
 	Activated = sfif
-	paths = os.environ.get('FACTORPATH', '').split(':')
+	if paths is None:
+		paths = os.environ.get('FACTORPATH', '').split(':')
+
 	for x in paths:
 		if not x:
 			# Ignore empty fields.
