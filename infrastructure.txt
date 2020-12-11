@@ -3,13 +3,13 @@
 		&<http://if.fault.io/project/infrastructure>
 
 /python-extension/
-	- &<http://fault.io/proxy/python/extension>
-	- &<http://fault.io/proxy/python/c-interfaces>
+	- &<http://fault.io/integration/probes//python.extension>
+	- &<http://fault.io/integration/probes//python.c-interfaces>
 
 /project-c-interfaces/
 	- &.include
-	- &<http://fault.io/engineering/posix/include>
-	- &<http://fault.io/engineering/python/include>
+	- &<http://fault.io/integration/machine/include>
+	- &<http://fault.io/integration/python/include>
 
 /bsd/
 	Abstract symbol used to refer to BSD conventions and interfaces.
