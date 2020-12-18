@@ -633,6 +633,7 @@ set_timer(Interface kif, int recur, int note, unsigned long quantity, PyObj link
 	int nkevents = 0;
 	kevent_t kev;
 
+	/* Reference must be managed by caller. */
 	kev.ident = (uintptr_t) link;
 	kev.udata = link;
 
@@ -653,6 +654,11 @@ set_timer(Interface kif, int recur, int note, unsigned long quantity, PyObj link
 	{
 		if (!ki_check_kevent(&kev))
 			return(0);
+	}
+
+	if (PySet_Add(kif->kif_kset, link) < 0)
+	{
+		/* error */
 	}
 
 	return(1);
@@ -968,22 +974,25 @@ ki_wait(PyObj self, PyObj args)
 				switch (PySet_Contains(kif->kif_cancellations, link))
 				{
 					case 1:
+					{
 						if (PySet_Discard(kif->kif_kset, link) < 0)
 						{
-							/* error */
 							error = 1;
 						}
-						else if (PySet_Discard(kif->kif_cancellations, link) < 0)
+
+						if (PySet_Discard(kif->kif_cancellations, link) < 0)
 						{
-							/* error */
 							error = 1;
 						}
 
 						continue;
+					}
 					break;
+
 					case 0:
 						/* not cancelled */
 					break;
+
 					default:
 						/* -1 error */
 						error = 1;
