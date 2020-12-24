@@ -390,7 +390,7 @@ class Interruption(ControlException):
 		# if the noted signo is normally fatal, make it exit by signal.
 		if self.signo in fatal_signals:
 			# SIG_DFL causes process termination
-			kernel.exit_by_signal(self.signo)
+			kernel.signalexit(self.signo)
 
 		return super().raised() # Interruption
 
@@ -658,7 +658,7 @@ def control(main, *args, **kw):
 	"""
 	# A program that calls this is making an explicit declaration that signals should be
 	# defaulted and the main thread should be protected from uninterruptable calls to allow
-	# prompt process exits.
+	# prompt process exits while still performing critical state restoration.
 
 	# The given &main is executed with the given positionals &args and keywords &kw inside
 	# of a &Fork.trap call. &Fork handles formal exits and main-call substitution.
@@ -690,12 +690,13 @@ def control(main, *args, **kw):
 			raise
 		except:
 			# Exception caused exit.
-			kernel.exit_by_signal(signal.SIGUSR1)
-			raise
 
-		# Fork.trap() should not return.
-		kernel.exit_by_signal(signal.SIGUSR2)
-		raise Panic("system.process.Fork.trap did not raise Exit or Interruption")
+			kernel.signalexit(signal.SIGUSR1) # Communicate exception.
+			raise
+		else:
+			# Fork.trap() should not return.
+			kernel.signalexit(signal.SIGUSR2)
+			raise Panic("system.process.Fork.trap did not raise Exit or Interruption")
 
 @contextlib.contextmanager
 def timeout(duration=4, update=signal.alarm, signo=signal.SIGALRM):

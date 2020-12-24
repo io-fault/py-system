@@ -768,7 +768,7 @@ _exit_by_signal(void)
 	// Register low-level atexit handler for exiting via a signal.
 */
 static PyObj
-exit_by_signal(PyObj mod, PyObj ob)
+signalexit(PyObj mod, PyObj ob)
 {
 	long signo;
 	pid_t p;
@@ -911,9 +911,10 @@ initialize(PyObj mod, PyObj ctx)
 			"(system/manual)`setproctitle`. " \
 			"Does nothing if unsupported or unsafe.") \
 	PYMETHOD( \
-		exit_by_signal, exit_by_signal, METH_O, \
+		exit_by_signal, signalexit, METH_O, \
 			"Register an (system/manual)`atexit` handler that causes the " \
 			"process to exit with the given signal number.") \
+	PYMETHOD(signalexit, signalexit, METH_O, NULL) \
 	PYMETHOD( \
 		initialize, initialize, METH_O, \
 			"Initialize the after fork callbacks. " \
