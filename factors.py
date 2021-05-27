@@ -8,7 +8,6 @@
 import importlib.machinery
 
 from . import files
-from . import identity
 
 from ..project import root
 
@@ -226,18 +225,17 @@ class IntegralFinder(object):
 				if extfactor.fs_type() != 'void':
 					# .extension entry is present
 					leading, filename, fformat = self._ext
-					path = rroute//leading/fformat(final)
+					extpath = str(rroute//leading/fformat(final))
 
-					path = str(path)
-					l = self.ExtensionFileLoader(name, path)
-					spec = self.ModuleSpec(name, l, origin=path, is_package=False)
+					l = self.ExtensionFileLoader(name, extpath)
+					spec = self.ModuleSpec(name, l, origin=extpath, is_package=False)
 					return spec
 
 		if ftype == 'directory':
 			# Not an extension; path is selecting a directory.
 			pkg = True
 			pysrc = route / '__init__.py'
-			module__path__ = str(pysrc.container)
+			module__path__ = str(route)
 			final = '__init__'
 			idir = route / self.integral_container_name
 
@@ -247,12 +245,9 @@ class IntegralFinder(object):
 				if ctx.fs_type() == 'void':
 					return None
 
-				module__path__ = str(route)
 				pysrc = ctx/'root.py'
 				final = 'root'
 				idir = pysrc * self.integral_container_name
-			else:
-				module__path__ = str(pysrc.container)
 
 			origin = str(pysrc)
 		else:
@@ -269,6 +264,7 @@ class IntegralFinder(object):
 			module__path__ = str(pysrc.container)
 			origin = str(pysrc)
 
+		# Bytecode for {factor}/__init__.py or {factor}.py
 		leading, filename, fformat = self._pbc
 		cached = idir//leading/fformat(final)
 
@@ -282,24 +278,20 @@ class IntegralFinder(object):
 		return spec
 
 	@classmethod
-	def create(Class, intention, rxctx=None):
+	def create(Class, system, python, host, intention):
 		"""
 		# Construct a standard loader selecting integrals with the given &intention.
 		"""
 
-		if rxctx is None:
-			rxctx = identity.root_execution_context()
-		sys, arc = rxctx
-
 		bc = {
-			'system': sys,
-			'architecture': identity._python_architecture,
+			'system': system,
+			'architecture': python,
 			'intention': intention,
 		}
 
 		ext = {
-			'system': sys,
-			'architecture': arc,
+			'system': system,
+			'architecture': host,
 			'intention': intention,
 		}
 
@@ -307,24 +299,37 @@ class IntegralFinder(object):
 
 		return Class(g, bc, ext)
 
-def activate(intention='debug', paths=None):
+def setup(intention='optimal', paths=(), platform=None):
 	"""
-	# Install loaders for the (envvar)`FACTORPATH` products.
-	"""
-	global Activated
-	import os
+	# Create and install a configured &IntegralFinder.
 
-	sfif = IntegralFinder.create(intention)
-	Activated = sfif
-	if paths is None:
-		paths = os.environ.get('FACTORPATH', '').split(':')
+	# The new finder is assigned to &finder and its &root.Context to &context.
+	# This is considered process global data and &context the method that should
+	# be used to resolve factors that are intended for application support.
+
+	# If called multiple times, a new finder will be created and the assignments
+	# will be overwritten. However, the old finder will remain active.
+	"""
+	global finder, context
+	import os
+	import sys
+
+	if platform is None:
+		from . import identity
+		system, host = identity.root_execution_context()
+		python = identity._python_architecture
+	else:
+		system, python, host = platform
+
+	finder = IntegralFinder.create(system, python, host, intention)
+	context = finder.context
 
 	for x in paths:
 		if not x:
 			# Ignore empty fields.
 			continue
 		x = files.Path.from_absolute(x)
-		sfif.connect(x)
+		finder.connect(x)
 
-	import sys
-	sys.meta_path.insert(0, sfif)
+	sys.meta_path.insert(0, finder)
+	return finder
