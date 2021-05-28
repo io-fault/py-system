@@ -151,6 +151,7 @@ def finish(factors, finder, modules, Rename=(lambda x: x)):
 
 def integrate(faultpath, faultname, faultintention,
 		integrals, system, python, arch, intention,
+		*products,
 		modules=sys.modules
 	):
 	"""
@@ -163,5 +164,7 @@ def integrate(faultpath, faultname, faultintention,
 	*requirements, factors = install(modules, bytecode, faultpath, faultname)
 	finder = factors.setup(intention=intention, paths=[faultpath], platform=(system, python, arch))
 	finish(factors, finder, requirements)
+	for x in products:
+		finder.connect(factors.files.Path.from_absolute(x))
 
 	return factors
