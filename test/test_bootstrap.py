@@ -13,14 +13,14 @@ def test_import_constructions(test):
 	# Constraint and sanity checks.
 	root = 'F'
 	path = '/'
-	bytecode = (lambda d, module: 'bytecode:' + d + '/' + module + '.pbc')
+	bytecode = (lambda d, module: 'bytecode:' + d + '/' + module + '.pb')
 
 	package_record = bootstrap.package_import(bytecode, path, root, 'project')
 	test/package_record == (
 		'F.project',
 		'/F/project',
 		'/F/project/__init__.py',
-		'bytecode:/F/project/__init__.pbc',
+		'bytecode:/F/project/__init__.pb',
 	)
 
 	module_record = bootstrap.module_import(bytecode, path, root, 'project.factor')
@@ -28,7 +28,7 @@ def test_import_constructions(test):
 		'F.project.factor',
 		'F.project',
 		'/F/project/factor.py',
-		'bytecode:/F/project/factor.pbc',
+		'bytecode:/F/project/factor.pb',
 	)
 
 def test_load_code(test):
@@ -63,8 +63,12 @@ def test_integration(test):
 	# - &bootstrap.install
 	# - &bootstrap.finish
 	# - &bootstrap.integrate
+
+	# Test presumes the system project exists under a python/fault context.
 	"""
 	tmpdir = test.exits.enter_context(files.Path.fs_tmpdir())
+	p1 = (tmpdir/'product-1').fs_mkdir()
+	p2 = (tmpdir/'product-2').fs_mkdir()
 
 	rename = (lambda x: x.capitalize())
 	ctx, sysproject, *path = __name__.split('.')
@@ -80,6 +84,7 @@ def test_integration(test):
 	bfactors = bootstrap.integrate(
 		str(faultpath), ctx, 'optimal', '__f-int__',
 		sys, pyimp, host, 'optimal',
+		str(p1), str(p2)
 		modules=M
 	)
 	test/len(M) == (len(bootstrap.pkglist) + len(bootstrap.modlist) + 1)
