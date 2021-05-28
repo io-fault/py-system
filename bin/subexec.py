@@ -4,8 +4,11 @@
 import importlib
 from .. import process
 
-def add_module(root, param):
-	root['modules'].append(param)
+def add_control_factor(root, param):
+	root['control-factors'].append(param)
+
+def add_product_path(root, param):
+	root['product-paths'].append(param)
 
 def add_path(root, param):
 	root['paths'].append(param)
@@ -19,8 +22,9 @@ def remove_parameter(root, param):
 
 handlers = {
 	'-X': None,
-	'-l': add_module,
-	'-L': add_path,
+	'-l': add_control_factor,
+	'-L': add_product_path,
+	'-P': add_path,
 	'-D': define_parameter,
 	'-U': remove_parameter,
 }
@@ -30,7 +34,8 @@ def parse(arguments):
 	# Extract command line parameter options.
 	"""
 	config = {
-		'modules': [],
+		'control-factors': [],
+		'product-paths': [],
 		'paths': [],
 		'parameters': {},
 	}
@@ -47,25 +52,34 @@ def parse(arguments):
 
 	return i, config
 
-def apply(config):
+def apply(config, target, symbol):
 	import sys
 	try:
 		sys._xoptions.update(config.get('parameters', {}).items())
 	except:
 		pass
 
+	from .. import factors
+	from .. import files
 	sys.path.extend(config.get('paths', ()))
-	for x in map(importlib.import_module, config.get('modules', ())):
-		if hasattr(x, 'activate'):
-			x.activate()
 
-def script(args):
+	for product_path in config.get('product-paths', ()):
+		factors.finder.connect(file.Path.from_absolute(product_path))
+
+	execution = importlib.import_module(target)
+
+	for control in map(importlib.import_module, config.get('control-factors', ())):
+		control.activate(target, symbol)
+
+	return execution
+
+def script(inv):
 	import types
 	import sys
 	ctxmod = types.ModuleType('__main__')
 	ctxmod.__builtins__ = __builtins__
-	path = args[0]
-	sys.argv = args
+	path = inv.argv[0]
+	sys.argv = inv.argv
 
 	with open(path, 'r') as f:
 		src = f.read()
@@ -73,23 +87,23 @@ def script(args):
 
 	return exec(co, ctxmod.__dict__, ctxmod.__dict__)
 
-def string(args):
+def string(inv):
 	import types
 	ctxmod = types.ModuleType('__main__')
 	ctxmod.__builtins__ = __builtins__
 
-	for i, expr in zip(range(len(args)), args):
+	for i, expr in zip(range(len(inv.argv)), inv.argv):
 		co = compile(expr, '<string:%d>'%(i,), 'single')
 		eval(co, ctxmod.__dict__, ctxmod.__dict__)
 
 	return ctxmod
 
-def module(args):
+def module(inv):
 	# Should be consistent with -m
 	import sys
 	import runpy
-	sys.argv = args
-	runpy.run_module(args[0], run_name='__main__', alter_sys=True)
+	sys.argv = inv.argv
+	runpy.run_module(inv.argv[0], run_name='__main__', alter_sys=True)
 
 def console(args):
 	import sys
@@ -118,31 +132,21 @@ def console(args):
 
 def main(inv:process.Invocation) -> process.Exit:
 	count, config = parse(inv.args)
-	apply(config)
 
 	module_path = inv.args[count] # No module specified?
+	if module_path.startswith('.'):
+		symbol = module_path[1:]
+		module_path = __name__
+	else:
+		symbol = config.get('symbol', 'main')
+
+	module = apply(config, module_path, symbol)
+
 	del inv.args[0:count+1]
 	inv.parameters['system'].setdefault('environment', {})
 
-	if module_path.startswith('.'):
-		if module_path == '.script':
-			script(inv.args)
-		elif module_path == '.string':
-			string(inv.args)
-		elif module_path == '.module':
-			module(inv.args)
-		elif module_path == '.console':
-			console(inv.args)
-		else:
-			raise ModuleNotFoundError(module_path) # .* modules for builtin handlers.
-
-		# Arguably a questionable default, but likely consistent with bin/python.
-		raise SystemExit(0)
-	else:
-		sub = importlib.import_module(module_path)
-		process.Fork.substitute(sub.main, inv)
-
-		raise process.Panic("substitution failed to raised control exception")
+	process.Fork.substitute(getattr(module, symbol), inv)
+	raise process.Panic("substitution failed to raised control exception")
 
 if __name__ == '__main__':
 	process.control(main, process.Invocation.system())
