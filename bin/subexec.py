@@ -85,33 +85,40 @@ def script(inv):
 		src = f.read()
 		co = compile(src, path, 'exec')
 
-	return exec(co, ctxmod.__dict__, ctxmod.__dict__)
+	exec(co, ctxmod.__dict__, ctxmod.__dict__)
+	return inv.exit(0)
 
-def string(inv):
+def _alloc(init):
 	import types
 	ctxmod = types.ModuleType('__main__')
 	ctxmod.__builtins__ = __builtins__
 
-	for i, expr in zip(range(len(inv.argv)), inv.argv):
+	for i, expr in zip(range(len(init)), init):
 		co = compile(expr, '<string:%d>'%(i,), 'single')
 		eval(co, ctxmod.__dict__, ctxmod.__dict__)
 
 	return ctxmod
+
+def string(inv):
+	_alloc(inv.argv)
+	return inv.exit(0)
 
 def module(inv):
 	# Should be consistent with -m
 	import sys
 	import runpy
 	sys.argv = inv.argv
-	runpy.run_module(inv.argv[0], run_name='__main__', alter_sys=True)
 
-def console(args):
+	runpy.run_module(inv.argv[0], run_name='__main__', alter_sys=True)
+	return inv.exit(0)
+
+def console(inv):
 	import sys
 	import signal
 	import code
 
 	# Arguments played inline
-	ctxmod = string(args)
+	ctxmod = _alloc(inv.argv)
 
 	try:
 		import site
@@ -129,9 +136,10 @@ def console(args):
 	banner = '[%s via %s]' %(sys.executable, sys.argv[0])
 	ic = code.InteractiveConsole(ctxmod.__dict__)
 	ic.interact(banner, exitmsg="EOF")
+	return inv.exit(0)
 
 def main(inv:process.Invocation) -> process.Exit:
-	count, config = parse(inv.args)
+	count, config = parse(inv.argv)
 
 	module_path = inv.args[count] # No module specified?
 	if module_path.startswith('.'):
@@ -150,4 +158,3 @@ def main(inv:process.Invocation) -> process.Exit:
 
 if __name__ == '__main__':
 	process.control(main, process.Invocation.system())
-
