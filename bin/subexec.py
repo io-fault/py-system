@@ -141,7 +141,7 @@ def console(inv):
 def main(inv:process.Invocation) -> process.Exit:
 	count, config = parse(inv.argv)
 
-	module_path = inv.args[count] # No module specified?
+	module_path = inv.argv[count] # No module specified?
 	if module_path.startswith('.'):
 		symbol = module_path[1:]
 		module_path = __name__
@@ -150,7 +150,7 @@ def main(inv:process.Invocation) -> process.Exit:
 
 	module = apply(config, module_path, symbol)
 
-	del inv.args[0:count+1]
+	del inv.argv[0:count+1]
 	inv.parameters['system'].setdefault('environment', {})
 
 	process.Fork.substitute(getattr(module, symbol), inv)

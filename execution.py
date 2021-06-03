@@ -258,7 +258,7 @@ if hasattr(os, 'wait4'):
 else:
 	def waitrusage(receiver, pid:int, options, sysop=os.waitpid) -> typing.Tuple[int, int]:
 		"""
-		# &os.wait4 is not present on this system and &receiver will always be called
+		# &os.wait4 is not present on this system. &receiver will always be called
 		# with &None and the child will be reaped using &os.waitpid.
 
 		# Using, &functools.partial to provide a &receiver, this should be given

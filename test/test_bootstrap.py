@@ -84,7 +84,7 @@ def test_integration(test):
 	bfactors = bootstrap.integrate(
 		str(faultpath), ctx, 'optimal', '__f-int__',
 		sys, pyimp, host, 'optimal',
-		str(p1), str(p2)
+		str(p1), str(p2),
 		modules=M
 	)
 	test/len(M) == (len(bootstrap.pkglist) + len(bootstrap.modlist) + 1)
