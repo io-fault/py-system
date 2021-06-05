@@ -584,6 +584,140 @@ def serialize_sx_plan(triple, limit=8) -> str:
 			yield f
 			yield '\n'
 
+class Platform(object):
+	"""
+	# Logical platform structure for defining architecture specific execution.
+	"""
+
+	@staticmethod
+	def parse_architecture_list(pfa:str, rsep='\n', fsep=' '):
+		"""
+		# Produce the architectures and their synonyms from a string
+		# that uses newline separated records and space separated fields.
+		"""
+		for aspecs in pfa.split(rsep):
+			offset = aspecs.find(fsep)
+			if offset < 0:
+				aarch = aspecs
+				synonyms = []
+			else:
+				aarch = aspecs[:offset]
+				synonyms = list(aspecs[offset:].split(fsep))
+			# aset will only used if the type is specified as a parameter to dispatch.
+
+			if not aarch:
+				continue
+
+			yield aarch, synonyms
+
+	@staticmethod
+	def fs_load_system(path, encoding='utf-8'):
+		return (path/'system').fs_load().decode(encoding).strip()
+
+	@staticmethod
+	def fs_load_plans(source, names, encoding='utf-8'):
+		"""
+		# Read the plans identified by &names from the given directory, &source.
+		"""
+		for x in names:
+			yield parse_sx_plan((source/x).fs_load().decode(encoding))
+
+	@classmethod
+	def fs_load_sections(Class, path):
+		"""
+		# Interpret a stored platform emitting section records.
+		"""
+		a = (path/'architectures').fs_load().decode('utf-8')
+		archs = list(Class.parse_architecture_list(a))
+		plans = Class.fs_load_plans((path/'plans'), [x[0] for x in archs])
+		return ((x[0], x[1], y) for x, y in zip(archs, plans))
+
+	@classmethod
+	def from_directory(Class, path):
+		"""
+		# Create an instance from a platform directory.
+		"""
+		p = Class(Class.fs_load_system(path))
+		p.extend(Class.fs_load_sections(path))
+		return p
+
+	@classmethod
+	def from_system(Class, system, origins):
+		"""
+		# Compose an &execution.Platform from a sequence of paths given
+		# that they are extensions of &system.
+		"""
+
+		p = Class(system)
+		for path in origins:
+			pf_system = Class.fs_load_system(path)
+			if pf_system != system:
+				continue
+
+			p.extend(Class.fs_load_sections(path))
+
+		return p
+
+	def __init__(self, system:str):
+		self.system = system
+		self.architectures = []
+		self.synonyms = {}
+		self.plans = []
+		self._index = {}
+
+	def priority(self, architecture:str) -> int:
+		return self._index[architecture] + 1
+
+	def identify(self, architecture):
+		"""
+		# Select the canonical identifier for the given architecture.
+		"""
+		if architecture in self.synonyms:
+			return self.synonyms[architecture]
+		if architecture in self.architectures:
+			return architecture
+
+		raise LookupError("architecure not recognized by platform")
+
+	def extend(self, architectures:[(str, [str], object)]):
+		"""
+		# Define additional architectures extending the current set.
+		"""
+
+		offset = len(self.architectures)
+		i = 0
+
+		for aid, syns, plan in architectures:
+			self.architectures.append(aid)
+			self._index[aid] = i
+			self.synonyms.update((x, aid) for x in syns)
+			self.plans.append(plan)
+			i = i + 1
+
+		return self
+
+	def sections(self):
+		"""
+		# Iterate the platform's defined architectures with their synonyms and execution plans.
+		"""
+		for aid in self.architectures:
+			plan = self.plans[self._index[aid]]
+			syns = [x for (x, y) in self.synonyms.items() if y == aid]
+			yield aid, syns, plan
+
+	def prepare(self, architecture:str, identifier:str, argv):
+		"""
+		# Prepare the necessary information for dispatching an executable with the
+		# identified architecture on the host system.
+		"""
+		aidx = self._index[architecture]
+		env, exe_path, pargv = self.plans[aidx]
+
+		xargv = list(pargv)
+		xargv.append(identifier)
+		xargv.extend(argv)
+		return env, exe_path, xargv
+
 if __name__ == '__main__':
 	method, target, *args = sys.argv[1:]
 	print(root.prepare(method, target, args))

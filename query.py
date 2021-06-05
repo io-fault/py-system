@@ -100,3 +100,25 @@ def frequency() -> int:
 	"""
 	from . import kernel
 	return kernel.clockticks()
+
+def platform(system:str=None, environment:str='PLATFORM'):
+	"""
+	# Create an &.execution.Platform instance using the environment.
+	"""
+	from .execution import Platform
+
+	pfe = os.environ.get(environment, '').strip()
+	if pfe:
+		paths = [files.Path.from_absolute(x) for x in pfe.split(os.pathsep)]
+	else:
+		h = (home()/'.host')
+		if h.fs_type() == 'directory':
+			paths = [h]
+		else:
+			paths = []
+
+	if system is None:
+		from . import identity
+		system = identity.python_execution_context()[0]
+
+	return Platform.from_system(system, paths)
