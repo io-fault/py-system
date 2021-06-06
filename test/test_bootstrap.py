@@ -69,6 +69,11 @@ def test_integration(test):
 	tmpdir = test.exits.enter_context(files.Path.fs_tmpdir())
 	p1 = (tmpdir/'product-1').fs_mkdir()
 	p2 = (tmpdir/'product-2').fs_mkdir()
+	for x in [p1, p2]:
+		(x/'.product').fs_mkdir()
+		(x/'.product'/'PROJECTS').fs_store(b'')
+		(x/'.product'/'ROOTS').fs_store(b'')
+		(x/'.product'/'CONTEXTS').fs_store(b'')
 
 	rename = (lambda x: x.capitalize())
 	ctx, sysproject, *path = __name__.split('.')
