@@ -10,6 +10,12 @@ def add_control_factor(root, param):
 def add_product_path(root, param):
 	root['product-paths'].append(param)
 
+def connect_product_environ(root, param):
+	import os
+	pd_path = os.environ['PRODUCT']
+	root['product-paths'].insert(0, pd_path)
+	assert param == '' # -d does not take inline parameters
+
 def add_path(root, param):
 	root['paths'].append(param)
 
@@ -24,6 +30,7 @@ handlers = {
 	'-X': None,
 	'-l': add_control_factor,
 	'-L': add_product_path,
+	'-d': connect_product_environ,
 	'-P': add_path,
 	'-D': define_parameter,
 	'-U': remove_parameter,
@@ -46,7 +53,9 @@ def parse(arguments):
 		if flag not in handlers:
 			break
 		op = handlers[flag]
-		op(config, x[2:])
+
+		inline_p = x[2:]
+		op(config, inline_p)
 	else:
 		i += 1 # Trigger index error rather than import last option.
 
