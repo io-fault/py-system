@@ -12,7 +12,7 @@ def add_product_path(root, param):
 
 def connect_product_environ(root, param):
 	import os
-	pd_path = os.environ['PRODUCT']
+	pd_path = os.environ['F_PRODUCT']
 	root['product-paths'].insert(0, pd_path)
 	assert param == '' # -d does not take inline parameters
 
