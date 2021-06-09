@@ -1015,6 +1015,24 @@ class Path(Selector):
 
 		return self
 
+	def fs_alloc(self, mkdir=os.mkdir):
+		"""
+		# Create the leading path to identified file.
+		# Returns the instance, &self.
+		"""
+
+		routes = []
+		for p in ~(self ** 1):
+			if p.fs_type() != 'void':
+				break
+			routes.append(p)
+
+		# Create leading directories.
+		for x in reversed(routes):
+			mkdir(x.fullpath)
+
+		return self
+
 	def fs_mkdir(self, mkdir=os.mkdir, exists=os.path.exists):
 		"""
 		# Create a directory at the route.

@@ -810,3 +810,29 @@ def test_Path_snapshot_depth(test):
 	elements = td.fs_snapshot(depth=4)
 	sub = [x for x in elements if x[2]['identifier'] == 'nesting'][0][1]
 	test/len(sub[0][1][0][1][0][1]) == 0
+
+def test_Path_fs_alloc(test):
+	"""
+	# - &lib.Path.fs_alloc
+	"""
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	f = td + [str(i) for i in range(10)]
+
+	f.fs_alloc()
+	test/f.fs_type() == 'void'
+	test/f.container.fs_type() == 'directory'
+
+	# No effect. Cover case where leading path exists.
+	f.fs_alloc()
+	test/f.fs_type() == 'void'
+
+	# No effect. Cover case where final entry exists as a file.
+	f.fs_store(b'data')
+	f.fs_alloc()
+	test/f.fs_type() == 'data'
+
+	# No effect. Cover case where final entry exists as a directory.
+	f = f * 'a'
+	f.fs_mkdir()
+	f.fs_alloc()
+	test/f.fs_type() == 'directory'
