@@ -701,10 +701,10 @@ class Path(Selector):
 
 		# [ Parameters ]
 		# /process/
-			# Boolean callable allowing attribute transformation and determining
-			# whether or not an element should be included in the
+			# Boolean callable determining whether or not a file should be included in the
 			# resulting element tree.
-			# Defaults to a lambda excluding `'exception'` types.
+
+			# Defaults to a function excluding `'exception'` types.
 		# /depth/
 			# The maximum filesystem depth to descend from &self.
 			# If &None, no depth constraint is enforced.
@@ -853,8 +853,6 @@ class Path(Selector):
 	def fs_size(self, stat=os.stat) -> int:
 		"""
 		# Return the size of the file as depicted by &os.stat.
-
-		# The &os.stat function is used to get the information.
 		"""
 
 		return stat(self.fullpath, follow_symlinks=True).st_size
@@ -1105,7 +1103,7 @@ class Path(Selector):
 		# Context manager setting the &Path as the current working directory during the
 		# context. On exit, restore the current working directory and PWD environment.
 
-			#!/pl/python
+			#!syntax/python
 				root = files.Path.from_absolute('/')
 				with root.fs_chdir() as oldpwd:
 					assert str(root) == os.getcwd()
