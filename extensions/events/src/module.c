@@ -549,7 +549,7 @@ ki_track(PyObj self, PyObj args)
 	kev.filter = EVFILT_PROC;
 	kev.fflags = NOTE_EXIT;
 
-	if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 0, &ts))
+	if (!ki_kevent(kif, 1, &nkevents, &kev, 1, &kev, 1, &ts))
 	{
 		PyErr_SetFromErrno(PyExc_OSError);
 		return(NULL);
@@ -579,7 +579,7 @@ ki_untrack(PyObj self, PyObj args)
 	kev.udata = NULL;
 	kev.data = 0;
 	kev.ident = (uintptr_t) l;
-	kev.flags = EV_DELETE;
+	kev.flags = EV_DELETE|EV_RECEIPT;
 	kev.filter = EVFILT_PROC;
 	kev.fflags = NOTE_EXIT;
 
