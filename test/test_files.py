@@ -91,30 +91,6 @@ def test_Path_temporary(test):
 	# temporary context over, should not exist.
 	test/os.path.exists(path) == False
 
-def test_Path_old_tree(test):
-	"""
-	# Test &lib.Path.tree and &lib.Path.subnodes
-	"""
-
-	t = test.exits.enter_context(lib.Path.fs_tmpdir())
-	f = t / 'file'
-	f.fs_init()
-	test/f.subnodes() == ([],[]) # OSError
-	test/f.tree() == ([], []) # OSError
-
-	d = t / 'dir'
-	s = d / 'subdir'
-	l = s / 'file-in-subdir'
-	l.fs_init()
-
-	expect = ([d, s], [f, l])
-	queried = t.tree()
-	for x in (expect, queried):
-		x[0].sort()
-		x[1].sort()
-
-	test/queried == expect
-
 def test_Path_list(test):
 	"""
 	# - &lib.Path.fs_list

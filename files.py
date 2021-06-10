@@ -547,35 +547,6 @@ class Path(Selector):
 
 		yield r
 
-	def subnodes(self, listdir=os.listdir, isdir=os.path.isdir, join=os.path.join):
-		"""
-		# Return a pair of lists, the first being a list of Routes to
-		# directories in this Route and the second being a list of Routes to non-directories
-		# in this Route.
-
-		# If the Route does not point to a directory, a pair of empty lists will be returned.
-		"""
-
-		path = self.fullpath
-
-		try:
-			l = listdir(path)
-		except OSError:
-			# Error indifferent.
-			# User must make explicit checks to interrogate permission/existence.
-			return ([], [])
-
-		directories = []
-		files = []
-		for x in l:
-			sub = self/x
-			if isdir(join(path, x)):
-				directories.append(sub)
-			else:
-				files.append(sub)
-
-		return directories, files
-
 	def fs_iterfiles(self, type=None, scandir=os.scandir):
 		"""
 		# Generate &Path instances identifying the files held by the directory, &self.
@@ -607,32 +578,6 @@ class Path(Selector):
 					r = self/de.name
 					if type == r.fs_type():
 						yield r
-
-	def subdirectories(self):
-		return list(self.fs_iterfiles('directory'))
-	def files(self):
-		return list(self.fs_iterfiles('data'))
-
-	def tree(self, Queue=collections.deque):
-		"""
-		# Return a directory's full tree as a pair of lists of &Path
-		# instances referring to the contained directories and files.
-		"""
-		dirs, files = self.fs_list()
-		cseq = Queue(dirs)
-
-		while cseq:
-			dir = cseq.popleft()
-			sd, sf = dir.fs_list()
-
-			# extend output
-			dirs.extend(sd)
-			files.extend(sf)
-
-			# process subdirectories
-			cseq.extend(sd)
-
-		return dirs, files
 
 	def fs_list(self, type='data', scandir=os.scandir):
 		"""
