@@ -330,6 +330,9 @@ class Path(Selector):
 		"""
 		return Class.from_partitions(Class._partition_string(path))
 
+	def __fspath__(self):
+		return self.fullpath
+
 	def __matmul__(self, path:str):
 		parts = self._partition_string(path)
 		if path[:1] == "/":

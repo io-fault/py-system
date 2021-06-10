@@ -682,6 +682,15 @@ def test_Path_io(test):
 	with f.fs_open() as fp:
 		test/fp.read() == "overwritten"
 
+def test_Path_python_protocol(test):
+	"""
+	# - &lib.Path.__fspath__
+	"""
+	t = test.exits.enter_context(lib.Path.fs_tmpdir()) / 'data-file'
+	t.fs_store(b'file-content')
+	with open(t, 'rb') as f:
+		test/b'file-content' == f.read()
+
 def test_Path_snapshot_sanity(test):
 	"""
 	# - &lib.Path.fs_snapshot
