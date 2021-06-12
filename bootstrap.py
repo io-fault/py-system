@@ -145,9 +145,11 @@ def finish(factors, finder, modules, Rename=(lambda x: x)):
 	for module in modules:
 		module.__spec__ = finder.find_spec(Rename(module.__name__), None)
 		module.__loader__ = module.__spec__.loader
+		module.__file__ = module.__spec__.origin
 
 	factors.__spec__ = finder.find_spec(Rename(factors.__name__), None)
 	factors.__loader__ = factors.__spec__.loader
+	factors.__file__ = factors.__spec__.origin
 
 def integrate(faultpath, faultname, faultintention,
 		integrals, system, python, arch, intention,
