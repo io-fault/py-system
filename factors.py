@@ -1,15 +1,11 @@
 """
 # Module finder and loader for Factored Projects.
-
-# [ Engineering ]
-# Currently, the finder can load extensions, but it will not properly
-# modify paths in leading packages so that they can be found.
 """
 import importlib.machinery
 
 from . import files
 
-from ..project import root
+from ..project import system as lsf
 
 def compose_image_path(variants, default='void', groups=[["system", "architecture"], ["name"]]):
 	"""
@@ -85,7 +81,7 @@ class IntegralFinder(object):
 		"""
 		# Initialize a finder instance for use with the given variants.
 		"""
-		self.context = root.Context()
+		self.context = lsf.Context()
 		self.index = dict()
 		self.groups = groups
 		self.integral_container_name = integral_container_name

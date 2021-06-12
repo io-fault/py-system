@@ -30,7 +30,7 @@ modlist = [
 	'system.files',
 
 	'project.types',
-	'project.root',
+	'project.system',
 
 	# Rewrite the project.struct parsers to not depend on fault.text.
 	'text.types',
