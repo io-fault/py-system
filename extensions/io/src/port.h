@@ -39,16 +39,28 @@
 	#define AGAIN EAGAIN
 #endif
 
+#ifndef SIZE_T_MAX
+	#define SIZE_T_MAX SIZE_MAX
+#endif
+
+/* If linux, default to epoll. Otherwise, default to kqueue. */
 #if defined(__linux__)
+	#ifndef EVMECH_KQUEUE
+		#define EVMECH_EPOLL
+	#endif
+#else
+	#ifndef EVMECH_EPOLL
+		#define EVMECH_KQUEUE
+	#endif
+#endif
+
+#if defined(EVMECH_EPOLL)
 	/* epoll */
 	#include <sys/epoll.h>
 	#include <sys/eventfd.h>
-	#define EVMECH_EPOLL
 	typedef struct epoll_event kevent_t;
 #else
 	/* kqueue */
-	#define EVMECH_KQUEUE
-
 	#include <sys/event.h>
 	typedef struct kevent kevent_t; /* kernel event description */
 	#define KQ_FILTERS() \

@@ -1,7 +1,9 @@
 /**
 	// tty device interfaces
 */
-#include <sys/ttycom.h>
+#if !defined(__linux__)
+	#include <sys/ttycom.h>
+#endif
 #include <sys/ioctl.h>
 #include <unistd.h>
 #include <termios.h>

@@ -3654,8 +3654,8 @@ _array_terminate(Channel J)
 
 	#ifdef EVMECH_EPOLL
 	{
-		close(J->efd);
-		close(J->wfd);
+		close(((Array) J)->efd);
+		close(((Array) J)->wfd);
 	}
 	#endif
 
