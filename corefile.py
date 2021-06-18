@@ -8,7 +8,7 @@
 
 # [ Properties ]
 
-# /available
+# /available/
 	# Whether or not core-file controls is available.
 """
 import sys
@@ -68,30 +68,30 @@ def constraint(
 		rtype=resource.RLIMIT_CORE
 	):
 	"""
-	# Constrain core dumps during the execution of the context. Useful for managing tests that may dump core.
-	# Alternatively, &enabled and &disabled can be used as shorthands for clarity.
+	# Constrain core dumps during the execution of the context. Useful for managing tests that
+	# may dump core. Alternatively, &enabled and &disabled can be used as shorthands for clarity.
 
 	# ! WARNING:
 		# &constraint is *not* thread safe.
 		# Concurrent execution will render inconsistent effects on the limit.
 
-	# When executed on systems where &available is `False`, &constraint does nothing.
+	# When executed on systems where &available is &False, &constraint does nothing.
 
 	# Typical use:
 
-	#!/pl/python
+	#!syntax/python
 		with corefile.constraint(None):
 			...
 
 	# Core dumps can disabled by designating zero size:
 
-	#!/pl/python
+	#!syntax/python
 		with corefile.constraint(0):
 			...
 
 	# [ Parameters ]
 
-	# /image_size_limit
+	# /image_size_limit/
 		# The limit of the core file's size emitted by the system.
 		# A size of `0` will disable core files from being generated.
 	"""
