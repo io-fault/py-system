@@ -528,18 +528,18 @@ def parse_sx_plan(text) -> typing.Tuple[
 	parameters = []
 
 	for f in body:
-		if f[:1] == '|':
+		if f[:1] == ':':
 			parameters.extend(f[1:].split(' '))
-		elif f[:1] == ':':
+		elif f[:1] == '|':
 			parameters.append(f[1:])
 		elif f[:1] == '\\':
-			if ' ' in f:
+			try:
 				nlines, suffix = f.split(' ', 1)
-				nlines = nlines[1:]
-			else:
+				nlines = nlines[1:].strip() or '0'
+			except ValueError:
 				nlines = f[1:]
 				suffix = ''
-			parameters[-1] += (int(nlines) * '\n')
+			parameters[-1] += (int(nlines) * '\n') #* Invalid decimal after '\'?
 			parameters[-1] += suffix
 		else:
 			raise ValueError("unknown argument field qualifier")

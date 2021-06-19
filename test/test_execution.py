@@ -3,7 +3,7 @@ from .. import execution as module
 from .test_kernel import perform_cat
 
 def test_PInvocation(test):
-	data = b'data sent through a cat pipeline\n'
+	data = b"data sent through a cat pipeline\n"
 	for count in range(0, 16):
 		s = module.PInvocation.from_commands(
 			*([('/bin/cat', 'cat')] * count)
@@ -27,8 +27,8 @@ def test_parse_sx_plan_env(test):
 	sample = "" + \
 		"PATH=/reset\n" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n"
+		"\t|cat\n" + \
+		"\t|/file\n"
 
 	test/module.parse_sx_plan(sample) == ([('PATH', "/reset")], "/bin/cat", ["cat", "/file"])
 
@@ -40,8 +40,8 @@ def test_parse_sx_plan_multiple_env(test):
 		"PATH=/reset\n" + \
 		"OPTION=data\n" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n"
+		"\t|cat\n" + \
+		"\t|/file\n"
 
 	test/module.parse_sx_plan(sample) == ([('PATH', "/reset"), ('OPTION', "data")], "/bin/cat", ["cat", "/file"])
 
@@ -51,8 +51,8 @@ def test_parse_sx_plan_no_env(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n"
+		"\t|cat\n" + \
+		"\t|/file\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file"])
 
@@ -63,8 +63,8 @@ def test_parse_sx_plan_env_unset(test):
 	sample = "" + \
 		"VAR\n" \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n"
+		"\t|cat\n" + \
+		"\t|/file\n"
 
 	test/module.parse_sx_plan(sample) == ([('VAR', None)], "/bin/cat", ["cat", "/file"])
 
@@ -74,8 +74,8 @@ def test_parse_sx_plan_newlines(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n" + \
+		"\t|cat\n" + \
+		"\t|/file\n" + \
 		"\t\\1\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file\n"])
@@ -86,8 +86,8 @@ def test_parse_sx_plan_newlines_suffix(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n" + \
+		"\t|cat\n" + \
+		"\t|/file\n" + \
 		"\t\\1 suffix\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file\nsuffix"])
@@ -98,8 +98,8 @@ def test_parse_sx_plan_zero_newlines(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n" + \
+		"\t|cat\n" + \
+		"\t|/file\n" + \
 		"\t\\0 suffix\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/filesuffix"])
@@ -110,8 +110,8 @@ def test_parse_sx_plan_plural_newlines(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n" + \
+		"\t|cat\n" + \
+		"\t|/file\n" + \
 		"\t\\3 suffix\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file\n\n\nsuffix"])
@@ -122,8 +122,8 @@ def test_parse_sx_plan_no_op(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
-		"\t:/file\n" + \
+		"\t|cat\n" + \
+		"\t|/file\n" + \
 		"\t\\0\n" + \
 		"\t\\0\n"
 
@@ -135,7 +135,7 @@ def test_parse_sx_plan_unknown_qual(test):
 	"""
 	sample = "" + \
 		"/bin/cat\n" + \
-		"\t:cat\n" + \
+		"\t|cat\n" + \
 		"\t?/file\n"
 
 	test/ValueError ^ (lambda: module.parse_sx_plan(sample))
@@ -157,9 +157,9 @@ def test_serialize_sx_plan_escapes(test):
 	test/sxp.split('\n') == [
 		"ENV=env-string",
 		"/bin/cat",
-		"\t:-f",
-		"\t:FILE",
-		"\t:",
+		"\t|-f",
+		"\t|FILE",
+		"\t|",
 		"\t\\1 suffix",
 		"",
 	]
@@ -182,12 +182,40 @@ def test_serialize_sx_plan_none(test):
 		"ENV=env-string",
 		"ZERO",
 		"/bin/cat",
-		"\t:-f",
-		"\t:FILE",
-		"\t:",
+		"\t|-f",
+		"\t|FILE",
+		"\t|",
 		"\t\\1 suffix",
 		"",
 	]
+
+def test_sx_plan_space_separated_fields(test):
+	"""
+	# - &module.parse_sx_plan
+	"""
+	sample = (
+		[('ENV', 'env-string'), ('ZERO', None)],
+		'/bin/cat',
+		[
+			"-f", "FILE",
+			"-n", "NUMBER",
+			"captured spaces   ",
+			"-ab", "-cde" + "\nsuffix",
+		]
+	)
+
+	source = '\n'.join([
+		"ENV=env-string",
+		"ZERO",
+		"/bin/cat",
+		"\t: -f FILE -n NUMBER  ",
+		"\t|captured spaces   ",
+		"\t: -ab -cde",
+		"\t\\1 suffix",
+		"",
+	])
+
+	test/sample == module.parse_sx_plan(source)
 
 def test_Platform_init(test):
 	"""
