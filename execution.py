@@ -524,6 +524,8 @@ def parse_sx_plan(text) -> typing.Tuple[
 	"""
 	header, *body = text.strip().split('\n\t') # Env + Exe, Command Arguments.
 	*env, exe = header.split('\n') # Separate environment settings and executable.
+	if env and env[0][:2] == '#!':
+		del env[:1]
 
 	parameters = []
 
@@ -532,6 +534,8 @@ def parse_sx_plan(text) -> typing.Tuple[
 			parameters.extend(f[1:].split(' '))
 		elif f[:1] == '|':
 			parameters.append(f[1:])
+		elif f[:1] == '-':
+			parameters.append(exe)
 		elif f[:1] == '\\':
 			try:
 				nlines, suffix = f.split(' ', 1)
