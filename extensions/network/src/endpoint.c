@@ -896,6 +896,36 @@ endpoint_str(PyObj self)
 	return(rob);
 }
 
+static PyObj
+endpoint_repr(PyObj self)
+{
+	Endpoint E = (Endpoint) self;
+	char buf[PATH_MAX];
+	struct aport_t port;
+	PyObj rob;
+
+	get_address(Endpoint_GetAddress(E), buf, sizeof(buf));
+
+	port.kind = get_port(Endpoint_GetAddress(E), &port, sizeof(port));
+	switch (port.kind)
+	{
+		case aport_kind_numeric2:
+			rob = PyUnicode_FromFormat("(net.endpoint@'[%s]:%d')", buf, (int) port.data.numeric2);
+		break;
+
+		case aport_kind_filename:
+			rob = PyUnicode_FromFormat("(net.endpoint@'%s%s')", buf, port.data.filename);
+		break;
+
+		case aport_kind_none:
+		default:
+			rob = PyUnicode_FromFormat("(net.endpoint@%r)", buf);
+		break;
+	}
+
+	return(rob);
+}
+
 #define A(DOMAIN) \
 static PyObj \
 endpoint_new_internal_##DOMAIN(PyTypeObject *subtype, PyObj rep) \
@@ -1037,7 +1067,7 @@ EndpointType = {
 	NULL,                           /* tp_getattr */
 	NULL,                           /* tp_setattr */
 	NULL,                           /* tp_compare */
-	NULL,                           /* tp_repr */
+	endpoint_repr,                  /* tp_repr */
 	NULL,                           /* tp_as_number */
 	NULL,                           /* tp_as_sequence */
 	NULL,                           /* tp_as_mapping */
