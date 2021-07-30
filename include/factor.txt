@@ -3,4 +3,4 @@
 		&<http://if.fault.io/project/factor>
 
 /type/
-	`source-tree`
+	`http://if.fault.io/factors/lambda.sources`

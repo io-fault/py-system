@@ -3,7 +3,7 @@
 		&<http://if.fault.io/project/factor>
 
 /type/
-	`extension`
+	`http://if.fault.io/factors/system.extension`
 /symbols/
 	- `python-extension`
 	- `project-c-interfaces`
