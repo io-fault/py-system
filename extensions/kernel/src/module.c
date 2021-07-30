@@ -4,6 +4,7 @@
 #include <signal.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <sys/utsname.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
@@ -523,6 +524,36 @@ get_hostname(PyObj mod)
 }
 
 static PyObj
+get_uname(PyObj mod)
+{
+	PyObj rob;
+	struct utsname un;
+	int i;
+
+	if (uname(&un) != 0)
+	{
+		return(NULL);
+	}
+
+	i = 0;
+	while (un.sysname[i])
+	{
+		un.sysname[i] = tolower(un.sysname[i]);
+		++i;
+	}
+
+	i = 0;
+	while (un.machine[i])
+	{
+		un.machine[i] = tolower(un.machine[i]);
+		++i;
+	}
+
+	rob = Py_BuildValue("ss", un.sysname, un.machine);
+	return(rob);
+}
+
+static PyObj
 get_clock_ticks(PyObj mod)
 {
 	int r;
@@ -903,6 +934,9 @@ initialize(PyObj mod, PyObj ctx)
 		hostname, get_hostname, METH_NOARGS, \
 			"Retrieve the hostname of the system using gethostname(2).") \
 	PYMETHOD( \
+		machine_execution_context, get_uname, METH_NOARGS, \
+			"Retrieve the system and instruction architecture of the runtime using uname(2).") \
+	PYMETHOD( \
 		clockticks, get_clock_ticks, METH_NOARGS, \
 			"Retrieve the (system/manual)`sysconf` value of (id)`SC_CLK_TCK`.") \
 	PYMETHOD( \
@@ -942,9 +976,12 @@ INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
 		PYTHON_TYPES()
 	#undef ID
 
-	if (PyModule_AddStringConstant(module, "fci_architecture", F_TARGET_ARCHITECTURE_STR))
+	if (PyModule_AddStringConstant(module, "fv_architecture", FV_ARCHITECTURE_STR))
 		goto error;
-	if (PyModule_AddStringConstant(module, "fci_system", F_SYSTEM_STR))
+	if (PyModule_AddStringConstant(module, "fv_system", FV_SYSTEM_STR))
+		goto error;
+
+	if (PyModule_AddIntConstant(module, "machine_addressing", sizeof(void *) * 8))
 		goto error;
 
 	kp_api_ob = PyCapsule_New(&_kp_apis, "_kports_api", NULL);

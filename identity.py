@@ -10,11 +10,6 @@
 # overrides.
 """
 
-import typing
-
-# The inclusion of ABI flags may be inappropriate as the bytecode should not vary;
-# however, they are included to allow a developer to impose a variation for some
-# experimental purposes.
 import sys
 _python_architecture = sys.implementation.name + ''.join(map(str, sys.version_info[:2]))
 _python_architecture = _python_architecture.replace('-', '')
@@ -45,9 +40,9 @@ def _cache(uname_system='-s', uname_machine='-m'):
 	from . import kernel # _uname depends on it as well
 
 	if sys is None:
-		sys = getattr(kernel, 'fci_system', None) or _uname(uname_system).lower()
+		sys = getattr(kernel, 'fv_system', None) or _uname(uname_system).lower()
 	if arc is None:
-		arc = getattr(kernel, 'fci_architecture', None) or _uname(uname_machine).lower()
+		arc = getattr(kernel, 'fv_architecture', None) or _uname(uname_machine).lower()
 
 	_system = sys
 	_machine = arc
@@ -55,7 +50,7 @@ def _cache(uname_system='-s', uname_machine='-m'):
 
 	return _re_pair
 
-def root_execution_context() -> typing.Tuple[str,str]:
+def root_execution_context():
 	"""
 	# Return the (operating system, architecture) pair identifying the Root Execution Context.
 	"""
@@ -64,12 +59,9 @@ def root_execution_context() -> typing.Tuple[str,str]:
 	except NameError:
 		return _cache()
 
-def python_execution_context() -> typing.Tuple[str,str]:
+def python_execution_context():
 	"""
 	# Return the Python execution Context identification.
 	# Used to select marshalled code objects(bytecode).
 	"""
-	s, m = root_execution_context()
-	return s, _python_architecture
-
-del typing
+	return root_execution_context()[0], _python_architecture
