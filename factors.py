@@ -27,7 +27,7 @@ def compose_image_path(variants, default='void', groups=[["system", "architectur
 
 class IntegralFinder(object):
 	"""
-	# Select an integral based on the configured variants querying the connected factor paths.
+	# Select an image based on the configured variants querying the connected factor paths.
 	"""
 
 	suffixes = ['.py']
@@ -36,7 +36,7 @@ class IntegralFinder(object):
 
 	class Loader(importlib.machinery.SourceFileLoader):
 		"""
-		# Loader for compiled Python integrals. Compiled modules are not checked
+		# Loader for compiled Python factors. Compiled modules are not checked
 		# against the source unlike Python's builtin loader.
 		"""
 		_compile = staticmethod(importlib._bootstrap_external._compile_bytecode)
@@ -70,13 +70,14 @@ class IntegralFinder(object):
 			return self._compile(bc, fullname, self._bytecode, source_path=self._source)
 
 		def set_data(self, *args, **kw):
-			raise NotImplementedError("integral modules may not be directly updated using the loader")
+			raise NotImplementedError("factor modules may not be directly updated using the loader")
 
 	def __init__(self,
 			groups,
 			python_bytecode_variants,
 			extension_variants,
-			integral_container_name='__f-int__'
+			intention='optimal',
+			image_container_name='__f-int__'
 		):
 		"""
 		# Initialize a finder instance for use with the given variants.
@@ -84,7 +85,8 @@ class IntegralFinder(object):
 		self.context = lsf.Context()
 		self.index = dict()
 		self.groups = groups
-		self.integral_container_name = integral_container_name
+		self.intention = intention
+		self.image_container_name = image_container_name
 
 		self.python_bytecode_variants = python_bytecode_variants
 		self.extension_variants = extension_variants
@@ -102,6 +104,7 @@ class IntegralFinder(object):
 		from ..route.types import Segment
 		v = dict(variants)
 		v['name'] = '{0}'
+		v['intention'] = '{1}'
 
 		# polynomial-1
 		segments = (compose_image_path(v, groups=groups))
@@ -185,7 +188,7 @@ class IntegralFinder(object):
 	def find_spec(self, name, path, target=None):
 		"""
 		# Using the &index, check for the presence of &name's initial package.
-		# If found, the integrals contained by the connected directory will be
+		# If found, the images contained by the connected directory will be
 		# used to load either an extension module or a Python bytecode module.
 		"""
 
@@ -214,14 +217,14 @@ class IntegralFinder(object):
 			else:
 				xpath = route.segment(cur)
 				exts = cur/'extensions'
-				ints = parent/self.integral_container_name
+				ints = parent/self.image_container_name
 				rroute = exts//ints.segment(cur)
 				extfactor = exts//xpath
 
 				if extfactor.fs_type() != 'void':
 					# .extension entry is present
 					leading, filename, fformat = self._ext
-					extpath = str(rroute//leading/fformat(final))
+					extpath = str(rroute//leading/fformat(final, self.intention))
 
 					l = self.ExtensionFileLoader(name, extpath)
 					spec = self.ModuleSpec(name, l, origin=extpath, is_package=False)
@@ -233,7 +236,7 @@ class IntegralFinder(object):
 			pysrc = route / '__init__.py'
 			module__path__ = str(route)
 			final = '__init__'
-			idir = route / self.integral_container_name
+			idir = route / self.image_container_name
 
 			if pysrc.fs_type() == 'void':
 				# Handle context enclosure case.
@@ -243,12 +246,12 @@ class IntegralFinder(object):
 
 				pysrc = ctx/'root.py'
 				final = 'root'
-				idir = pysrc * self.integral_container_name
+				idir = pysrc * self.image_container_name
 
 			origin = str(pysrc)
 		else:
 			# Regular Python module or nothing.
-			idir = parent / self.integral_container_name
+			idir = parent / self.image_container_name
 			for x in self.suffixes:
 				pysrc = route.suffix_filename(x)
 				if pysrc.fs_type() == 'data':
@@ -262,7 +265,7 @@ class IntegralFinder(object):
 
 		# Bytecode for {factor}/__init__.py or {factor}.py
 		leading, filename, fformat = self._pbc
-		cached = idir//leading/fformat(final)
+		cached = idir//leading/fformat(final, self.intention)
 
 		l = self.Loader(str(cached), name, str(pysrc))
 		spec = self.ModuleSpec(name, l, origin=origin, is_package=pkg)
@@ -276,30 +279,28 @@ class IntegralFinder(object):
 	@classmethod
 	def create(Class, system, python, host, intention):
 		"""
-		# Construct a standard loader selecting integrals with the given &intention.
+		# Construct a standard loader selecting images with the given &intention.
 		"""
 
 		bc = {
 			'system': system,
 			'architecture': python,
-			'intention': intention,
 		}
 
 		ext = {
 			'system': system,
 			'architecture': host,
-			'intention': intention,
 		}
 
 		g = [['system','architecture'],['name','intention']]
 
-		return Class(g, bc, ext)
+		return Class(g, bc, ext, intention=intention)
 
 def setup(intention='optimal', paths=(), platform=None):
 	"""
 	# Create and install a configured &IntegralFinder.
 
-	# The new finder is assigned to &finder and its &root.Context to &context.
+	# The new finder is assigned to &finder and its &lsf.Context to &context.
 	# This is considered process global data and &context the method that should
 	# be used to resolve factors that are intended for application support.
 
@@ -307,7 +308,6 @@ def setup(intention='optimal', paths=(), platform=None):
 	# will be overwritten. However, the old finder will remain active.
 	"""
 	global finder, context
-	import os
 	import sys
 
 	if platform is None:
