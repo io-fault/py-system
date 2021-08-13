@@ -574,7 +574,7 @@ def serialize_sx_plan(triple, limit=8) -> str:
 	for f in args:
 		if '\n' in f:
 			fs = list(string.varsplit('\n', f))
-			yield '\t:'
+			yield '\t|'
 			yield fs[0]
 			yield '\n'
 
@@ -584,7 +584,7 @@ def serialize_sx_plan(triple, limit=8) -> str:
 					yield ' '+suffix
 				yield '\n'
 		else:
-			yield '\t:'
+			yield '\t|'
 			yield f
 			yield '\n'
 
