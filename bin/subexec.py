@@ -97,6 +97,36 @@ def script(inv):
 	exec(co, ctxmod.__dict__, ctxmod.__dict__)
 	return inv.exit(0)
 
+def system(inv):
+	"""
+	# Execute a system image using the system-architecture configured by &..factors.
+	"""
+	if inv.argv[0] == '-N':
+		exename = inv.argv[1]
+		name = inv.argv[2]
+		xargv = inv.argv[2:]
+	else:
+		exename = None
+		name = inv.argv[0]
+		xargv = inv.argv
+
+	import os
+	from .. import factors
+	fp = factors.lsf.types.factor@xargv[0]
+	sa = factors.finder.extension_variants
+	v = factors.lsf.types.Variants(
+		system=sa['system'],
+		architecture=sa['architecture'],
+		intention='optimal',
+	)
+	factors.context.load()
+	factors.context.configure()
+	exe = factors.context.image(v, fp)
+	xargv[0] = exename or str(exe)
+
+	os.execv(exe, xargv)
+	assert False # Interpretation after execv?
+
 def _alloc(init):
 	import types
 	ctxmod = types.ModuleType('__main__')
