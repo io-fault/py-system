@@ -590,7 +590,7 @@ def serialize_sx_plan(triple, limit=8) -> str:
 
 class Platform(object):
 	"""
-	# Logical platform structure for defining architecture specific execution.
+	# Factor Execution Platform structure for defining architecture specific runtimes.
 	"""
 
 	@staticmethod
