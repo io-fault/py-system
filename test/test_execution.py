@@ -76,7 +76,7 @@ def test_parse_sx_plan_newlines(test):
 		"/bin/cat\n" + \
 		"\t|cat\n" + \
 		"\t|/file\n" + \
-		"\t\\1\n"
+		"\t\\n\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file\n"])
 
@@ -88,7 +88,7 @@ def test_parse_sx_plan_newlines_suffix(test):
 		"/bin/cat\n" + \
 		"\t|cat\n" + \
 		"\t|/file\n" + \
-		"\t\\1 suffix\n"
+		"\t\\n suffix\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file\nsuffix"])
 
@@ -100,7 +100,7 @@ def test_parse_sx_plan_zero_newlines(test):
 		"/bin/cat\n" + \
 		"\t|cat\n" + \
 		"\t|/file\n" + \
-		"\t\\0 suffix\n"
+		"\t\\ suffix\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/filesuffix"])
 
@@ -112,7 +112,7 @@ def test_parse_sx_plan_plural_newlines(test):
 		"/bin/cat\n" + \
 		"\t|cat\n" + \
 		"\t|/file\n" + \
-		"\t\\3 suffix\n"
+		"\t\\nnn suffix\n"
 
 	test/module.parse_sx_plan(sample) == ([], "/bin/cat", ["cat", "/file\n\n\nsuffix"])
 
@@ -148,6 +148,7 @@ def test_serialize_sx_plan_escapes(test):
 		[('ENV', 'env-string')],
 		'/bin/cat',
 		[
+			"cat",
 			"-f", "FILE",
 			"\nsuffix",
 		]
@@ -157,10 +158,10 @@ def test_serialize_sx_plan_escapes(test):
 	test/sxp.split('\n') == [
 		"ENV=env-string",
 		"/bin/cat",
-		"\t|-f",
-		"\t|FILE",
+		"\t|cat",
+		"\t:-f FILE",
 		"\t|",
-		"\t\\1 suffix",
+		"\t\\n suffix",
 		"",
 	]
 
@@ -172,6 +173,7 @@ def test_serialize_sx_plan_none(test):
 		[('ENV', 'env-string'), ('ZERO', None)],
 		'/bin/cat',
 		[
+			"/bin/cat",
 			"-f", "FILE",
 			"\nsuffix",
 		]
@@ -182,10 +184,10 @@ def test_serialize_sx_plan_none(test):
 		"ENV=env-string",
 		"ZERO",
 		"/bin/cat",
-		"\t|-f",
-		"\t|FILE",
+		"\t-",
+		"\t:-f FILE",
 		"\t|",
-		"\t\\1 suffix",
+		"\t\\n suffix",
 		"",
 	]
 
@@ -197,6 +199,7 @@ def test_sx_plan_space_separated_fields(test):
 		[('ENV', 'env-string'), ('ZERO', None)],
 		'/bin/cat',
 		[
+			"/bin/cat",
 			"-f", "FILE",
 			"-n", "NUMBER",
 			"captured spaces   ",
@@ -208,10 +211,11 @@ def test_sx_plan_space_separated_fields(test):
 		"ENV=env-string",
 		"ZERO",
 		"/bin/cat",
-		"\t: -f FILE -n NUMBER  ",
+		"\t-",
+		"\t:-f FILE -n NUMBER  ",
 		"\t|captured spaces   ",
-		"\t: -ab -cde",
-		"\t\\1 suffix",
+		"\t:-ab -cde",
+		"\t\\n suffix",
 		"",
 	])
 
@@ -318,5 +322,5 @@ def test_Platform_from_system(test):
 	test/2 == len(spf.architectures)
 
 if __name__ == '__main__':
-	import sys; from ...test import library as libtest
+	import sys; from ...test import engine as libtest
 	libtest.execute(sys.modules[__name__])

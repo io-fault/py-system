@@ -531,7 +531,7 @@ def parse_sx_plan(text) -> typing.Tuple[
 
 	for f in body:
 		if f[:1] == ':':
-			parameters.extend(f[1:].split(' '))
+			parameters.extend(f[1:].strip().split(' '))
 		elif f[:1] == '|':
 			parameters.append(f[1:])
 		elif f[:1] == '-':
@@ -539,24 +539,24 @@ def parse_sx_plan(text) -> typing.Tuple[
 		elif f[:1] == '\\':
 			try:
 				nlines, suffix = f.split(' ', 1)
-				nlines = nlines[1:].strip() or '0'
+				nlines = nlines[1:].strip()
 			except ValueError:
 				nlines = f[1:]
 				suffix = ''
-			parameters[-1] += (int(nlines) * '\n') #* Invalid decimal after '\'?
+			parameters[-1] += (nlines.count('n') * '\n')
 			parameters[-1] += suffix
 		else:
 			raise ValueError("unknown argument field qualifier")
 
 	return ([tuple(x.split('=', 1)+[None])[:2] for x in env], exe, parameters)
 
-def serialize_sx_plan(triple, limit=8) -> str:
+def serialize_sx_plan(triple, limit=8, inline=16) -> str:
 	"""
 	# Serialize the environment, execution path, and command arguments into a string.
 	"""
 
-	from ..context import string
-	env, exe, args = triple
+	from ..context.string import varsplit
+	env, exe, argv = triple
 
 	out = ""
 	for env, val in env:
@@ -571,21 +571,57 @@ def serialize_sx_plan(triple, limit=8) -> str:
 	yield exe
 	yield '\n'
 
-	for f in args:
+	if argv and argv[0] == exe:
+		yield '\t-\n'
+		ai = iter(argv)
+		next(ai)
+	else:
+		ai = iter(argv)
+		if argv and '\n' not in argv[0]:
+			f = next(ai)
+			yield '\t|'
+			yield f
+			yield '\n'
+
+	iargs = []
+	for f in ai:
+		if len(iargs) >= limit:
+			# Emit due to limit.
+			yield '\t:'
+			yield ' '.join(iargs)
+			yield '\n'
+			del iargs[:]
+
+		if len(f) < inline and not set(f).intersection({' ', '\n'}):
+			# Buffer the inline space-less argument.
+			iargs.append(f)
+			continue
+		elif iargs:
+			# Emit due to current field not being inlined.
+			yield '\t:'
+			yield ' '.join(iargs)
+			yield '\n'
+			del iargs[:]
+
 		if '\n' in f:
-			fs = list(string.varsplit('\n', f))
+			fs = list(varsplit('\n', f))
 			yield '\t|'
 			yield fs[0]
 			yield '\n'
 
 			for count, suffix in zip(fs[1::2], fs[2::2]):
-				yield '\t\\'+str(count)
+				yield '\t\\' + (count * 'n')
 				if suffix:
 					yield ' '+suffix
 				yield '\n'
 		else:
 			yield '\t|'
 			yield f
+			yield '\n'
+	else:
+		if iargs:
+			yield '\t:'
+			yield ' '.join(iargs)
 			yield '\n'
 
 class Platform(object):
