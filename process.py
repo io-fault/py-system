@@ -1,17 +1,5 @@
 """
-# Main thread protection, thread primitives, and system process invocation interfaces.
-
-# &.process provides access to functionality for managing a process invoked by the system, and the
-# invocation of other system processes and forks. File system interfaces are primarily implemented
-# by &.files.Path, but are explicitly blocking.
-
-# In order to eliminate a potential point of confusion:
-# &Invocation, notably with no prefix character classifying its purpose, describes the invocation
-# of the *executed* process being ran. This is semantically distinct from &.execution.KInvocation and
-# &.execution.PInvocation which describe the parameters to the execution of *another* process.
-
-#!/pl/python
-	from fault.system import process
+# Process invocation and management interfaces.
 
 # [ Elements ]
 
