@@ -457,6 +457,26 @@ def test_Path_construct(test):
 	test/str(lib.Path.from_path('file')) == os.getcwd() + '/file'
 	test/str(lib.Path.from_path('/file')) == '/file'
 
+def test_Path_relative_resolution(test):
+	"""
+	# - &lib.Path.__pos__
+	"""
+
+	# Constrainted at root.
+	outside = (lib.root@"././..")
+	test/str(outside) != str(lib.root)
+	test/str(+outside) == str(lib.root)
+
+	# Parent with superfluous trailing slash.
+	leading = (lib.root@"path/to/leading/./trimmed/../")
+	test/leading != lib.root@"path/to/leading"
+	test/(+leading) == lib.root@"path/to/leading"
+
+	# Self references only.
+	selves = (lib.root@"path/././././")
+	test/selves != lib.root@"path"
+	test/(+selves) == lib.root@"path"
+
 def test_Path_basename_manipulations(test):
 	"""
 	# - &lib.Path.prefix_filename

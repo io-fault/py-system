@@ -463,6 +463,22 @@ class Path(Selector):
 		return self * (prefix_string + self.identifier)
 	prefix = prefix_filename
 
+	def __pos__(self, /, _chain=itertools.chain):
+		context = self.context.absolute if self.context else []
+		points = self.points
+
+		# Resolve /./ and /../
+		rpoints = self._relative_resolution(_chain(context, points))
+
+		# Maintain context if possible.
+		if context == rpoints[:len(context)]:
+			ctx = self.context or root
+			rpoints = rpoints[len(context):]
+		else:
+			ctx = root
+
+		return self.__class__(ctx, tuple(rpoints))
+
 	def fs_status(self, stat=os.stat) -> Status:
 		"""
 		# Construct a &Status instance using a system status record.
