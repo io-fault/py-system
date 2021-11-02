@@ -101,7 +101,7 @@ def frequency() -> int:
 	from . import kernel
 	return kernel.clockticks()
 
-def platform(system:str=None, environment:str='PLATFORM'):
+def platform(system:str=None, environment:str='F_EXECUTION'):
 	"""
 	# Create an &.execution.Platform instance using the environment.
 	"""
