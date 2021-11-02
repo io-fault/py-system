@@ -1,6 +1,8 @@
 """
 # Filesystem interfaces and data structures.
 
+# Current working directory related interfaces are provided in &.process.
+
 # [ Elements ]
 # /root/
 	# The &Path to the root directory of the operating system.
@@ -1044,41 +1046,6 @@ class Path(Selector):
 		"""
 		with self.fs_open(mode) as f:
 			return f.write(data)
-
-	@contextlib.contextmanager
-	def fs_chdir(self, chdir=os.chdir, getcwd=os.getcwd):
-		"""
-		# Context manager setting the &Path as the current working directory during the
-		# context. On exit, restore the current working directory and PWD environment.
-
-			#!syntax/python
-				root = files.Path.from_absolute('/')
-				with root.fs_chdir() as oldpwd:
-					assert str(root) == os.getcwd()
-
-				# # Restored at exit.
-				assert str(oldcwd) == os.getcwd()
-
-		# The old current working directory is yielded as a &Path instance.
-		"""
-
-		# RLock may be appropriate here.
-
-		cwd = getcwd()
-		oldpwd = os.environ.get('PWD')
-
-		try:
-			if oldpwd is not None:
-				os.environ['OLDPWD'] = oldpwd
-
-			os.environ['PWD'] = self.fullpath
-			chdir(self.fullpath)
-			yield self.from_absolute(oldpwd or cwd)
-		finally:
-			chdir(cwd)
-			if oldpwd is not None:
-				os.environ['PWD'] = oldpwd
-				os.environ['OLDPWD'] = self.fullpath
 
 root = Path(None, ())
 

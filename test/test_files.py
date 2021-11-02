@@ -257,14 +257,6 @@ def test_Path_replace(test):
 	with file.fs_open('rb') as f:
 		test/f.read() == b'subdir_sources'
 
-def test_Path_chdir(test):
-	t = test.exits.enter_context(lib.Path.fs_tmpdir())
-	test/os.getcwd() != str(os.path.realpath(str(t)))
-
-	with t.fs_chdir():
-		test/os.getcwd() == str(os.path.realpath(str(t)))
-		test/str(lib.Path.from_cwd()) == os.path.realpath(str(t))
-
 def test_Path_init(test):
 	"""
 	# Test &lib.Path.fs_init checking that the parent directories are
