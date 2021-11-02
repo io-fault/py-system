@@ -343,17 +343,6 @@ class Path(Selector):
 			return self // Segment.from_partitions(parts)
 
 	@classmethod
-	def from_cwd(Class, *points:str, getcwd=os.getcwd):
-		"""
-		# Return a new Route to the current working directory.
-
-		# The returned Route's `context` is the current working directory path,
-		# and the &points as the sequence of following identifiers.
-		"""
-
-		return Class(Class.from_absolute(getcwd()), points)
-
-	@classmethod
 	@contextlib.contextmanager
 	def fs_tmpdir(Class, TemporaryDirectory=tempfile.mkdtemp):
 		"""
