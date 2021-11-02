@@ -332,9 +332,6 @@ class Path(Selector):
 		"""
 		return Class.from_partitions(Class._partition_string(path))
 
-	def __fspath__(self):
-		return self.fullpath
-
 	def __matmul__(self, path:str):
 		parts = self._partition_string(path)
 		if path[:1] == "/":
@@ -1053,9 +1050,3 @@ class Path(Selector):
 			return f.write(data)
 
 root = Path(None, ())
-
-def pwd() -> Path:
-	"""
-	# Construct a &Path selecting $PWD.
-	"""
-	return Path.from_absolute(os.environ['PWD'])
