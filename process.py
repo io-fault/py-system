@@ -24,6 +24,7 @@ import builtins
 from . import kernel
 from . import runtime
 from . import thread
+from . import files
 
 # Lock held when &control is managing the main thread.
 __control_lock__ = thread.amutex()
@@ -762,3 +763,30 @@ def concurrently(controller:typing.Callable, exe=Fork.dispatch, waitpid=os.waitp
 		return result
 
 	return pid, read_child_result
+
+def fs_pwd() -> files.Path:
+	"""
+	# Construct a &files.Path instance referring to (system/environ)`PWD` or
+	# the current working directory if the environment variable is not defined
+	# or it is an empty string.
+
+	# The returned path is not maintained within any cache so repeat calls
+	# will create a new instance.
+	"""
+	return files.Path.from_absolute(os.environ.get('PWD') or os.getcwd())
+
+def fs_chdir(directory) -> files.Path:
+	"""
+	# Update (system/environ)`PWD` and the current working directory.
+
+	# The current working directory is set prior to the environment being updated.
+	# Exceptions should not require (system/environ)`PWD` to be reset by the caller.
+
+	# [ Returns ]
+	# The given &directory for chaining if it is a &files.Path instance.
+	# Otherwise, the result of &fs_pwd is returned.
+	"""
+	path = str(directory)
+	os.chdir(path)
+	os.environ['PWD'] = path
+	return directory if isinstance(directory, files.Path) else fs_pwd()

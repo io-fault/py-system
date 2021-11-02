@@ -107,6 +107,46 @@ def test_Invocation_imports(test):
 
 	test/si.environ['_test-environ-4'] == 'AAA' # local override inhibits import
 
+def test_fs_pwd_no_environ(test):
+	"""
+	# - &.module.fs_pwd
+
+	# Path instantiation should be successful in the case that PWD is not present.
+	"""
+	env = os.environ.pop('PWD')
+	first = module.fs_pwd()
+	test.isinstance(first, module.files.Path)
+
+	os.environ['PWD'] = ''
+	second = module.fs_pwd()
+	test.isinstance(second, module.files.Path)
+
+	test/first == second
+
+def test_fs_pwd_environ_priority(test):
+	"""
+	# - &.module.fs_pwd
+
+	# Environment variable is given priority over os.getcwd.
+	"""
+	os.environ['PWD'] = '/dev/null'
+	pwd = module.fs_pwd()
+	test/str(pwd) == '/dev/null'
+
+def test_fs_chdir(test):
+	"""
+	# - &.module.fs_chdir
+
+	# Validate fs_chdir's side effects.
+	"""
+	pwd = module.fs_chdir('/')
+	test/os.environ['PWD'] == '/'
+	test/os.getcwd() == '/'
+	test.isinstance(pwd, module.files.Path)
+
+	# Validate consistent identity.
+	test/id(module.fs_chdir(module.files.root)) == id(module.files.root)
+
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
 	libtest.execute(sys.modules[__name__])
