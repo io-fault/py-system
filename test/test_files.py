@@ -308,9 +308,11 @@ def test_Path_type_void(test):
 
 	v1 = d / 'subdirectory'
 	test/v1.fs_type() == 'void'
+	nosub = d@'fnf/no-such-file'
+	test/nosub.fs_type() == 'void'
 
 	v2 = f / 'erroneous-subfile'
-	test/v2.fs_type() == 'void'
+	test/NotADirectoryError ^ v2.fs_type
 
 	v3 = l
 	test/v3.fs_type() == 'void'

@@ -495,12 +495,12 @@ class Path(Selector):
 		# - `'device'`
 		# - `'void'`
 
-		# If no file is present at the route or a broken link is present, `'void'` will be returned.
+		# If no file is present at the path or a broken link is present, `'void'` will be returned.
 		"""
 
 		try:
 			s = stat(self.fullpath)
-		except (FileNotFoundError, NotADirectoryError):
+		except FileNotFoundError:
 			return 'void'
 
 		return type_map.get(ifmt(s.st_mode), 'unknown')
