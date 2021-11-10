@@ -197,7 +197,7 @@ class Status(tuple):
 
 	@property
 	def setuid(self):
-		return (self.system.st_mode & S_ISUID)
+		return (self.system.st_mode & stat.S_ISUID)
 
 	@property
 	def setgid(self):
