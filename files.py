@@ -6,6 +6,9 @@
 # [ Elements ]
 # /root/
 	# The &Path to the root directory of the operating system.
+# /type_codes/
+	# Single character representations for file types.
+	# Primarily used by &Path.fs_require.
 """
 import os
 import os.path
@@ -24,38 +27,73 @@ import tempfile
 from ..context.tools import cachedcalls
 from ..route.types import Selector, Segment
 
-class Void(Exception):
+type_codes = {
+	'*': None,
+	'/': 'directory',
+	'.': 'data',
+	'#': 'device',
+	'@': 'socket',
+	'|': 'pipe',
+	'&': 'link',
+	'!': 'void',
+	'?': 'unknown',
+}
+
+class RequirementViolation(Exception):
 	"""
-	# Exception thrown by methods that require files at the Path to exist.
+	# Exception raised by &Path.fs_require when requirements are not met.
 
-	# Instances are using the bad path and a context argument.
-	# The context argument is user data describing where the path came from.
-
-	# [ Engineering ]
-	# Experimental. Currently, only raised by &Path.fs_select.
+	# [ Properties ]
+	# /r_violation/
+		# The subtype declaring the kind of violation that occurred.
+		# /`'void'`/
+			# File did not exist.
+		# /`'inaccessible'`/
+			# Path traversed through a non-directory file,
+			# or had insufficient permissions on the leading path.
+		# /`'type'`/
+			# The &r_type did not match the &fs_type.
+		# /`'directory'`/
+			# The file identified by the path is a directory.
+		# /`'prohibited'`/
+			# The required permissions stated in &r_properties
+			# were not available to the process.
+	# /r_type/
+		# The required type issued to &Path.fs_require.
+	# /r_properties/
+		# The required properties issued to &Path.fs_require.
+	# /fs_type/
+		# The type of the file identified by &fs_path.
+	# /fs_path/
+		# The path to the subject file.
 	"""
 
-	rtype = 'system-file'
+	def __init__(self, subject, type, violation, rtype, properties):
+		self.fs_path = subject
+		self.fs_type = type
 
-	def __init__(self, badpath, context=None):
-		self.path = badpath
-		self.context = context
+		self.r_violation = violation
+		self.r_type = rtype
+		self.r_properties = properties
 
 	def __str__(self):
-		if self.context is not None:
-			return "[%s: %s] path did not exist" %(self.context, str(self.path))
+		rv = self.r_violation
+		path = f"PATH[{self.fs_type}]: {self.fs_path!s}"
+
+		if rv == 'type':
+			desc = f"not a {self.r_type!r} file"
+		elif rv == 'directory':
+			desc = "file is a directory"
+		elif rv == 'void':
+			desc = "file not does not exist"
+		elif rv == 'prohibited':
+			desc = "file does not have the necessary permissions"
+		elif rv == 'inaccessible':
+			desc = "file could not accessed"
 		else:
-			return "[%s] path did not exist" %(str(self.path),)
+			desc = rv
 
-	def fragments(self):
-		"""
-		# Construct the real portion and segment pair.
-
-		# Calculates the part of the path that actually exists on the filesytem,
-		# and the remaining invalid part.
-		"""
-		r = self.path.fs_real()
-		return (r, self.path.segment(r))
+		return f"{desc}\n{path}"
 
 class Status(tuple):
 	"""
@@ -242,31 +280,95 @@ class Path(Selector):
 
 	# Methods starting with `fs_` perform filesystem operations.
 	"""
-	_path_separator = os.path.sep
-
 	__slots__ = ('context', 'points',)
 
-	def fs_select(self, *path:str, context=None):
-		"""
-		# Select a path relative to &self using the given &path strings.
-		# If the targeted path does not exist, raise an exception
-		# detailing the requirements.
+	_path_separator = os.path.sep
+	_fs_access = functools.partial(
+		os.access,
+		effective_ids=(os.access in os.supports_effective_ids)
+	)
+	_fs_access_map = {
+		'r': os.R_OK,
+		'w': os.W_OK,
+		'x': os.X_OK,
+		'/': 0,
+		'!': 0,
+	}
 
-		# [ Engineering ]
-		# Experimental. Constructor intended for user input; likely replacement for from_path.
+	def fs_require(self, properties='', /, type=None):
+		"""
+		# Check the file for the expressed requirements using the effective user.
+
+		# [ Returns ]
+		# &self for method chaining when all requirements are met.
+
+		# [ Parameters ]
+		# /properties/
+			# The required type, permissions and option control flags.
+			# A string consisting of a leading &type_codes prefix and
+			# any trailing `rwx/!?'.
+		# /type/
+			# The required file type, inclusive.
+			# When &None, the default, the file type must not be a directory.
+
+			# Overrides any file type codes present in &properties.
 
 		# [ Exceptions ]
-		# /&Void/
-			# Raised when the selected path does not exist on the filesystem.
+		# /&RequirementViolation/
+			# Raised when a designated property is not present on the file.
 		"""
-		fsr = self
-		for x in path:
-			fsr @= x
 
-		if fsr.fs_type() == 'void':
-			raise Void(fsr, context)
+		# The cases involving '/', '!' and '?' properties are slightly odd,
+		# but are intended to cover relatively common cases where the
+		# use of an explicit type alone is insufficient.
 
-		return fsr
+		try:
+			filetype = self.fs_type()
+			if filetype == 'void':
+				if type == 'void' or '!' in properties:
+					# Nothing more to do; void case is accepted by caller.
+					return self
+
+				# Implied existence requirement.
+				raise RequirementViolation(self, 'void', 'void', type, properties)
+		except (NotADirectoryError, PermissionError) as fs_error:
+			# Implied accessibility requirement.
+			if '?' in properties:
+				# Dismissed. Similar to accepting 'void' types.
+				return self
+
+			raise RequirementViolation(self, 'unknown', 'inaccessible', type, properties)
+		else:
+			assert filetype != 'void'
+
+			if properties[:1] in type_codes:
+				# Override iff properties starts with a type code, and type is None.
+				if type is None:
+					type = type_codes[properties[:1]]
+				else:
+					# Warn when both type and type code are designated?
+					pass
+				properties = properties[1:]
+
+			if type is not None:
+				# Specific type is required.
+				if filetype != type:
+					raise RequirementViolation(self, filetype, 'type', type, properties)
+			else:
+				# Check implied directory restriction.
+				if filetype == 'directory' and '/' not in properties:
+					assert type is None
+					# Require a non-directory file by default unless '/' was in &properties.
+					raise RequirementViolation(self, filetype, 'directory', type, properties)
+
+			if properties:
+				check = 0
+				for x in properties:
+					check |= self._fs_access_map[x]
+				if not self._fs_access(self, check):
+					raise RequirementViolation(self, filetype, 'prohibited', type, properties)
+
+		return self
 
 	@classmethod
 	def from_path(Class, path:str, getcwd=os.getcwd):

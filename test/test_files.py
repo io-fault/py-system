@@ -835,3 +835,175 @@ def test_Path_fs_alloc(test):
 	f.fs_mkdir()
 	f.fs_alloc()
 	test/f.fs_type() == 'directory'
+
+def test_Path_fs_require_void(test):
+	"""
+	# - &lib.Path.fs_require
+	# - &lib.RequirementViolation
+
+	# Validate that missing file cases are handled.
+	"""
+	os.umask(0o022)
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	fnf = td/'no-such-file'
+
+	#! Default expects file to be available.
+	try:
+		(fnf).fs_require()
+	except lib.RequirementViolation as rv:
+		test/rv.r_violation == 'void'
+		test/rv.r_type == None
+		test/rv.r_properties == ''
+		test.isinstance(str(rv), str)
+	else:
+		self.fail("expected RequirementViolation")
+
+	#! Type is irrelevant, file must be present.
+	try:
+		(fnf).fs_require(type='socket')
+	except lib.RequirementViolation as rv:
+		test/rv.r_violation == 'void'
+		test/rv.r_type == 'socket'
+		test/rv.r_properties == ''
+		test.isinstance(str(rv), str)
+	else:
+		self.fail("expected RequirementViolation")
+
+	#! Allows missing files.
+	test/(fnf).fs_require(type='void') == fnf
+	test/(fnf).fs_require('!') == fnf
+
+	#! Void option.
+	test/(fnf).fs_require('x!') == fnf
+	test/(fnf).fs_require('@x!') == fnf
+	test/(fnf).fs_require('rwx!') == fnf
+	test/(fnf).fs_require('x!', type='directory') == fnf
+	test/(fnf).fs_require('x!', type='socket') == fnf
+
+def test_Path_fs_require_type(test):
+	"""
+	# - &lib.Path.fs_require
+	# - &lib.RequirementViolation
+
+	# Validate that fs_require checks the type.
+	"""
+	os.umask(0o022)
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	df = (td/'data-files')
+	df.fs_store(b'nothing')
+
+	#! Type keyword parameter.
+	test/td.fs_require(type='directory') == td
+	test/df.fs_require(type='data') == df
+
+	#! Type code.
+	test/td.fs_require('/') == td
+	test/df.fs_require('.') == df
+
+	#! Type mismatch.
+	try:
+		test/df.fs_require(type='directory') == df
+	except lib.RequirementViolation as rv:
+		test/rv.r_violation == 'type'
+		test/rv.r_type == 'directory'
+		test/rv.r_properties == ''
+		test/rv.fs_path == df
+		test.isinstance(str(rv), str)
+	else:
+		test.fail("expected RequirementViolation")
+
+def test_Path_fs_require_permissions(test):
+	"""
+	# - &lib.Path.fs_require
+	# - &lib.RequirementViolation
+
+	# Validate that fs_require checks the properties.
+	"""
+	os.umask(0o022)
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	df = (td/'data-files')
+	df.fs_store(b'nothing')
+
+	#! Success cases with type.
+	test/td.fs_require('x', type='directory') == td
+	test/df.fs_require('rw', type='data') == df
+
+	#! Prohibited case with type.
+	try:
+		df.fs_require('x', type='data')
+	except lib.RequirementViolation as rv:
+		test/rv.r_violation == 'prohibited'
+		test/rv.fs_path == df
+		test/rv.fs_type == df.fs_type()
+		test.isinstance(str(rv), str)
+	else:
+		test.fail("expected RequirementViolation")
+
+def test_Path_fs_require_directory_control(test):
+	"""
+	# - &lib.Path.fs_require
+	# - &lib.RequirementViolation
+
+	# Validate that fs_require allows for optional directory.
+	"""
+	os.umask(0o022)
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	df = (td/'data-files')
+	df.fs_store(b'nothing')
+	dirf = (td/'directory').fs_mkdir()
+
+	#! Directory allowed.
+	test/df.fs_require('*r/') == df
+	test/dirf.fs_require('*r/') == dirf
+
+	#! Directory not allowed.
+	try:
+		dirf.fs_require('*r')
+	except lib.RequirementViolation as rv:
+		# Unqualified (type) requirement restricts directories.
+		test/rv.r_violation == 'directory'
+		test/rv.r_properties == 'r'
+		test/rv.fs_type == 'directory'
+		test.isinstance(str(rv), str)
+	else:
+		test.fail("expected RequirementViolation")
+
+	#! Directory required (leading slash).
+	try:
+		df.fs_require('/r')
+	except lib.RequirementViolation as rv:
+		# Unqualified (type) requirement restricts directories.
+		test/rv.r_violation == 'type'
+		test/rv.r_properties == 'r'
+		test/rv.fs_type == 'data'
+		test.isinstance(str(rv), str)
+	else:
+		test.fail("expected RequirementViolation")
+
+def test_Path_fs_require_accessibility(test):
+	"""
+	# - &lib.Path.fs_require
+	# - &lib.RequirementViolation
+
+	# Validate that the implied accessibility constraint is
+	# communicated when paths traverse through regular files or
+	# directories without the necessary permissions.
+	"""
+	os.umask(0o022)
+	td = test.exits.enter_context(lib.Path.fs_tmpdir())
+	df = (td/'data-file')
+	df.fs_store(b'nothing')
+
+	#! Traverse through data file.
+	try:
+		(df/'subfile').fs_require()
+	except lib.RequirementViolation as rv:
+		# Path traversed through a regular file.
+		test/rv.r_violation == 'inaccessible'
+		test/rv.fs_type == 'unknown'
+		test.isinstance(str(rv), str)
+	else:
+		test.fail("expected RequirementViolation")
+
+	#! Allow traversal through data file.
+	test/(df/'subfile').fs_require('*?') == (df/'subfile')
