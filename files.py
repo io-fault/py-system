@@ -134,6 +134,8 @@ class Status(tuple):
 	@property
 	def type(self, ifmt=stat.S_IFMT) -> str:
 		"""
+		# /`'void'`/
+			# A broken link or nonexistent file.
 		# /`'directory'`/
 			# A file containing other files.
 		# /`'data'`/
@@ -144,8 +146,6 @@ class Status(tuple):
 			# A unix domain socket.
 		# /`'device'`/
 			# A character or block device file.
-		# /`'void'`/
-			# A broken link.
 		# /`'link'`/
 			# Status record of a link to a file.
 		"""
@@ -154,8 +154,10 @@ class Status(tuple):
 	@property
 	def subtype(self, ifmt=stat.S_IFMT) -> str:
 		"""
-		# For POSIX-type systems, designates the kind of `'device'`: `'block'` or `'character'`.
-		# Returns &None for types other than `'device'`.
+		# For POSIX-type systems, designates the kind of (id)`device`:
+		# (id)`block` or (id)`character`.
+
+		# &None for status instances whose &type is not (id)`device`.
 		"""
 		return self._fs_subtype_map.get(ifmt(self.system.st_mode))
 
@@ -212,7 +214,7 @@ class Status(tuple):
 		"""
 		# Whether the data file is considered executable by anyone.
 
-		# This does not check extended attributes.
+		# Extended attributes are not checked.
 		"""
 		return (self.system.st_mode & mask) != 0 and self.type == 'data'
 
@@ -221,7 +223,7 @@ class Status(tuple):
 		"""
 		# Whether the directory file is considered searchable by anyone.
 
-		# This does not check extended attributes.
+		# Extended attributes are not checked.
 		"""
 		return (self.system.st_mode & mask) != 0 and self.type == 'directory'
 
