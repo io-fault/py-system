@@ -3,14 +3,14 @@
 
 # [ Elements ]
 
-# /signals/
-	# Mapping of generalized signal names to signal identifiers.
+# /signal_codes/
+	# Mapping of categorized signal names to signal (integer) codes.
 # /signal_names/
-	# Mapping of signal identifiers to names.
+	# Mapping of signal (integer) codes to categorized names.
+# /signal_identifiers/
+	# Mapping of signal codes to identifiers used in POSIX header files.
 # /fatal_signals/
 	# Set of signals that would cause an immediate exit if `SIG_DFL` were set.
-# /signal_identifier/
-	# Mapping of signal identifiers to names used in POSIX header files.
 """
 import sys
 import os
@@ -67,7 +67,7 @@ fork_child_cleanup = set()
 
 getattr=getattr
 # Normalized identities for signals.
-signals = {
+signal_codes = {
 	'process/stop': signal.SIGSTOP,
 	'process/continue': signal.SIGCONT,
 	'process/terminate' : signal.SIGTERM,
@@ -97,9 +97,10 @@ signals = {
 	'error/invalid-instruction': signal.SIGILL,
 	'error/invalid-system-call': signal.SIGSYS,
 }
+signals = signal_codes
 
 # Signal numeric identifier to Signal Names mapping.
-signal_names = dict([(v, k) for k, v in signals.items()])
+signal_names = dict([(v, k) for k, v in signal_codes.items()])
 
 # Signals that *would* terminate the process *if* SIG_DFL was set.
 # Notably, this set is used to help preserve the appropriate exit code.
@@ -645,7 +646,7 @@ def protect(*init, looptime=8):
 		if newppid != parent_process_id:
 			# Emit a context signal to the process.
 			parent_process_id = newppid
-			os.kill(os.getpid(), signals['user/1'])
+			os.kill(os.getpid(), signal_codes['user/1'])
 
 	# Relies on Fork.trip() and runtime.interject to manage the main thread's stack.
 	raise Panic("infinite loop exited") # interject should be used to raise process.Exit()
