@@ -239,6 +239,13 @@ class Invocation(object):
 		self.exit_method(result)
 
 	@property
+	def fs_pwd(self):
+		"""
+		# The working directory of the process when the &Invocation was created.
+		"""
+		return self.parameters['system']['directory']
+
+	@property
 	def argv(self):
 		"""
 		# Arguments provided by the system without the leading command name.
@@ -291,7 +298,7 @@ class Invocation(object):
 		system = r.parameters['system'] = {}
 		system['name'] = sys.argv[0]
 		system['arguments'] = sys.argv[1:]
-		system['directory'] = os.getcwd()
+		system['directory'] = fs_pwd()
 		system['environment'] = {}
 
 		if environ:
