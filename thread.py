@@ -72,7 +72,7 @@ def frame(tid:int) -> types.FrameType:
 		# Returns &None when the thread is not running.
 	"""
 	global sys
-	return sys._current_frames().get(x)
+	return sys._current_frames().get(tid)
 
 class Transition(object):
 	"""
