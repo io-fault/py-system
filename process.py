@@ -92,9 +92,9 @@ signals = {
 	'exception/floating-point': signal.SIGFPE,
 	'exception/broken-pipe': signal.SIGPIPE,
 
-	'error/bus': signal.SIGBUS,
-	'error/illegal-instruction': signal.SIGILL,
-	'error/segmentation-violation': signal.SIGSEGV,
+	'error/invalid-memory-access': signal.SIGBUS,
+	'error/restricted-memory-access': signal.SIGSEGV,
+	'error/invalid-instruction': signal.SIGILL,
 	'error/invalid-system-call': signal.SIGSYS,
 }
 
