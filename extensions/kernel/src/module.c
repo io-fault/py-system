@@ -5,6 +5,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/utsname.h>
+#include <sys/event.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
@@ -13,6 +14,7 @@
 
 #include <kcore.h>
 #include <kports.h>
+#include "events.h"
 
 extern char **environ;
 
@@ -921,6 +923,7 @@ initialize(PyObj mod, PyObj ctx)
 #define PortsType KPortsType
 #define PYTHON_TYPES() \
 	ID(Invocation) \
+	ID(Events) \
 	ID(Ports)
 
 #define MODULE_FUNCTIONS() \
