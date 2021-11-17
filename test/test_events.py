@@ -1,20 +1,20 @@
 import os
 import time
-from .. import events as module
+from .. import kernel as module
 
 def test_alarm_units(test):
-	ki = module.Interface()
+	ki = module.Events()
 	try:
-		ki.alarm(1, 0, 'n')
-		ki.alarm(2, 0, 's')
-		ki.alarm(3, 0, 'm')
-		ki.alarm(4, 0, 'u')
+		ki.defer(1, 0, 'n')
+		ki.defer(2, 0, 's')
+		ki.defer(3, 0, 'm')
+		ki.defer(4, 0, 'u')
 		with test/TypeError:
-			ki.alarm(5, 0, 492492)
+			ki.defer(5, 0, 492492)
 		with test/TypeError:
-			ki.alarm(6, 0, 'microsecond')
+			ki.defer(6, 0, 'microsecond')
 		with test/ValueError:
-			ki.alarm(7, 0, 'f')
+			ki.defer(7, 0, 'f')
 
 		test/len(ki.wait()) == 4
 	finally:
@@ -22,21 +22,21 @@ def test_alarm_units(test):
 		test.garbage()
 
 def test_alarm(test):
-	ki = module.Interface()
+	ki = module.Events()
 	try:
-		ob = "foobar"
-		ki.alarm(ob, 1, 'n')
+		ob = "alarm-event-string"
+		ki.defer(ob, 1, 'n')
 		test/ki.wait() << ('alarm', ob)
 	finally:
 		ki.void()
 		test.garbage()
 
 def test_alarm_time(test):
-	ki = module.Interface()
+	ki = module.Events()
 	try:
-		ob = "foobar"
+		ob = "alarm-event-string"
 		a=time.time()
-		ki.alarm(ob, 1, 's')
+		ki.defer(ob, 1, 's')
 		test/ki.wait() << ('alarm', ob)
 		b=time.time()
 		test/(b-a-1) < 0.3
@@ -45,11 +45,11 @@ def test_alarm_time(test):
 		test.garbage()
 
 def test_ignore_force(test):
-	ki = module.Interface()
+	ki = module.Events()
 	try:
-		ob = "foobar"
+		ob = "alarm-event-string"
 		a=time.time()
-		ki.alarm(ob, 1200, 'm')
+		ki.defer(ob, 1200, 'm')
 		ki.force()
 		# forced while not waiting outside block validate that it's not drop through.
 		ki.wait()
@@ -60,11 +60,11 @@ def test_ignore_force(test):
 		test.garbage()
 
 def test_force(test):
-	ki = module.Interface()
+	ki = module.Events()
 	try:
-		ob = "foobar"
+		ob = "alarm-event-string"
 		a=time.time()
-		ki.alarm(ob, 5, 's')
+		ki.defer(ob, 5, 's')
 		test/ki.force() == None
 
 		ki._set_waiting()
@@ -84,7 +84,7 @@ def test_force(test):
 		test.garbage()
 
 def test_recur(test):
-	ki = module.Interface()
+	ki = module.Events()
 	try:
 		ob = "foo"
 		a=time.time()
@@ -110,7 +110,7 @@ def test_track(test):
 		i = os.read(fd, 1)
 		os._exit(3)
 
-	ki = module.Interface()
+	ki = module.Events()
 	try:
 		pid = os.fork()
 
@@ -131,10 +131,10 @@ def test_track(test):
 
 def test_execute(test):
 	"""
-	# - &module.Interface.execute
+	# - &module.Events.execute
 	"""
 
-	k = module.Interface()
+	k = module.Events()
 	x = False
 	def effect():
 		nonlocal x
@@ -154,10 +154,10 @@ def test_execute(test):
 
 def test_execute_error_trap(test):
 	"""
-	# - &module.Interface.execute
+	# - &module.Events.execute
 	"""
 
-	k = module.Interface()
+	k = module.Events()
 	x = False
 	def trap(ob, err):
 		nonlocal x
@@ -175,23 +175,23 @@ def test_execute_error_trap(test):
 
 def test_execute_nothing(test):
 	"""
-	# - &module.Interface.execute
+	# - &module.Events.execute
 	"""
 
-	k = module.Interface()
+	k = module.Events()
 	for x in range(512):
 		test/k.loaded == False
 		test/k.execute(None) == 0
 
 def test_enqueue_force_event(test):
 	"""
-	# - &module.Interface.execute
+	# - &module.Events.execute
 
 	# Interface.enqueue should be sensitive to the event wait state.
 	# This validates that no timeout event is generated designating that a user event was received.
 	"""
 
-	k = module.Interface()
+	k = module.Events()
 	k._set_waiting()
 	k.enqueue((lambda: None))
 	test/k.execute(None) == 0
@@ -200,23 +200,23 @@ def test_enqueue_force_event(test):
 
 def test_wait_timeout_event(test):
 	"""
-	# - &module.Interface.execute
+	# - &module.Events.execute
 
 	# Interface.enqueue should be sensitive to the event wait state.
 	# This validates that no timeout event is generated designating that a user event was received.
 	"""
 
-	k = module.Interface()
+	k = module.Events()
 	test/k.wait(0) == [] # No duration no timeout event.
 	test/k.wait(1) == [('timeout', 1)]
 
 def test_interface_close(test):
 	"""
-	# - &module.Interface.close
-	# - &module.Interface.closed
+	# - &module.Events.close
+	# - &module.Events.closed
 	"""
 
-	k = module.Interface()
+	k = module.Events()
 	test/k.closed == False
 	test/k.close() == True
 	test/k.closed == True
@@ -233,7 +233,7 @@ def test_interface_close(test):
 
 def test_execute_error_trap_exceptions(test):
 	"""
-	# - &module.Interface.execute
+	# - &module.Events.execute
 	"""
 
 	test.explicit()
@@ -242,7 +242,7 @@ def test_execute_error_trap_exceptions(test):
 		out.append((ob, err))
 		raise RuntimeError("exception during exception")
 
-	k = module.Interface()
+	k = module.Events()
 	k.enqueue(None)
 	test/k.execute(etrap) == 0
 	test/k.execute(etrap) == 1
