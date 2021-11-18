@@ -102,6 +102,7 @@
 } while(0);
 #define UNLIMITED_RETRY() errno = 0; goto RETRY_SYSCALL;
 
+#include "tasks.h"
 #include "events.h"
 
 static int
@@ -214,82 +215,15 @@ interrupt_wait(Events ki)
 		return(0);
 }
 
-/**
-	// Append a memory allocation to the task queue.
-*/
-static int
-ev_extend(Events ki, Tasks tail)
-{
-	Tasks new;
-	size_t count = tail->t_allocated;
-
-	if (count < MAX_TASKS_PER_SEGMENT)
-		count *= 2;
-
-	new = PyMem_Malloc(sizeof(struct Tasks) + (sizeof(PyObject *) * count));
-	if (new == NULL)
-		return(-1);
-
-	new->t_next = NULL;
-	new->t_allocated = count;
-	ki->ke_tail->t_next = new;
-
-	/* update position */
-	ki->ke_tail = new;
-	ki->ke_tailcursor = 0;
-
-	return(0);
-}
-
-/**
-	// Called to pop executing.
-*/
-static int
-ev_queue_continue(Events ki)
-{
-	Tasks n = NULL;
-
-	n = PyMem_Malloc(
-		sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(PyObject *))
-	);
-	if (n == NULL)
-	{
-		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue continuation");
-		return(-1);
-	}
-
-	ki->ke_tail->t_allocated = ki->ke_tailcursor;
-	ki->ke_executing = ki->ke_loading;
-
-	ki->ke_tail = ki->ke_loading = n;
-	ki->ke_loading->t_next = NULL;
-	ki->ke_loading->t_allocated = INITIAL_TASKS_ALLOCATED;
-
-	ki->ke_tailcursor = 0;
-
-	return(0);
-}
-
 static PyObj
 ev_enqueue(Events ki, PyObj callable)
 {
-	Tasks tail = ki->ke_tail;
+	TaskQueue tq = Events_GetTaskQueue(ki);
 
-	if (ki->ke_tailcursor == tail->t_allocated)
-	{
-		/* bit of a latent error */
-		PyErr_SetString(PyExc_MemoryError, "task queue could not be extended and must be flushed");
-		return(NULL);
-	}
-
-	tail->t_queue[ki->ke_tailcursor++] = callable;
-	Py_INCREF(callable);
-
-	if (ki->ke_tailcursor == tail->t_allocated)
-		ev_extend(ki, tail);
-
-	/* XXX: redundant condition; refactor force into inline */
 	if (interrupt_wait(ki) < 0)
+		return(NULL);
+
+	if (taskq_enqueue(tq, callable) != 0)
 		return(NULL);
 
 	Py_RETURN_NONE;
@@ -298,102 +232,8 @@ ev_enqueue(Events ki, PyObj callable)
 static PyObj
 ev_execute(Events ki, PyObj errctl)
 {
-	Tasks exec = ki->ke_executing;
-	Tasks next = NULL;
-	PyObj task, xo;
-	int i, c, total = 0;
-
-	if (exec == NULL)
-	{
-		PyErr_SetString(PyExc_RuntimeError, "concurrent task queue execution");
-		return(NULL);
-	}
-
-	/* signals processing */
-	ki->ke_executing = NULL;
-
-	do {
-		for (i = 0, c = exec->t_allocated; i < c; ++i)
-		{
-			task = exec->t_queue[i];
-			xo = PyObject_CallObject(task, NULL);
-			total += 1;
-
-			if (xo == NULL)
-			{
-				PyObj exc, val, tb;
-				PyErr_Fetch(&exc, &val, &tb);
-
-				if (errctl != Py_None)
-				{
-					PyObj ereturn;
-
-					PyErr_NormalizeException(&exc, &val, &tb);
-					if (PyErr_Occurred())
-					{
-						/* normalization failed? */
-						PyErr_WriteUnraisable(task);
-						PyErr_Clear();
-					}
-					else
-					{
-						if (tb != NULL)
-						{
-							PyException_SetTraceback(val, tb);
-							Py_DECREF(tb);
-						}
-
-						ereturn = PyObject_CallFunctionObjArgs(errctl, task, val, NULL);
-						if (ereturn)
-							Py_DECREF(ereturn);
-						else
-						{
-							/* errctl raised exception */
-							PyErr_WriteUnraisable(task);
-							PyErr_Clear();
-						}
-					}
-				}
-				else
-				{
-					/* explicitly discarded */
-					Py_XDECREF(tb);
-				}
-
-				Py_XDECREF(exc);
-				Py_XDECREF(val);
-			}
-			else
-			{
-				Py_DECREF(xo);
-			}
-
-			Py_DECREF(task);
-		}
-
-		next = exec->t_next;
-		PyMem_Free(exec);
-		exec = next;
-	}
-	while (exec != NULL);
-
-	if (KE_LQUEUE_HAS_TASKS(ki))
-	{
-		if (ev_queue_continue(ki) == -1)
-		{
-			/* re-init executing somehow? force instance dropped? */
-			return(NULL);
-		}
-	}
-	else
-	{
-		/* loading queue is empty; create empty executing queue */
-		ki->ke_executing = PyMem_Malloc(sizeof(struct Tasks));
-		ki->ke_executing->t_allocated = 0;
-		ki->ke_executing->t_next = NULL;
-	}
-
-	return(PyLong_FromLong((long) total));
+	TaskQueue tq = Events_GetTaskQueue(ki);
+	return(taskq_execute(tq, errctl));
 }
 
 /*
@@ -881,7 +721,7 @@ ev_wait(PyObj self, PyObj args)
 		return(PyTuple_New(0));
 	}
 
-	if (KE_HAS_TASKS(ev))
+	if (TQ_HAS_TASKS(Events_GetTaskQueue(ev)))
 	{
 		waittime.tv_sec = 0;
 		ev->ke_waiting = 0;
@@ -1112,7 +952,7 @@ ev_get_has_tasks(PyObj self, void *closure)
 	Events ki = (Events) self;
 	PyObj rob = Py_False;
 
-	if (KE_HAS_TASKS(ki))
+	if (TQ_HAS_TASKS(Events_GetTaskQueue(ki)))
 		rob = Py_True;
 
 	Py_INCREF(rob);
@@ -1125,67 +965,13 @@ static PyGetSetDef ev_getset[] = {
 	{NULL,},
 };
 
-static void
-ev_clear_tasks(PyObj self)
-{
-	Events ev = (Events) self;
-	Tasks t, n;
-	size_t i;
-
-	Tasks kx = ev->ke_executing;
-	Tasks kt = ev->ke_tail;
-	Tasks kl = ev->ke_loading;
-
-	ev->ke_executing = ev->ke_loading = ev->ke_tail = NULL;
-
-	/*
-		// Executing queue's t_allocated provides accurate count of the segment.
-	*/
-	t = kx;
-	while (t != NULL)
-	{
-		n = t->t_next;
-		for (i = 0; i < t->t_allocated; ++i)
-			Py_CLEAR(t->t_queue[i]);
-
-		PyMem_Free(t);
-		t = n;
-	}
-
-	/*
-		// Special case for final segment in loading.
-	*/
-	t = kt;
-	if (t != NULL)
-	{
-		for (i = 0; i < ev->ke_tailcursor; ++i)
-			Py_CLEAR(t->t_queue[i]);
-
-		kt->t_allocated = 0;
-	}
-
-	/*
-		// Prior loop on tail sets allocated to zero maintaining the invariant.
-	*/
-	t = kl;
-	while (t != NULL)
-	{
-		n = t->t_next;
-		for (i = 0; i < t->t_allocated; ++i)
-			Py_CLEAR(t->t_queue[i]);
-
-		PyMem_Free(t);
-		t = n;
-	}
-}
-
 static int
 ev_clear(PyObj self)
 {
 	Events ev = (Events) self;
 	Py_CLEAR(ev->ke_kset);
 	Py_CLEAR(ev->ke_cancellations);
-	ev_clear_tasks(self);
+	taskq_clear(Events_GetTaskQueue(ev));
 	return(0);
 }
 
@@ -1194,7 +980,7 @@ ev_dealloc(PyObj self)
 {
 	Events ev = (Events) self;
 
-	ev_clear(self);
+	taskq_clear(Events_GetTaskQueue(ev));
 
 	if (ev->ke_kqueue != -1)
 	{
@@ -1207,77 +993,12 @@ ev_dealloc(PyObj self)
 }
 
 static int
-ev_traverse_tasks(PyObj self, visitproc visit, void *arg)
-{
-	Events ev = (Events) self;
-	Tasks t, n;
-	size_t i;
-
-	t = ev->ke_executing;
-	while (t != NULL)
-	{
-		n = t->t_next;
-		for (i = 0; i < t->t_allocated; ++i)
-			Py_VISIT(t->t_queue[i]);
-		t = n;
-	}
-
-	t = ev->ke_tail;
-	if (t != NULL)
-	{
-		for (i = 0; i < ev->ke_tailcursor; ++i)
-			Py_VISIT(t->t_queue[i]);
-	}
-
-	t = ev->ke_loading;
-	while (t != NULL && t != ev->ke_tail)
-	{
-		n = t->t_next;
-		for (i = 0; i < t->t_allocated; ++i)
-			Py_VISIT(t->t_queue[i]);
-		t = n;
-	}
-}
-
-static int
 ev_traverse(PyObj self, visitproc visit, void *arg)
 {
 	Events ev = (Events) self;
 	Py_VISIT(ev->ke_kset);
 	Py_VISIT(ev->ke_cancellations);
-	return(ev_traverse_tasks(self, visit, arg));
-}
-
-static int
-init_queue(Events ev)
-{
-	ev->ke_loading = PyMem_Malloc(
-		sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(PyObject *))
-	);
-	if (ev->ke_loading == NULL)
-	{
-		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue");
-		return(-1);
-	}
-
-	ev->ke_loading->t_next = NULL;
-	ev->ke_loading->t_allocated = INITIAL_TASKS_ALLOCATED;
-
-	ev->ke_executing = PyMem_Malloc(
-		sizeof(struct Tasks) + (0 * sizeof(PyObject *))
-	);
-	if (ev->ke_executing == NULL)
-	{
-		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue");
-		return(-1);
-	}
-
-	ev->ke_executing->t_next = NULL;
-	ev->ke_executing->t_allocated = 0;
-
-	ev->ke_tail = ev->ke_loading;
-	ev->ke_tailcursor = 0;
-	return(0);
+	return(taskq_traverse(Events_GetTaskQueue(ev), visit, arg));
 }
 
 static PyObj
@@ -1293,7 +1014,7 @@ ev_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	if (ev == NULL)
 		return(NULL);
 
-	if (init_queue(ev) == -1)
+	if (taskq_initialize(Events_GetTaskQueue(ev)) < 0)
 	{
 		Py_DECREF(ev);
 		return(NULL);
