@@ -1,7 +1,8 @@
 /**
 	// Heterogeneous Kernel Events interface.
 */
-#include <sys/event.h>
+#ifndef _SYSTEM_KERNEL_EVENTS_H_included_
+#define _SYSTEM_KERNEL_EVENTS_H_included_
 typedef struct kevent kevent_t; /* kernel event description */
 
 #ifndef CONFIG_STATIC_KEVENTS
@@ -10,22 +11,6 @@ typedef struct kevent kevent_t; /* kernel event description */
 	#undef CONFIG_STATIC_KEVENTS
 	#define CONFIG_STATIC_KEVENTS 16
 	#warning nope.
-#endif
-
-#ifndef CONFIG_SYSCALL_RETRY
-	#define CONFIG_SYSCALL_RETRY 16
-#elif CONFIG_SYSCALL_RETRY < 8
-	#undef CONFIG_SYSCALL_RETRY
-	#define CONFIG_SYSCALL_RETRY 16
-	#warning nope.
-#endif
-
-#ifndef INITIAL_TASKS_ALLOCATED
-	#define INITIAL_TASKS_ALLOCATED 4
-#endif
-
-#ifndef MAX_TASKS_PER_SEGMENT
-	#define MAX_TASKS_PER_SEGMENT 128
 #endif
 
 typedef int kport_t; /* file descriptor */
@@ -73,8 +58,8 @@ struct Events {
 };
 
 typedef struct Events *Events;
-extern PyTypeObject EventsType;
 
 #define KE_LQUEUE_HAS_TASKS(I) (I->ke_tailcursor > 0 || I->ke_loading != I->ke_tail)
 #define KE_XQUEUE_HAS_TASKS(I) (I->ke_executing != NULL && I->ke_executing->t_allocated > 0)
 #define KE_HAS_TASKS(I) (KE_LQUEUE_HAS_TASKS(I) || KE_XQUEUE_HAS_TASKS(I))
+#endif

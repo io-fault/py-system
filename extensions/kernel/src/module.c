@@ -14,9 +14,7 @@
 
 #include <kcore.h>
 #include <kports.h>
-#include "events.h"
-
-extern char **environ;
+#include "invocation.h"
 
 /*
 	// For fork callbacks
@@ -24,489 +22,6 @@ extern char **environ;
 static PyObj process_module = NULL;
 static int exit_signal = -1;
 static pid_t exit_for_pid = -1;
-
-#define IOPTION_SET_PGROUP 1
-
-struct Invocation {
-	PyObject_HEAD
-
-	char *invocation_path;
-	char **invocation_argv;
-	char **invocation_environ;
-
-	posix_spawnattr_t invocation_spawnattr;
-	char invocation_spawnattr_init;
-	char invocation_options;
-};
-typedef struct Invocation *Invocation;
-
-#define SPAWN_ATTRIBUTES() \
-	SA(POSIX_SPAWN_SETPGROUP, set_process_group, posix_spawnattr_setpgroup) \
-	SA(POSIX_SPAWN_SETSIGMASK, set_signal_mask, posix_spawnattr_setsigmask) \
-	SA(POSIX_SPAWN_SETSIGDEF, set_signal_defaults)
-
-#define APPLE_SPAWN_EXTENSIONS() \
-	SA(POSIX_SPAWN_SETEXEC, replace_process_image) \
-	SA(POSIX_SPAWN_START_SUSPENDED, start_suspended)
-
-/**
-	// SA(POSIX_SPAWN_CLOEXEC_DEFAULT, close_exec_default)
-	// CLOEXEC_DEFAULT is an apple extension that is unconditionally used; users
-	// are encourage to explicitly map (dup2) file descriptors using Invocation's call
-*/
-#define POSIX_SPAWN_ATTRIBUTES() \
-	SA(POSIX_SPAWN_SETSCHEDULER, set_schedular_priority) \
-	SA(POSIX_SPAWN_SETSCHEDPARAM, set_schedular_parameter)
-
-static PyObj
-invocation_spawn(PyObj self, PyObj args, PyObj kw)
-{
-	int r;
-	pid_t child = 0;
-	pid_t pgrp = -1;
-	short flags = 0;
-	static char *kwlist[] = {"fdmap", "inherit", "process_group", NULL,};
-
-	PyObj fdmap = NULL;
-	PyObj inherits = NULL;
-
-	posix_spawn_file_actions_t fa;
-
-	Invocation inv = (Invocation) self;
-
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "|OOi", kwlist, &fdmap, &inherits, &pgrp))
-		return(NULL);
-
-	/*
-		// Inherit pgroup setting from Invocation instance if not overridden.
-	*/
-	if (pgrp < 0 && inv->invocation_options & IOPTION_SET_PGROUP)
-	{
-		/*
-			// Some invocations are essentially identified
-			// as independent daemons this way
-		*/
-		pgrp = 0;
-	}
-
-	if (posix_spawn_file_actions_init(&fa) != 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-
-	/*
-		// Modify attributes per-invocation.
-		// Attributes like process group need to be per-invocation.
-	*/
-	if (posix_spawnattr_getflags(&(inv->invocation_spawnattr), &flags))
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-
-	if (pgrp >= 0)
-	{
-		flags |= POSIX_SPAWN_SETPGROUP;
-		posix_spawnattr_setpgroup(&(inv->invocation_spawnattr), pgrp);
-	}
-	else
-	{
-		flags &= ~POSIX_SPAWN_SETPGROUP;
-		posix_spawnattr_setpgroup(&(inv->invocation_spawnattr), 0);
-	}
-
-	if (posix_spawnattr_setflags(&(inv->invocation_spawnattr), flags))
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-
-	if (fdmap != NULL)
-	{
-		int fd, newfd, r;
-
-		PyLoop_ForEachTuple(fdmap, "ii", &fd, &newfd)
-		{
-			r = posix_spawn_file_actions_adddup2(&fa, fd, newfd);
-
-			if (r != 0)
-			{
-				PyErr_SetFromErrno(PyExc_OSError);
-				break;
-			}
-		}
-		PyLoop_CatchError(fdmap)
-		{
-			posix_spawn_file_actions_destroy(&fa);
-			return(NULL);
-		}
-		PyLoop_End(fdmap)
-	}
-
-	#if __DARWIN__
-		/*
-			// Might remove this due to portability issues.
-		*/
-		if (inherits != NULL)
-		{
-			PyObj fdo;
-			int fd, r;
-
-			PyLoop_ForEach(inherits, &fdo)
-			{
-				fd = PyLong_AsLong(fdo);
-				if (fd == -1 && PyErr_Occurred())
-					break;
-
-				r = posix_spawn_file_actions_addinherit_np(&fa, fd);
-
-				if (r != 0)
-				{
-					PyErr_SetFromErrno(PyExc_OSError);
-					break;
-				}
-			}
-			PyLoop_CatchError(inherits)
-			{
-				posix_spawn_file_actions_destroy(&fa);
-				return(NULL);
-			}
-			PyLoop_End(fdmap)
-		}
-	#else
-		if (inherits != NULL)
-		{
-			PyErr_SetString(PyExc_TypeError, "inherits only supported on Darwin");
-			return(NULL);
-		}
-	#endif
-
-	r = posix_spawn(&child, (const char *) inv->invocation_path, &fa,
-		&(inv->invocation_spawnattr),
-		inv->invocation_argv,
-		inv->invocation_environ == NULL ? environ : inv->invocation_environ);
-
-	if (posix_spawn_file_actions_destroy(&fa) != 0)
-	{
-		/*
-			// A warning would be appropriate.
-		*/
-		errno = 0;
-	}
-
-	if (r != 0)
-	{
-		errno = r;
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-
-	return(PyLong_FromLong((long) child));
-}
-
-static PyObj
-invocation_new(PyTypeObject *subtype, PyObj args, PyObj kw)
-{
-	static char *kwlist[] = {"path", "arguments", "environ", "set_process_group", NULL,};
-	sigset_t sigreset;
-	PyObj rob;
-	Invocation inv;
-
-	pid_t child = 0;
-	short flags = POSIX_SPAWN_SETSIGDEF | POSIX_SPAWN_SETSIGMASK;
-	int set_pgroup = 0;
-
-	char *path;
-	Py_ssize_t pathlen = 0;
-
-	PyObj env = NULL, cargs;
-
-	if (!PyArg_ParseTupleAndKeywords(
-		args, kw, "s#|OOp", kwlist,
-		&path, &pathlen, &cargs, &env, &set_pgroup)
-	)
-		return(NULL);
-
-	if (env != NULL && !PyDict_Check(env))
-	{
-		PyErr_SetString(PyExc_TypeError, "environ keyword requires a builtins.dict instance");
-		return(NULL);
-	}
-
-	rob = subtype->tp_alloc(subtype, 0);
-	inv = (Invocation) rob;
-	if (inv == NULL)
-		return(NULL);
-
-	inv->invocation_environ = NULL;
-	inv->invocation_argv = NULL;
-	inv->invocation_options = 0;
-
-	if (set_pgroup)
-		inv->invocation_options |= IOPTION_SET_PGROUP;
-
-	inv->invocation_path = malloc(pathlen+1);
-	if (inv->invocation_path == NULL)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		Py_DECREF(rob);
-		return(NULL);
-	}
-
-	memcpy(inv->invocation_path, path, pathlen+1);
-
-	if (posix_spawnattr_init(&(inv->invocation_spawnattr)) != 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		Py_DECREF(rob);
-		return(NULL);
-	}
-
-	inv->invocation_spawnattr_init = 1;
-
-	#ifdef POSIX_SPAWN_CLOEXEC_DEFAULT
-		flags |= POSIX_SPAWN_CLOEXEC_DEFAULT;
-	#endif
-
-	if (posix_spawnattr_setflags(&(inv->invocation_spawnattr), flags) != 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		Py_DECREF(rob);
-		return(NULL);
-	}
-
-	sigfillset(&sigreset);
-	if (posix_spawnattr_setsigdefault(&(inv->invocation_spawnattr), &sigreset) != 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		Py_DECREF(rob);
-		return(NULL);
-	}
-
-	sigemptyset(&sigreset);
-	if (posix_spawnattr_setsigmask(&(inv->invocation_spawnattr), &sigreset) != 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		Py_DECREF(rob);
-		return(NULL);
-	}
-
-	/*
-		// Environment
-	*/
-	if (env == NULL || env == Py_None)
-	{
-		inv->invocation_environ = NULL;
-	}
-	else
-	{
-		unsigned long k = 0;
-		Py_ssize_t keysize, valuesize, dl;
-		char *key, *value;
-		char **envp;
-
-		dl = PyDict_Size(env);
-		envp = inv->invocation_environ = malloc(sizeof(char *) * (dl + 1));
-
-		if (envp == NULL)
-		{
-			PyErr_SetFromErrno(PyExc_OSError);
-			Py_DECREF(rob);
-			return(NULL);
-		}
-		else
-		{
-			PyLoop_ForEachDictItem(env, "s#s#", &key, &keysize, &value, &valuesize)
-			{
-				register int size = keysize+valuesize+2;
-				envp[k] = malloc(size);
-				snprintf(envp[k], size, "%s=%s", key, value);
-				k += 1;
-			}
-			PyLoop_CatchError(env)
-			{
-				/*
-				 * Python Exceptions will only occur at start of loop,
-				 * so the 'k' index will be the last.
-				 */
-				envp[k] = NULL;
-
-				Py_DECREF(rob);
-				return(NULL);
-			}
-			PyLoop_End(env)
-
-			envp[k] = NULL;
-		}
-	}
-
-	/*
-		// Command Arguments
-	*/
-	if (cargs != NULL)
-	{
-		unsigned long k = 0;
-		char *value = NULL;
-		char **argv;
-		Py_ssize_t valuesize = 0, al = PySequence_Length(cargs);
-
-		argv = inv->invocation_argv = malloc(sizeof(void *) * (al + 1));
-		if (argv == NULL)
-		{
-			PyErr_SetFromErrno(PyExc_OSError);
-			Py_DECREF(rob);
-			return(NULL);
-		}
-		else
-		{
-			PyObj obj = NULL;
-			argv[al] = NULL;
-
-			PyLoop_ForEach(cargs, &obj)
-			{
-				if (PyBytes_Check(obj))
-				{
-					valuesize = PyBytes_GET_SIZE(obj);
-					value = PyBytes_AS_STRING(obj);
-				}
-				else if (PyUnicode_Check(obj))
-				{
-					value = PyUnicode_AsUTF8AndSize(obj, &valuesize);
-					if (value == NULL)
-						break;
-				}
-				else
-				{
-					PyErr_SetString(PyExc_ValueError, "execfile command arguments must be bytes or str");
-					break;
-				}
-
-				argv[k] = malloc(valuesize+1);
-				strncpy(argv[k], value, valuesize);
-				argv[k][valuesize] = '\0';
-				k += 1;
-				argv[k] = NULL;
-			}
-			PyLoop_CatchError(cargs)
-			{
-				Py_DECREF(rob);
-				return(NULL);
-			}
-			PyLoop_End(cargs)
-
-		}
-	}
-
-	return(rob);
-}
-
-#define free_null_terminated_array(free_op, NTL) \
-	if (NTL != NULL) \
-	{ \
-		char **ntlp = (char **) NTL; \
-		unsigned int i = 0; \
-		for (i = 0; ntlp[i] != NULL; ++i) \
-			free_op(ntlp[i]); \
-		free_op(ntlp); \
-	}
-
-static void
-invocation_dealloc(PyObj self)
-{
-	Invocation inv = (Invocation) self;
-
-	/*
-		// cleanup code. errors here are ignored.
-	*/
-	if (inv->invocation_path != NULL)
-		free(inv->invocation_path);
-
-	free_null_terminated_array(free, inv->invocation_argv);
-	inv->invocation_argv = NULL;
-
-	if (inv->invocation_environ != NULL)
-	{
-		free_null_terminated_array(free, inv->invocation_environ);
-		inv->invocation_environ = NULL;
-	}
-
-	if (inv->invocation_spawnattr_init)
-	{
-		if (posix_spawnattr_destroy(&(inv->invocation_spawnattr)) != 0)
-		{
-			/*
-			 * A warning would be appropriate.
-			PyErr_SetFromErrno(PyExc_OSError);
-			 */
-		}
-	}
-
-	Py_TYPE(self)->tp_free(self);
-}
-
-static PyMethodDef
-invocation_methods[] = {
-	{"spawn", invocation_spawn, METH_VARARGS|METH_KEYWORDS, "submit the request to spawn the invocation"},
-	{NULL,},
-};
-
-PyDoc_STRVAR(invocation_doc,
-	"System command invocation interface.\n\n"
-	"Invocation works by creating a reference to a system command using the executable\n"
-	"path, command arguments sequence, and optional environment variables.\n"
-	"Once created, the invocation can be reused with different sets of file descriptors for\n"
-	"managing standard input, output, and error.\n\n"
-
-	"#!/pl/python\n"
-	"\tinv = kernel.Invocation(command_path, (command_argument, ...), envkey1=value, ..., envkeyN=value)\n"
-	"\tpid = inv((pipe_read_side, 0), (pipe_write_side_stdout, 1), (pipe_write_side_stderr, 2))\n"
-
-	"This designated object for invocation improves performance of repeat invocations by avoiding repeat conversion.\n"
-);
-
-PyTypeObject
-InvocationType = {
-	PyVarObject_HEAD_INIT(NULL, 0)
-	FACTOR_PATH("Invocation"),  /* tp_name */
-	sizeof(struct Invocation),  /* tp_basicsize */
-	0,                          /* tp_itemsize */
-	invocation_dealloc,         /* tp_dealloc */
-	NULL,                       /* tp_print */
-	NULL,                       /* tp_getattr */
-	NULL,                       /* tp_setattr */
-	NULL,                       /* tp_compare */
-	NULL,                       /* tp_repr */
-	NULL,                       /* tp_as_number */
-	NULL,                       /* tp_as_sequence */
-	NULL,                       /* tp_as_mapping */
-	NULL,                       /* tp_hash */
-	invocation_spawn,           /* tp_call */
-	NULL,                       /* tp_str */
-	NULL,                       /* tp_getattro */
-	NULL,                       /* tp_setattro */
-	NULL,                       /* tp_as_buffer */
-	Py_TPFLAGS_BASETYPE|
-	Py_TPFLAGS_DEFAULT,         /* tp_flags */
-	invocation_doc,             /* tp_doc */
-	NULL,                       /* tp_traverse */
-	NULL,                       /* tp_clear */
-	NULL,                       /* tp_richcompare */
-	0,                          /* tp_weaklistoffset */
-	NULL,                       /* tp_iter */
-	NULL,                       /* tp_iternext */
-	invocation_methods,         /* tp_methods */
-	NULL,                       /* tp_members */
-	NULL,                       /* tp_getset */
-	NULL,                       /* tp_base */
-	NULL,                       /* tp_dict */
-	NULL,                       /* tp_descr_get */
-	NULL,                       /* tp_descr_set */
-	0,                          /* tp_dictoffset */
-	NULL,                       /* tp_init */
-	NULL,                       /* tp_alloc */
-	invocation_new,             /* tp_new */
-};
 
 static PyObj
 get_hostname(PyObj mod)
@@ -572,7 +87,7 @@ set_process_title(PyObj mod, PyObj title)
 		;
 	#else
 		/*
-			// no support on darwin
+			// No support on darwin.
 		*/
 		bytes = PyUnicode_AsUTF8String(title);
 
@@ -592,12 +107,6 @@ struct inherit {
 	pid_t process_id;
 };
 
-/**
-	// Communicate child's parent to parent.
-
-	// This allows fork to track (system:manual)`fork`'s that weren't explicitly performed by
-	// an &.library interface.
-*/
 static void
 prepare(void)
 {
@@ -608,7 +117,7 @@ prepare(void)
 static struct inherit fork_data = {-1};
 
 /**
-	// Execute the &.library._after_fork_parent object from a pending call.
+	// Execute the &.process._after_fork_parent object from a pending call.
 */
 static int
 _after_fork_parent(void *pc_param)
@@ -650,7 +159,7 @@ parent(void)
 }
 
 /**
-	// Execute the &.library._after_fork_child object from a pending call.
+	// Execute the &.process._after_fork_child object from a pending call.
 */
 static int
 _after_fork_child(void *pc_param)
@@ -776,7 +285,6 @@ trace(PyObj self, PyObj args)
 	Py_RETURN_NONE;
 }
 
-
 /**
 	// Executed in atexit in order to preserve the signal's exit code.
 */
@@ -898,7 +406,7 @@ kport_set_cloexec(PyObj mod, PyObj seq)
 	// process_module entry meaning that system.process should not be reloaded.
 */
 static PyObj
-initialize(PyObj mod, PyObj ctx)
+k_initialize(PyObj mod, PyObj ctx)
 {
 	if (process_module != NULL)
 	{
@@ -920,42 +428,32 @@ initialize(PyObj mod, PyObj ctx)
 	Py_RETURN_NONE;
 }
 
+extern PyTypeObject EventsType;
+extern PyTypeObject InvocationType;
+
 #define PortsType KPortsType
 #define PYTHON_TYPES() \
 	ID(Invocation) \
 	ID(Events) \
 	ID(Ports)
 
+#define k_preserve kport_clear_cloexec
+#define k_released kport_set_cloexec
+#define k_hostname get_hostname
+#define k_machine_execution_context get_uname
+#define k_clockticks get_clock_ticks
+#define k_set_process_title set_process_title
+#define k_signalexit signalexit
+
 #define MODULE_FUNCTIONS() \
-	PYMETHOD( \
-		preserve, kport_clear_cloexec, METH_O, \
-			"Preserve the given file descriptors across process image substitutions(exec).") \
-	PYMETHOD( \
-		released, kport_set_cloexec, METH_O, \
-			"Configure the file descriptors to be released when the process is substituted(exec).") \
-	PYMETHOD( \
-		hostname, get_hostname, METH_NOARGS, \
-			"Retrieve the hostname of the system using gethostname(2).") \
-	PYMETHOD( \
-		machine_execution_context, get_uname, METH_NOARGS, \
-			"Retrieve the system and instruction architecture of the runtime using uname(2).") \
-	PYMETHOD( \
-		clockticks, get_clock_ticks, METH_NOARGS, \
-			"Retrieve the (system/manual)`sysconf` value of (id)`SC_CLK_TCK`.") \
-	PYMETHOD( \
-		set_process_title, set_process_title, METH_O, \
-			"Set the process title on platforms supporting " \
-			"(system/manual)`setproctitle`. " \
-			"Does nothing if unsupported or unsafe.") \
-	PYMETHOD( \
-		exit_by_signal, signalexit, METH_O, \
-			"Register an (system/manual)`atexit` handler that causes the " \
-			"process to exit with the given signal number.") \
-	PYMETHOD(signalexit, signalexit, METH_O, NULL) \
-	PYMETHOD( \
-		initialize, initialize, METH_O, \
-			"Initialize the after fork callbacks. " \
-			"Called once by &.process. Do not use directly.")
+	PyMethod_Sole(preserve), \
+	PyMethod_Sole(released), \
+	PyMethod_None(hostname), \
+	PyMethod_None(machine_execution_context), \
+	PyMethod_None(clockticks), \
+	PyMethod_Sole(set_process_title), \
+	PyMethod_Sole(signalexit), \
+	PyMethod_Sole(initialize),
 
 extern PyTypeObject KPortsType;
 KPorts kports_alloc(kport_t, Py_ssize_t);
@@ -966,8 +464,9 @@ static struct KPortsAPI _kp_apis = {
 	kports_create,
 };
 
+#define PyMethod_Id(N) k_##N
 #include <fault/python/module.h>
-INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
+INIT(module, 0, NULL)
 {
 	PyObj kp_api_ob;
 
@@ -1004,3 +503,4 @@ INIT(module, 0, PyDoc_STR("Interfaces for the operating system.\n"))
 		return(-1);
 	}
 }
+#undef PyMethod_Id

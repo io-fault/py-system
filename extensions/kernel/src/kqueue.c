@@ -11,10 +11,27 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/event.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
+
+#ifndef CONFIG_SYSCALL_RETRY
+	#define CONFIG_SYSCALL_RETRY 16
+#elif CONFIG_SYSCALL_RETRY < 8
+	#undef CONFIG_SYSCALL_RETRY
+	#define CONFIG_SYSCALL_RETRY 16
+	#warning nope.
+#endif
+
+#ifndef INITIAL_TASKS_ALLOCATED
+	#define INITIAL_TASKS_ALLOCATED 4
+#endif
+
+#ifndef MAX_TASKS_PER_SEGMENT
+	#define MAX_TASKS_PER_SEGMENT 128
+#endif
 
 #define KQ_FILTERS() \
 	FILTER(EVFILT_USER) \
@@ -164,14 +181,14 @@ ev_check_kevent(kevent_t *ev)
 }
 
 static inline int
-ev_force_event(Events ki)
+interrupt_wait(Events ki)
 {
 	struct timespec ts = {0,0};
 	kevent_t kev;
 	int out = 0;
 
 	/**
-		// Ignore force if it's not waiting or has already forced.
+		// Ignore interrupt if it's not waiting or has already been interrupted.
 	*/
 	if (ki->ke_waiting > 0)
 	{
@@ -254,7 +271,7 @@ ev_queue_continue(Events ki)
 }
 
 static PyObj
-ev_enqueue_task(Events ki, PyObj callable)
+ev_enqueue(Events ki, PyObj callable)
 {
 	Tasks tail = ki->ke_tail;
 
@@ -272,14 +289,14 @@ ev_enqueue_task(Events ki, PyObj callable)
 		ev_extend(ki, tail);
 
 	/* XXX: redundant condition; refactor force into inline */
-	if (ev_force_event(ki) < 0)
+	if (interrupt_wait(ki) < 0)
 		return(NULL);
 
 	Py_RETURN_NONE;
 }
 
 static PyObj
-ev_execute_tasks(Events ki, PyObj errctl)
+ev_execute(Events ki, PyObj errctl)
 {
 	Tasks exec = ki->ke_executing;
 	Tasks next = NULL;
@@ -579,12 +596,12 @@ ev_untrack(PyObj self, PyObj args)
 }
 
 static PyObj
-ev_force(PyObj self)
+ev_interrupt(PyObj self)
 {
 	Events ev = (Events) self;
 	PyObj rob;
 
-	switch (ev_force_event(ev))
+	switch (interrupt_wait(ev))
 	{
 		case -1:
 			return(NULL);
@@ -707,7 +724,7 @@ note_unit(int unit, unsigned long *l)
 }
 
 static PyObj
-ev_alarm(PyObj self, PyObj args, PyObj kw)
+ev_defer(PyObj self, PyObj args, PyObj kw)
 {
 	const static char *kwlist[] = {
 		"link", "quantity", "unitcode", NULL,
@@ -833,7 +850,7 @@ signal_string(int sig)
 }
 
 static PyObj
-ev_set_waiting(PyObj self)
+ev__set_waiting(PyObj self)
 {
 	Events ev = (Events) self;
 	ev->ke_waiting = 1;
@@ -1046,91 +1063,27 @@ ev_wait(PyObj self, PyObj args)
 
 static PyMethodDef
 ev_methods[] = {
-	{"close",
-		(PyCFunction) ev_close,
-		METH_NOARGS, PyDoc_STR(
-			"Close the interface eliminating the possibility of receiving events from the kernel.\n"
-		)
-	},
+	#define PyMethod_Id(N) ev_##N
+		{"force", (PyCFunction) ev_interrupt, METH_NOARGS, NULL},
+		{"alarm", (PyCFunction) ev_defer, METH_VARARGS|METH_KEYWORDS, NULL},
 
-	{"void",
-		(PyCFunction) ev_void,
-		METH_NOARGS, PyDoc_STR(
-			"Destroy the Events instance, closing any file descriptors managed by the object.\n"
-			"Also destroy the internal set-object for holding kernel references.\n"
-		)
-	},
+		PyMethod_None(void),
+		PyMethod_None(close),
 
-	{"track",
-		(PyCFunction) ev_track, METH_VARARGS,
-		PyDoc_STR(
-			"Listen for the process exit event."
-		)
-	},
+		PyMethod_Variable(wait),
+		PyMethod_None(interrupt),
+		PyMethod_Sole(execute),
 
-	{"untrack",
-		(PyCFunction) ev_untrack, METH_VARARGS,
-		PyDoc_STR(
-			"Stop listening for the process exit event."
-		)
-	},
+		PyMethod_Variable(track),
+		PyMethod_Variable(untrack),
 
-	{"alarm",
-		(PyCFunction) ev_alarm, METH_VARARGS|METH_KEYWORDS,
-		PyDoc_STR(
-			"Allocate a one-time timer that will cause an event after the designed period.\n"
-		)
-	},
+		PyMethod_Sole(cancel),
+		PyMethod_Keywords(defer),
+		PyMethod_Keywords(recur),
+		PyMethod_Sole(enqueue),
 
-	{"recur",
-		(PyCFunction) ev_recur, METH_VARARGS|METH_KEYWORDS,
-		PyDoc_STR(
-			"Allocate a recurring timer that will cause an event at the designed frequency.\n"
-		)
-	},
-
-	{"cancel",
-		(PyCFunction) ev_cancel, METH_O,
-		PyDoc_STR(
-			"Cancel a timer, recurring or once, using the link that the timer was allocated with.\n"
-		)
-	},
-
-	{"force",
-		(PyCFunction) ev_force, METH_NOARGS,
-		PyDoc_STR(
-			"Cause a corresponding &wait call to stop waiting **if** the Events\n"
-			"instance is inside a with-statement block::\n"
-		)
-	},
-
-	{"wait",
-		(PyCFunction) ev_wait, METH_VARARGS,
-		PyDoc_STR(
-			"Wait for and return kernel events; returns empty list on timeout or interrupt.\n"
-		)
-	},
-
-	{"enqueue",
-		(PyCFunction) ev_enqueue_task, METH_O,
-		PyDoc_STR(
-			"Enqueue a task for execution.\n"
-		)
-	},
-	{"execute",
-		(PyCFunction) ev_execute_tasks, METH_O,
-		PyDoc_STR(
-			"Execute recently enqueued, FIFO, tasks and prepare for the next cycle.\n"
-		)
-	},
-
-	{"_set_waiting",
-		(PyCFunction) ev_set_waiting, METH_NOARGS,
-		PyDoc_STR(
-			"Set waiting state for testing."
-		)
-	},
-
+		PyMethod_None(_set_waiting),
+	#undef PyMethod_Id
 	{NULL,},
 };
 
@@ -1167,10 +1120,8 @@ ev_get_has_tasks(PyObj self, void *closure)
 }
 
 static PyGetSetDef ev_getset[] = {
-	{"closed", ev_get_closed, NULL,
-		PyDoc_STR("whether the interface's kernel connection is closed")},
-	{"loaded", ev_get_has_tasks, NULL,
-		PyDoc_STR("whether the queue has been loaded with any number of tasks")},
+	{"closed", ev_get_closed, NULL, NULL},
+	{"loaded", ev_get_has_tasks, NULL, NULL},
 	{NULL,},
 };
 
@@ -1374,7 +1325,9 @@ ev_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	return((PyObj) ev);
 }
 
-#include <fault/external.h>
+/**
+	// &.kernel.Events
+*/
 PyTypeObject
 EventsType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -1399,9 +1352,7 @@ EventsType = {
 	Py_TPFLAGS_BASETYPE|
 	Py_TPFLAGS_HAVE_GC|
 	Py_TPFLAGS_DEFAULT,           /* tp_flags */
-	PyDoc_STR("Kernel Events Interface"),
-	                              /* tp_doc */
-
+	NULL,                         /* tp_doc */
 	ev_traverse,                  /* tp_traverse */
 	ev_clear,                     /* tp_clear */
 	NULL,                         /* tp_richcompare */
