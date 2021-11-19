@@ -54,6 +54,9 @@ taskq_extend(TaskQueue tq)
 	return(0);
 }
 
+/**
+	// Append a single entry to the queue.
+*/
 CONCEAL(int)
 taskq_enqueue(TaskQueue tq, PyObj callable)
 {
@@ -216,6 +219,9 @@ taskq_execute(TaskQueue tq, PyObj errctl)
 	return(PyLong_FromLong((long) total));
 }
 
+/**
+	// Release all objects held by the queue.
+*/
 CONCEAL(void)
 taskq_clear(TaskQueue tq)
 {
@@ -244,6 +250,7 @@ taskq_clear(TaskQueue tq)
 
 	/*
 		// Special case for final segment in loading.
+		// The segment's allocation is released in the normal case below.
 	*/
 	t = kt;
 	if (t != NULL)
@@ -269,6 +276,9 @@ taskq_clear(TaskQueue tq)
 	}
 }
 
+/**
+	// Container traversal for GC support.
+*/
 CONCEAL(int)
 taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 {
@@ -301,6 +311,9 @@ taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 	}
 }
 
+/**
+	// Initialize the given, already allocated, task queue.
+*/
 CONCEAL(int)
 taskq_initialize(TaskQueue tq)
 {
