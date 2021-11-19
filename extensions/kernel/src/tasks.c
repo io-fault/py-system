@@ -29,7 +29,7 @@
 /**
 	// Append a memory allocation to the task queue.
 */
-SYMBOL(int)
+CONCEAL(int)
 taskq_extend(TaskQueue tq)
 {
 	Tasks tail = tq->q_tail;
@@ -54,7 +54,7 @@ taskq_extend(TaskQueue tq)
 	return(0);
 }
 
-SYMBOL(int)
+CONCEAL(int)
 taskq_enqueue(TaskQueue tq, PyObj callable)
 {
 	Tasks tail = tq->q_tail;
@@ -82,7 +82,7 @@ taskq_enqueue(TaskQueue tq, PyObj callable)
 	// Handle error cases using &errctl and &PyErr_WriteUnraisable
 	// when it or other critical operations fail.
 */
-static void
+STATIC(void)
 trap_execution_error(PyObj errctl, PyObj task)
 {
 	PyObj exc, val, tb;
@@ -131,7 +131,7 @@ trap_execution_error(PyObj errctl, PyObj task)
 /**
 	// Pop segments from &TaskQueue.q_executing.
 */
-static int
+STATIC(int)
 taskq_continue(TaskQueue tq)
 {
 	Tasks n = NULL;
@@ -159,7 +159,7 @@ taskq_continue(TaskQueue tq)
 	// Execute the tasks in the &TaskQueue.q_executing,
 	// and rotate &TaskQueue.q_loading for the next cycle.
 */
-SYMBOL(PyObj)
+CONCEAL(PyObj)
 taskq_execute(TaskQueue tq, PyObj errctl)
 {
 	Tasks exec = tq->q_executing;
@@ -216,7 +216,7 @@ taskq_execute(TaskQueue tq, PyObj errctl)
 	return(PyLong_FromLong((long) total));
 }
 
-SYMBOL(void)
+CONCEAL(void)
 taskq_clear(TaskQueue tq)
 {
 	Tasks t, n;
@@ -269,7 +269,7 @@ taskq_clear(TaskQueue tq)
 	}
 }
 
-SYMBOL(int)
+CONCEAL(int)
 taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 {
 	Tasks t, n;
@@ -301,7 +301,7 @@ taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 	}
 }
 
-SYMBOL(int)
+CONCEAL(int)
 taskq_initialize(TaskQueue tq)
 {
 	tq->q_loading = TASKQ_MEMORY_ACQUIRE(
