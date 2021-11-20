@@ -4,7 +4,6 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/event.h>
@@ -222,7 +221,10 @@ kernelq_setup_interrupt(KernelQueue kq)
 	};
 
 	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
 		return(-1);
+	}
 
 	return(0);
 }
@@ -239,18 +241,22 @@ kernelq_setup_signals(KernelQueue kq, void *ref)
 	const struct timespec ts = {0,0};
 	int nkevents;
 	kevent_t keva[] = {
-		#define SIGNAME(SN) {SIGNALT, .ident = SN, .udata = ref},
-			SIGNALS()
-		#undef SIGNAME
+		#define SIG(SN) {SIGNALT, .ident = SN, .udata = ref},
+			SIGNAL_CONNECTIONS()
+		#undef SIG
 	};
-	nkevents = sizeof(keva) / sizeof(kevent_t);
 
+	nkevents = sizeof(keva) / sizeof(kevent_t);
 	if (kernelq_kevent(kq, 1, &nkevents, keva, nkevents, keva, nkevents, &ts) < 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
 		return(-1);
+	}
 
 	if (nkevents != (sizeof(keva) / sizeof(kevent_t)))
 	{
-		printf("inconsistency\n");
+		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
+			"scheduler could not establish all signal connections");
 	}
 
 	return(0);
@@ -280,9 +286,6 @@ kernelq_initialize(KernelQueue kq)
 
 	if (kernelq_setup_interrupt(kq) < 0)
 	{
-		PyErr_SetFromErrno(PyExc_OSError);
-
-		/* Avoid the resource warning. */
 		close(kq->kq_root);
 		kq->kq_root = -1;
 		return(-4);
@@ -290,9 +293,6 @@ kernelq_initialize(KernelQueue kq)
 
 	if (kernelq_setup_signals(kq, NULL) < 0)
 	{
-		PyErr_SetFromErrno(PyExc_OSError);
-
-		/* Avoid the resource warning. */
 		close(kq->kq_root);
 		kq->kq_root = -1;
 		return(-5);

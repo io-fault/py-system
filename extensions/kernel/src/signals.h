@@ -7,34 +7,31 @@
 	// *All* Kernel instances will receive signals.
 */
 
-/**
-	// List of signals that are available for application connections.
-	// SIGINFO, SIGTERM, SIGTSTP have default actions.
-	// The others are listened for, but discarded by default.
-*/
-#define SIGNEVER 0
+#include <signal.h>
+#include <fault/posix/signal.h>
 
-#define SIGNALS() \
-	SIGNAME(SIGNEVER) \
-	SIGNAME(SIGINFO) \
-	SIGNAME(SIGTERM) \
-	SIGNAME(SIGTSTP) \
-	SIGNAME(SIGCONT) \
-	SIGNAME(SIGWINCH) \
-	SIGNAME(SIGPIPE) \
-	SIGNAME(SIGIO) \
-	SIGNAME(SIGHUP) \
-	SIGNAME(SIGUSR1) \
-	SIGNAME(SIGURG)
+#define SIGNAL_CONNECTIONS() \
+	SIG(SIGCONT) \
+	SIG(SIGHUP) \
+	SIG(SIGINFO) \
+	SIG(SIGUSR1) \
+	SIG(SIGTERM) \
+	SIG(SIGTSTP) \
+	SIG(SIGWINCH) \
+	SIG(SIGPIPE) \
+	SIG(SIGIO) \
+	SIG(SIGURG)
 
 static inline const char *
 signal_string(int sig)
 {
 	switch (sig)
 	{
-		#define SIGNAL(SID, SYM, ...) case SID: return SYM; break;
-			#include <ksignal.h>
-		#undef SIGNAL
+		#define SIG(CAT, SYM, SID, ...) \
+			case SID: return #CAT "/" #SYM; break;
+
+			FAULT_SIGNAL_LIST()
+		#undef SIG
 
 		default:
 			return "";
