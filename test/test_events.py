@@ -2,7 +2,7 @@ import os
 import time
 from .. import kernel as module
 
-def test_alarm_units(test):
+def test_defer_units(test):
 	ki = module.Events()
 	try:
 		ki.defer(1, 0, 'n')
@@ -21,7 +21,7 @@ def test_alarm_units(test):
 		ki.void()
 		test.garbage()
 
-def test_alarm(test):
+def test_defer(test):
 	ki = module.Events()
 	try:
 		ob = "alarm-event-string"
@@ -31,7 +31,7 @@ def test_alarm(test):
 		ki.void()
 		test.garbage()
 
-def test_alarm_time(test):
+def test_defer_time(test):
 	ki = module.Events()
 	try:
 		ob = "alarm-event-string"
@@ -50,7 +50,7 @@ def test_ignore_force(test):
 		ob = "alarm-event-string"
 		a=time.time()
 		ki.defer(ob, 1200, 'm')
-		ki.force()
+		ki.interrupt()
 		# forced while not waiting outside block validate that it's not drop through.
 		ki.wait()
 		b=time.time()
@@ -65,18 +65,18 @@ def test_force(test):
 		ob = "alarm-event-string"
 		a=time.time()
 		ki.defer(ob, 5, 's')
-		test/ki.force() == None
+		test/ki.interrupt() == None
 
 		ki._set_waiting()
-		test/ki.force() == True
-		ki.force()
+		test/ki.interrupt() == True
+		ki.interrupt()
 		# signals that it was already tripped
-		test/ki.force() == False
-		test/ki.force() == False
+		test/ki.interrupt() == False
+		test/ki.interrupt() == False
 		# forced while not waiting outside block validate that it's not drop through.
 		ki.wait()
 
-		test/ki.force() == None
+		test/ki.interrupt() == None
 		b=time.time()
 		test/(b-a) < 5
 	finally:
@@ -197,18 +197,6 @@ def test_enqueue_force_event(test):
 	test/k.execute(None) == 0
 	test/k.wait(2) == []
 	test/k.execute(None) == 1
-
-def test_wait_timeout_event(test):
-	"""
-	# - &module.Events.execute
-
-	# Interface.enqueue should be sensitive to the event wait state.
-	# This validates that no timeout event is generated designating that a user event was received.
-	"""
-
-	k = module.Events()
-	test/k.wait(0) == [] # No duration no timeout event.
-	test/k.wait(1) == [('timeout', 1)]
 
 def test_interface_close(test):
 	"""

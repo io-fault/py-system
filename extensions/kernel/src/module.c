@@ -300,7 +300,7 @@ _exit_by_signal(void)
 		kill(getpid(), exit_signal);
 
 		/* signal didn't end the process, abort */
-		fprintf(stderr, "[kernel._exit_by_signal: signal, %d, did not terminate process]\n", exit_signal);
+		fprintf(stderr, "[!* kernel._exit_by_signal: signal, %d, did not terminate process]\n", exit_signal);
 		abort();
 	}
 }
@@ -431,6 +431,15 @@ k_initialize(PyObj mod, PyObj ctx)
 extern PyTypeObject EventsType;
 extern PyTypeObject InvocationType;
 
+extern PyTypeObject KPortsType;
+KPorts kports_alloc(kport_t, Py_ssize_t);
+KPorts kports_create(kport_t[], Py_ssize_t);
+static struct KPortsAPI _kp_apis = {
+	&KPortsType,
+	kports_alloc,
+	kports_create,
+};
+
 #define PortsType KPortsType
 #define PYTHON_TYPES() \
 	ID(Invocation) \
@@ -445,6 +454,7 @@ extern PyTypeObject InvocationType;
 #define k_set_process_title set_process_title
 #define k_signalexit signalexit
 
+#define PyMethod_Id(N) k_##N
 #define MODULE_FUNCTIONS() \
 	PyMethod_Sole(preserve), \
 	PyMethod_Sole(released), \
@@ -455,16 +465,6 @@ extern PyTypeObject InvocationType;
 	PyMethod_Sole(signalexit), \
 	PyMethod_Sole(initialize),
 
-extern PyTypeObject KPortsType;
-KPorts kports_alloc(kport_t, Py_ssize_t);
-KPorts kports_create(kport_t[], Py_ssize_t);
-static struct KPortsAPI _kp_apis = {
-	&KPortsType,
-	kports_alloc,
-	kports_create,
-};
-
-#define PyMethod_Id(N) k_##N
 #include <fault/python/module.h>
 INIT(module, 0, NULL)
 {

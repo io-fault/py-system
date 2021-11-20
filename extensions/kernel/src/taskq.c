@@ -5,7 +5,7 @@
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 
-#include "tasks.h"
+#include "taskq.h"
 
 #ifndef INITIAL_TASKS_ALLOCATED
 	#define INITIAL_TASKS_ALLOCATED 4
@@ -280,7 +280,7 @@ taskq_clear(TaskQueue tq)
 	// Container traversal for GC support.
 */
 CONCEAL(int)
-taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
+taskq_traverse(TaskQueue tq, PyObj self, visitproc visit, void *arg)
 {
 	Tasks t, n;
 	size_t i;
@@ -309,6 +309,8 @@ taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 			Py_VISIT(t->t_vector[i]);
 		t = n;
 	}
+
+	return(0);
 }
 
 /**
