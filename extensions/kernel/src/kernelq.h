@@ -1,5 +1,6 @@
 /**
 	// kernelq interfaces
+	// Abstraction for kqueue and epoll.
 */
 #ifndef _SYSTEM_KERNEL_KERNELQ_H_included_
 #define _SYSTEM_KERNEL_KERNELQ_H_included_
@@ -50,15 +51,16 @@ struct KernelQueue {
 };
 
 int kernelq_initialize(KernelQueue);
+int kernelq_enqueue(KernelQueue, long, long);
 int kernelq_interrupt(KernelQueue);
+PyObj kernelq_transition(KernelQueue);
 int kernelq_close(KernelQueue);
+
 void kernelq_clear(KernelQueue);
 int kernelq_traverse(KernelQueue, PyObj, visitproc, void *);
+
 PyObj kernelq_process_watch(KernelQueue, pid_t, void *);
 PyObj kernelq_process_ignore(KernelQueue, pid_t, void *);
 int kernelq_recur(KernelQueue, int, unsigned long, PyObj);
 int kernelq_defer(KernelQueue, int, unsigned long, PyObj);
-
-int kernelq_enqueue(KernelQueue, long, long);
-PyObj kernelq_transition(KernelQueue);
 #endif
