@@ -45,7 +45,6 @@
 
 #include "taskq.h"
 #include "kernelq.h"
-#include "events.h"
 #include "signals.h"
 
 STATIC(int)
@@ -311,7 +310,7 @@ kernelq_clear(KernelQueue kq)
 	{
 		close(kq->kq_root);
 		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
-			FACTOR_PATH("Events") " instance not closed before deallocation");
+			FACTOR_PATH("Scheduler") " instance not closed before deallocation");
 	}
 }
 

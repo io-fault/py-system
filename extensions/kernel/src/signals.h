@@ -1,5 +1,5 @@
 /**
-	// Signals that kernel.Events will listen for automatically.
+	// Signals that kernel.Scheduler will listen for automatically.
 
 	// SIGINT is handled process.control() with signal.signal.
 	// SIGUSR2 is *explicitly* used to trigger interjections.

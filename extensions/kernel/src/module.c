@@ -428,7 +428,7 @@ k_initialize(PyObj mod, PyObj ctx)
 	Py_RETURN_NONE;
 }
 
-extern PyTypeObject EventsType;
+extern PyTypeObject SchedulerType;
 extern PyTypeObject InvocationType;
 
 extern PyTypeObject KPortsType;
@@ -443,7 +443,7 @@ static struct KPortsAPI _kp_apis = {
 #define PortsType KPortsType
 #define PYTHON_TYPES() \
 	ID(Invocation) \
-	ID(Events) \
+	ID(Scheduler) \
 	ID(Ports)
 
 #define k_preserve kport_clear_cloexec

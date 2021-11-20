@@ -3,7 +3,7 @@ import time
 from .. import kernel as module
 
 def test_defer_units(test):
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		ki.defer(1, 0, 'n')
 		ki.defer(2, 0, 's')
@@ -22,7 +22,7 @@ def test_defer_units(test):
 		test.garbage()
 
 def test_defer(test):
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		ob = "alarm-event-string"
 		ki.defer(ob, 1, 'n')
@@ -32,7 +32,7 @@ def test_defer(test):
 		test.garbage()
 
 def test_defer_time(test):
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		ob = "alarm-event-string"
 		a=time.time()
@@ -45,7 +45,7 @@ def test_defer_time(test):
 		test.garbage()
 
 def test_ignore_force(test):
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		ob = "alarm-event-string"
 		a=time.time()
@@ -60,7 +60,7 @@ def test_ignore_force(test):
 		test.garbage()
 
 def test_force(test):
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		ob = "alarm-event-string"
 		a=time.time()
@@ -84,7 +84,7 @@ def test_force(test):
 		test.garbage()
 
 def test_recur(test):
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		ob = "foo"
 		a=time.time()
@@ -110,7 +110,7 @@ def test_track(test):
 		i = os.read(fd, 1)
 		os._exit(3)
 
-	ki = module.Events()
+	ki = module.Scheduler()
 	try:
 		pid = os.fork()
 
@@ -131,10 +131,10 @@ def test_track(test):
 
 def test_execute(test):
 	"""
-	# - &module.Events.execute
+	# - &module.Scheduler.execute
 	"""
 
-	k = module.Events()
+	k = module.Scheduler()
 	x = False
 	def effect():
 		nonlocal x
@@ -154,10 +154,10 @@ def test_execute(test):
 
 def test_execute_error_trap(test):
 	"""
-	# - &module.Events.execute
+	# - &module.Scheduler.execute
 	"""
 
-	k = module.Events()
+	k = module.Scheduler()
 	x = False
 	def trap(ob, err):
 		nonlocal x
@@ -175,23 +175,23 @@ def test_execute_error_trap(test):
 
 def test_execute_nothing(test):
 	"""
-	# - &module.Events.execute
+	# - &module.Scheduler.execute
 	"""
 
-	k = module.Events()
+	k = module.Scheduler()
 	for x in range(512):
 		test/k.loaded == False
 		test/k.execute(None) == 0
 
 def test_enqueue_force_event(test):
 	"""
-	# - &module.Events.execute
+	# - &module.Scheduler.execute
 
 	# Interface.enqueue should be sensitive to the event wait state.
 	# This validates that no timeout event is generated designating that a user event was received.
 	"""
 
-	k = module.Events()
+	k = module.Scheduler()
 	k._set_waiting()
 	k.enqueue((lambda: None))
 	test/k.execute(None) == 0
@@ -200,11 +200,11 @@ def test_enqueue_force_event(test):
 
 def test_interface_close(test):
 	"""
-	# - &module.Events.close
-	# - &module.Events.closed
+	# - &module.Scheduler.close
+	# - &module.Scheduler.closed
 	"""
 
-	k = module.Events()
+	k = module.Scheduler()
 	test/k.closed == False
 	test/k.close() == True
 	test/k.closed == True
@@ -221,7 +221,7 @@ def test_interface_close(test):
 
 def test_execute_error_trap_exceptions(test):
 	"""
-	# - &module.Events.execute
+	# - &module.Scheduler.execute
 	"""
 
 	test.explicit()
@@ -230,7 +230,7 @@ def test_execute_error_trap_exceptions(test):
 		out.append((ob, err))
 		raise RuntimeError("exception during exception")
 
-	k = module.Events()
+	k = module.Scheduler()
 	k.enqueue(None)
 	test/k.execute(etrap) == 0
 	test/k.execute(etrap) == 1
