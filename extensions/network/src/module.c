@@ -567,24 +567,14 @@ struct EndpointAPI _ep_apis = {
 	ID(Endpoint)
 
 #define MODULE_FUNCTIONS() \
-	PYMETHOD( \
-		select_endpoints, nw_select_endpoints_gai, METH_VARARGS, \
-			"Resolve the Endpoints of the given host and service using (system/manual)`getaddrinfo`.") \
-	PYMETHOD( \
-		select_interfaces, nw_select_interfaces_gai, METH_VARARGS, \
-			"Identify the interfaces to bind to for the service using (system/manual)`getaddrinfo`.") \
-	PYMETHOD( \
-		connect, nw_connect, METH_VARARGS|METH_KEYWORDS, \
-			"Connect new sockets using the given endpoints.") \
-	PYMETHOD( \
-		service, nw_service, METH_VARARGS|METH_KEYWORDS, \
-			"Create a listening socket using the given endpoint as the interface.") \
-	PYMETHOD( \
-		bind, nw_bind, METH_VARARGS|METH_KEYWORDS, \
-			"Create and bind a socket to an interface; usually for connection-less communication.") \
+	PYMETHOD(select_endpoints, nw_select_endpoints_gai, METH_VARARGS, NULL) \
+	PYMETHOD(select_interfaces, nw_select_interfaces_gai, METH_VARARGS, NULL) \
+	PYMETHOD(connect, nw_connect, METH_VARARGS|METH_KEYWORDS, NULL) \
+	PYMETHOD(service, nw_service, METH_VARARGS|METH_KEYWORDS, NULL) \
+	PYMETHOD(bind, nw_bind, METH_VARARGS|METH_KEYWORDS, NULL)
 
 #include <fault/python/module.h>
-INIT(module, 0, PyDoc_STR("System network interfaces.\n"))
+INIT(module, 0, NULL)
 {
 	PyObj api_ob;
 

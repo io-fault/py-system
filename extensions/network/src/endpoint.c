@@ -1,3 +1,7 @@
+/**
+	// Python type for referring to and introspecting system endpoint representations.
+*/
+#include <stdint.h>
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
@@ -18,11 +22,6 @@
 #include <endpoint.h>
 
 extern PyTypeObject EndpointType;
-
-#ifndef HAVE_STDINT_H
-	/* relying on Python's checks */
-	#include <stdint.h>
-#endif
 
 /**
 	// Retrieve the string identifier of the given socket type code, &socktype.
@@ -63,9 +62,6 @@ transport_type_string(int socktype)
 
 /**
 	// Identify the socket type code that is being referred to by the given string, &identifier.
-
-	// [ Engineering ]
-	// Use a real hash.
 */
 int
 nw_socket_type(const char *identifier)
@@ -666,17 +662,12 @@ endpoint_replace(PyObj self, PyObj args, PyObj kw)
 #undef A
 
 static PyMethodDef endpoint_methods[] = {
-	{"replace",
-		(PyCFunction) endpoint_replace,
-		METH_VARARGS|METH_KEYWORDS,
-		PyDoc_STR("Create a new endpoint with the given fields overwritten.")
-	},
+	{"replace", (PyCFunction) endpoint_replace, METH_VARARGS|METH_KEYWORDS, NULL},
 
 	#define A(AF) \
 		{"from_" #AF, \
 			(PyCFunction) endpoint_new_##AF , \
-			METH_VARARGS|METH_KEYWORDS|METH_CLASS, \
-			PyDoc_STR("Direct constructor for the address family identified by the method name.") \
+			METH_VARARGS|METH_KEYWORDS|METH_CLASS, NULL \
 		},
 
 		ADDRESSING()
@@ -776,41 +767,17 @@ endpoint_get_pair(PyObj self, void *_)
 
 static PyGetSetDef
 endpoint_getset[] = {
-	{"address_family", endpoint_get_address_family, NULL,
-		PyDoc_STR(
-			"The system address family identifier.")
-	},
-
-	{"address_type", endpoint_get_address_type, NULL,
-		PyDoc_STR(
-			"The type of addressing used to reference the endpoint.\n"
-			"One of `'ip6'`, `'ip4'`, `'local'`, or `None` if family is unknown.")
-	},
-
-	{"address", endpoint_get_address, NULL,
-		PyDoc_STR("The address portion of the endpoint.")
-	},
-
-	{"port", endpoint_get_port, NULL,
-		PyDoc_STR("The port of the endpoint as an &int. &None if none.")
-	},
-
-	{"pair", endpoint_get_pair, NULL,
-		PyDoc_STR("A newly constructed tuple consisting of the address and port attributes.")
-	},
-
+	{"address_family", endpoint_get_address_family, NULL, NULL},
+	{"address_type", endpoint_get_address_type, NULL, NULL},
+	{"address", endpoint_get_address, NULL, NULL},
+	{"port", endpoint_get_port, NULL, NULL},
+	{"pair", endpoint_get_pair, NULL, NULL},
 	{NULL,},
 };
 
 static PyMemberDef endpoint_members[] = {
-	{"transport", T_INT, offsetof(struct Endpoint, transport), READONLY,
-		PyDoc_STR("The transport protocol that should be used when connecting.")
-	},
-
-	{"type", T_INT, offsetof(struct Endpoint, type), READONLY,
-		PyDoc_STR("The socket type to allocate when connecting.")
-	},
-
+	{"transport", T_INT, offsetof(struct Endpoint, transport), READONLY, NULL},
+	{"type", T_INT, offsetof(struct Endpoint, type), READONLY, NULL},
 	{NULL,},
 };
 
@@ -1054,8 +1021,6 @@ endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 }
 
-PyDoc_STRVAR(endpoint_doc, "System endpoint type for binding and connecting sockets.");
-
 PyTypeObject
 EndpointType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
@@ -1078,7 +1043,7 @@ EndpointType = {
 	NULL,                           /* tp_setattro */
 	NULL,                           /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	endpoint_doc,                   /* tp_doc */
+	NULL,                           /* tp_doc */
 	NULL,                           /* tp_traverse */
 	NULL,                           /* tp_clear */
 	endpoint_richcompare,           /* tp_richcompare */
