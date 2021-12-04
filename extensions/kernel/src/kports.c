@@ -4,23 +4,20 @@
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdint.h>
 
 #include <fault/libc.h>
+#include <fault/internal.h>
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
-
-#ifndef HAVE_STDINT_H
-	/* relying on Python's checks */
-	#include <stdint.h>
-#endif
 
 #include <kcore.h>
 #include <kports.h>
 
-extern PyTypeObject KPortsType;
+PyTypeObject KPortsType;
 #define _kports_alloc(x) KPortsType.tp_alloc(&KPortsType, x)
 
-KPorts
+CONCEAL(KPorts)
 kports_alloc(kport_t fill, Py_ssize_t length)
 {
 	Py_ssize_t i;
@@ -36,7 +33,7 @@ kports_alloc(kport_t fill, Py_ssize_t length)
 	return(kp);
 }
 
-KPorts
+CONCEAL(KPorts)
 kports_create(kport_t data[], Py_ssize_t length)
 {
 	KPorts kp;
@@ -50,7 +47,7 @@ kports_create(kport_t data[], Py_ssize_t length)
 	return(kp);
 }
 
-static PyObj
+STATIC(PyObj)
 kports_close(PyObj self)
 {
 	Py_ssize_t pos;
@@ -65,13 +62,13 @@ kports_close(PyObj self)
 	Py_RETURN_NONE;
 }
 
-static PyObj
+STATIC(PyObj)
 kports_enter(PyObj self)
 {
 	Py_RETURN_NONE;
 }
 
-static PyObj
+STATIC(PyObj)
 kports_exit(PyObj self, PyObj args)
 {
 	PyObj exc, val, tb;
@@ -85,7 +82,7 @@ kports_exit(PyObj self, PyObj args)
 	Py_RETURN_NONE;
 }
 
-static PyObj
+STATIC(PyObj)
 kports_allocate(PyTypeObject *subtype, PyObj length)
 {
 	KPorts kp;
@@ -109,7 +106,8 @@ kports_allocate(PyTypeObject *subtype, PyObj length)
 	return(rob);
 }
 
-static PyMethodDef kports_methods[] = {
+STATIC(PyMethodDef)
+kports_methods[] = {
 	{"__enter__",
 		(PyCFunction) kports_enter,
 		METH_NOARGS,
@@ -137,7 +135,7 @@ static PyMethodDef kports_methods[] = {
 	{NULL,}
 };
 
-static PyObj
+STATIC(PyObj)
 kports_richcompare(PyObj self, PyObj x, int op)
 {
 	KPorts a = (KPorts) self, b = (KPorts) x;
@@ -186,13 +184,13 @@ kports_richcompare(PyObj self, PyObj x, int op)
 	return(rob);
 }
 
-static Py_ssize_t
+STATIC(Py_ssize_t)
 kports_length(PyObj self)
 {
 	return(KPorts_GetLength(((KPorts) self)));
 }
 
-static PyObj
+STATIC(PyObj)
 kports_concat(PyObj self, PyObj x)
 {
 	KPorts a = (KPorts) self, b = (KPorts) x;
@@ -210,7 +208,7 @@ kports_concat(PyObj self, PyObj x)
 	return((PyObj) kp);
 }
 
-static PyObj
+STATIC(PyObj)
 kports_repeat(PyObj self, Py_ssize_t quantity)
 {
 	KPorts a = (KPorts) self;
@@ -228,7 +226,7 @@ kports_repeat(PyObj self, Py_ssize_t quantity)
 	return((PyObj) kp);
 }
 
-static PyObj
+STATIC(PyObj)
 kports_getitem(PyObj self, Py_ssize_t index)
 {
 	KPorts kp = (KPorts) self;
@@ -242,7 +240,7 @@ kports_getitem(PyObj self, Py_ssize_t index)
 	return(PyLong_FromLong((long) KPorts_GetItem(kp, index)));
 }
 
-static int
+STATIC(int)
 kports_setitem(PyObj self, Py_ssize_t index, PyObj val)
 {
 	KPorts kp = (KPorts) self;
@@ -273,7 +271,7 @@ kports_as_sequence = {
 	kports_setitem,
 };
 
-static PyObj
+STATIC(PyObj)
 kports_subscript(PyObj self, PyObj item)
 {
 	PyObj rob;
@@ -323,27 +321,27 @@ kports_subscript(PyObj self, PyObj item)
 	return(rob);
 }
 
-static PyMappingMethods
+STATIC(PyMappingMethods)
 kports_as_mapping = {
 	kports_length,
 	kports_subscript,
 	NULL,
 };
 
-static int
+STATIC(int)
 kports_getbuffer(PyObj self, Py_buffer *view, int flags)
 {
 	KPorts kp = (KPorts) self;
 	return(PyBuffer_FillInfo(view, self, KPorts_GetArray(kp), Py_SIZE(self) * sizeof(kport_t), 0, flags));
 }
 
-static PyBufferProcs
+STATIC(PyBufferProcs)
 kports_buffer = {
 	kports_getbuffer,
 	NULL,
 };
 
-static PyObj
+STATIC(PyObj)
 kports_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
 	static char *kwlist[] = {"iterable", NULL};
@@ -419,13 +417,11 @@ kports_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	}
 }
 
-static void
+STATIC(void)
 kports_dealloc(PyObj self)
 {
 	Py_TYPE(self)->tp_free(self);
 }
-
-PyDoc_STRVAR(kports_doc, "File Descriptor array type.");
 
 PyTypeObject
 KPortsType = {
@@ -449,7 +445,7 @@ KPortsType = {
 	NULL,                           /* tp_setattro */
 	&kports_buffer,                 /* tp_as_buffer */
 	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	kports_doc,                     /* tp_doc */
+	NULL,                           /* tp_doc */
 	NULL,                           /* tp_traverse */
 	NULL,                           /* tp_clear */
 	kports_richcompare,             /* tp_richcompare */

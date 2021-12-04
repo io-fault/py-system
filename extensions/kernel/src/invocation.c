@@ -28,7 +28,7 @@
 	SA(POSIX_SPAWN_SETSCHEDPARAM, set_schedular_parameter)
 
 extern char **environ;
-static PyObj
+STATIC(PyObj)
 inv_spawn(PyObj self, PyObj args, PyObj kw)
 {
 	int r;
@@ -175,7 +175,7 @@ inv_spawn(PyObj self, PyObj args, PyObj kw)
 	return(PyLong_FromLong((long) child));
 }
 
-static PyObj
+STATIC(PyObj)
 inv_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
 	static char *kwlist[] = {"path", "arguments", "environ", "set_process_group", NULL,};
@@ -382,7 +382,7 @@ inv_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		free_op(ntlp); \
 	}
 
-static void
+STATIC(void)
 inv_dealloc(PyObj self)
 {
 	Invocation inv = (Invocation) self;
@@ -416,7 +416,7 @@ inv_dealloc(PyObj self)
 	Py_TYPE(self)->tp_free(self);
 }
 
-static PyMethodDef
+STATIC(PyMethodDef)
 inv_methods[] = {
 	#define PyMethod_Id(N) inv_##N
 		PyMethod_Keywords(spawn),
@@ -427,7 +427,7 @@ inv_methods[] = {
 /**
 	// &.kernel.Invocation
 */
-PyTypeObject
+CONCEAL(PyTypeObject)
 InvocationType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
 	FACTOR_PATH("Invocation"),  /* tp_name */
