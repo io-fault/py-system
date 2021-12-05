@@ -68,6 +68,8 @@ fork_child_cleanup = set()
 getattr=getattr
 # Normalized identities for signals.
 signal_codes = {
+	'process/suspend': signal.SIGTSTP,
+	'process/resume': signal.SIGCONT,
 	'process/stop': signal.SIGSTOP,
 	'process/continue': signal.SIGCONT,
 	'process/terminate' : signal.SIGTERM,
