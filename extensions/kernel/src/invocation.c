@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <spawn.h>
+#include <signal.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
