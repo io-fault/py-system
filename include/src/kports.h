@@ -2,7 +2,7 @@
 	// KPorts header providing access to &.kernel.KPorts objects.
 */
 #ifndef _SYSTEM_KERNEL_KPORTS_H_included_
-#define _SYSTEM_KERNEL_KPORTS_H_included_
+#define _SYSTEM_KERNEL_KPORTS_H_included_ 1
 
 struct KPorts {
 	PyObject_VAR_HEAD

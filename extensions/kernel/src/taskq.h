@@ -34,8 +34,9 @@ struct TaskQueue {
 #define TQ_XQUEUE_HAS_TASKS(I) (I->q_executing != NULL && I->q_executing->t_allocated > 0)
 #define TQ_HAS_TASKS(I) (TQ_LQUEUE_HAS_TASKS(I) || TQ_XQUEUE_HAS_TASKS(I))
 
+int taskq_initialize(TaskQueue);
 void taskq_clear(TaskQueue);
 int taskq_traverse(TaskQueue, PyObj, visitproc, void *);
 int taskq_extend(TaskQueue);
 int taskq_enqueue(TaskQueue, PyObj);
-PyObj taskq_execute(TaskQueue, PyObj);
+int taskq_execute(TaskQueue, PyObj);

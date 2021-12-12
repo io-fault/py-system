@@ -5,29 +5,31 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <signal.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/event.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 
-#ifndef HAVE_STDINT_H
-	/* relying on Python's checks */
-	#include <stdint.h>
-#endif
+#include "Scheduling.h"
 
-#include "taskq.h"
-#include "kernelq.h"
-#include "scheduler.h"
-
-static inline int
+STATIC(int) inline
 interrupt_wait(Scheduler ks)
 {
 	struct timespec ts = {0,0};
 	kevent_t kev;
 	int out = 0;
+
+	/* Not waiting */
+	switch (ks->ks_waiting)
+	{
+		case 0: /* Not waiting */
+		case 2: /* Initial state */
+			return(0);
+		break;
+	}
 
 	/**
 		// Ignore interrupt if it's not waiting or has already been interrupted.
@@ -37,16 +39,16 @@ interrupt_wait(Scheduler ks)
 		if (kernelq_interrupt(Scheduler_GetKernelQueue(ks)) < 0)
 			return(-1);
 
+		/* Interrupt issued. */
 		ks->ks_waiting = -1;
 		return(2);
 	}
-	else if (ks->ks_waiting < 0)
-		return(1);
-	else
-		return(0);
+
+	/* Less than zero; already interrupted. */
+	return(1);
 }
 
-static PyObj
+STATIC(PyObj)
 ks_enqueue(Scheduler ks, PyObj callable)
 {
 	TaskQueue tq = Scheduler_GetTaskQueue(ks);
@@ -54,37 +56,102 @@ ks_enqueue(Scheduler ks, PyObj callable)
 	if (interrupt_wait(ks) < 0)
 		return(NULL);
 
-	if (taskq_enqueue(tq, callable) != 0)
+	if (taskq_enqueue(tq, callable) < 0)
 		return(NULL);
 
 	Py_RETURN_NONE;
 }
 
-static PyObj
-ks_execute(Scheduler ks, PyObj errctl)
+/**
+	// Drain both sides of the task queue.
+*/
+STATIC(PyObj)
+ks_execute(PyObj self, PyObj errctl)
 {
+	Scheduler ks = (Scheduler) self;
 	TaskQueue tq = Scheduler_GetTaskQueue(ks);
-	return(taskq_execute(tq, errctl));
+	int total = 0, status = 0;
+
+	status = taskq_execute(tq, errctl);
+	if (status < 0)
+		return(NULL);
+	total += status;
+
+	status = taskq_execute(tq, errctl);
+	if (status < 0)
+		return(NULL);
+	total += status;
+
+	Py_RETURN_INTEGER(total);
+}
+
+STATIC(int)
+ks_termination(Scheduler ks, KernelQueue kq, TaskQueue tq)
+{
+	int r = 0;
+	PyObj ops;
+	Py_ssize_t i;
+
+	ops = PyDict_Values(kq->kq_references);
+	if (ops == NULL)
+		return(-1);
+
+	/* Collect and enqueue meta_terminate events */
+	for (i = 0; i < PyList_GET_SIZE(ops); ++i)
+	{
+		PyObj op = PyList_GET_ITEM(ops, i);
+		Link ln = (Link) op;
+		Event ev = (Event) ln->ln_event;
+
+		switch (Event_Type(ev))
+		{
+			case EV_TYPE_ID(meta_terminate):
+			{
+				if (taskq_enqueue(tq, ln) < 0)
+				{
+					r = -2;
+					goto exit;
+				}
+			}
+			break;
+
+			default:
+				;
+			break;
+		}
+	}
+
+	exit:
+	{
+		Py_CLEAR(ops);
+		return(r);
+	}
 }
 
 /**
-	// Close the kqueue FD.
+	// Enqueue termination tasks and close the kernel queue resources.
 */
-static PyObj
+STATIC(PyObj)
 ks_close(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
+	KernelQueue kq = Scheduler_GetKernelQueue(ks);
+	TaskQueue tq = Scheduler_GetTaskQueue(ks);
 	PyObj rob = NULL;
 
-	switch (kernelq_close(Scheduler_GetKernelQueue(ks)))
+	switch (kernelq_close(kq))
 	{
 		case 0:
 			/* Already closed. */
+			ks->ks_waiting = 2;
 			Py_RETURN_FALSE;
 		break;
 
 		case 1:
 			/* Resources destroyed. */
+			if (ks_termination(ks, kq, tq) < 0)
+				return(NULL);
+			ks->ks_waiting = 2;
 			Py_RETURN_TRUE;
 		break;
 
@@ -101,7 +168,7 @@ ks_close(PyObj self)
 /**
 	// Close the kqueue FD, and release references.
 */
-static PyObj
+STATIC(PyObj)
 ks_void(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
@@ -110,36 +177,7 @@ ks_void(PyObj self)
 	Py_RETURN_NONE;
 }
 
-/**
-	// Begin listening for the process exit event.
-*/
-static PyObj
-ks_track(PyObj self, PyObj args)
-{
-	Scheduler ks = (Scheduler) self;
-	KernelQueue kq = Scheduler_GetKernelQueue(ks);
-	long l;
-
-	if (!PyArg_ParseTuple(args, "l", &l))
-		return(NULL);
-
-	return(kernelq_process_watch(kq, (pid_t) l, NULL));
-}
-
-static PyObj
-ks_untrack(PyObj self, PyObj args)
-{
-	Scheduler ks = (Scheduler) self;
-	KernelQueue kq = Scheduler_GetKernelQueue(ks);
-	long l;
-
-	if (!PyArg_ParseTuple(args, "l", &l))
-		return(NULL);
-
-	return(kernelq_process_ignore(kq, (pid_t) l, NULL));
-}
-
-static PyObj
+STATIC(PyObj)
 ks_interrupt(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
@@ -168,62 +206,117 @@ ks_interrupt(PyObj self)
 	return(rob);
 }
 
-static PyObj
-ks_defer(PyObj self, PyObj args, PyObj kw)
+/**
+	// Replace the link in the reference dictionary, but return
+	// the existing object if any.
+*/
+CONCEAL(int)
+_kq_reference_update(KernelQueue kq, Link ln, PyObj *current)
 {
-	const static char *kwlist[] = {
-		"link", "quantity", "unitcode", NULL,
-	};
+	*current = PyDict_GetItem(kq->kq_references, ln->ln_event);
 
-	Scheduler ks = (Scheduler) self;
-	PyObj link = NULL;
-	unsigned long l = 0;
-	int unit = 's';
+	if (*current != NULL)
+	{
+		/* Acquire the necessary reference to allow substitution. */
+		if (PyList_Append(kq->kq_cancellations, *current) < 0)
+			return(-1);
+	}
 
-	/*
-		// (link_object, period, unit)
-	*/
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "Ok|C", (char **) kwlist, &link, &l, &unit))
-		return(NULL);
+	/* Insert or replace. */
+	if (PyDict_SetItem(kq->kq_references, ln->ln_event, ln) < 0)
+		return(-2);
 
-	if (kernelq_defer(Scheduler_GetKernelQueue(ks), unit, l, link) < 0)
-		return(NULL);
-
-	Py_RETURN_NONE;
+	return(0);
 }
 
-static PyObj
-ks_recur(PyObj self, PyObj args, PyObj kw)
+CONCEAL(int)
+_kq_reference_delete(KernelQueue kq, Event ev)
 {
-	const static char *kwlist[] = {
-		"link", "quantity", "unitcode", NULL,
-	};
+	PyObj current = PyDict_GetItem(kq->kq_references, (PyObj) ev);
 
-	Scheduler ks = (Scheduler) self;
-	PyObj link = NULL;
-	unsigned long l = 0;
-	int unit = 's';
+	if (current != NULL)
+	{
+		/* Acquire the necessary reference to allow substitution. */
+		if (PyList_Append(kq->kq_cancellations, current) < 0)
+			return(-1);
+	}
 
-	/*
-		// (link_object, period, unit)
-	*/
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "Ok|C", (char **) kwlist, &link, &l, &unit))
-		return(NULL);
+	if (PyDict_DelItem(kq->kq_references, ev) < 0)
+		return(-2);
 
-	if (kernelq_recur(Scheduler_GetKernelQueue(ks), unit, l, link) < 0)
-		return(NULL);
-
-	Py_RETURN_NONE;
+	return(0);
 }
 
-static PyObj
-ks_cancel(PyObj self, PyObj link)
+STATIC(PyObj)
+ks_dispatch(PyObj self, PyObj args, PyObj kw)
 {
+	const static char *kwlist[] = {"operation", "cyclic", NULL};
+
 	Scheduler ks = (Scheduler) self;
-	return(kernelq_cancel(Scheduler_GetKernelQueue(ks), link));
+	KernelQueue kq = Scheduler_GetKernelQueue(ks);
+	Link ln;
+	int cyclic = -1;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O!|p", kwlist, &LinkType, &ln, &cyclic))
+		return(NULL);
+
+	switch (Event_Type(ln->ln_event))
+	{
+		case EV_TYPE_ID(meta_actuate):
+		{
+			if (ks->ks_waiting != 2 || kq->kq_root == -1)
+			{
+				PyErr_SetString(PyExc_ValueError, "scheduler already actuated");
+				return(NULL);
+			}
+
+			/* fall default/kernelq_scheduler */
+		}
+
+		case EV_TYPE_ID(never):
+		case EV_TYPE_ID(meta_terminate):
+		default:
+		{
+			if (kernelq_schedule(kq, ln, cyclic) < 0)
+				return(NULL);
+		}
+		break;
+	}
+
+	Py_INCREF(ln);
+	return(ln);
 }
 
-static PyObj
+STATIC(PyObj)
+ks_cancel(PyObj self, PyObj args, PyObj kw)
+{
+	const static char *kwlist[] = {"link", NULL};
+
+	Scheduler ks = (Scheduler) self;
+	Link ln = NULL;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O!", kwlist, &LinkType, &ln))
+		return(NULL);
+
+	switch (Event_Type(ln->ln_event))
+	{
+		default:
+		{
+			return(kernelq_cancel(Scheduler_GetKernelQueue(ks), ln));
+		}
+		break;
+	}
+}
+
+STATIC(PyObj)
+ks_operations(PyObj self)
+{
+	Scheduler ks = (Scheduler) self;
+
+	return(PyDict_Values(Scheduler_GetKernelQueue(ks)->kq_references));
+}
+
+STATIC(PyObj)
 ks__set_waiting(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
@@ -234,56 +327,53 @@ ks__set_waiting(PyObj self)
 /**
 	// collect and process kqueue events
 */
-static PyObj
+STATIC(PyObj)
 ks_wait(PyObj self, PyObj args)
 {
 	Scheduler ks = (Scheduler) self;
 	KernelQueue kq = Scheduler_GetKernelQueue(ks);
-	int error = 0;
+	int count = 0, error = 0;
 	long secs = 16, ns = 0;
 
 	if (!PyArg_ParseTuple(args, "|l", &secs))
 		return(NULL);
 
-	/* Validate opened. */
-	if (kq->kq_root == -1)
+	if (kq->kq_root != -1)
 	{
-		/* Closed kernelq, no events to read. */
-		return(PyList_New(0));
-	}
-
-	if (TQ_HAS_TASKS(Scheduler_GetTaskQueue(ks)))
-	{
-		secs = 0;
-		ks->ks_waiting = 0;
-	}
-	else
-	{
-		if (secs > 0)
-			ks->ks_waiting = 1;
-		else
+		if (TQ_HAS_TASKS(Scheduler_GetTaskQueue(ks)))
 		{
-			/* ms -> ns */
-			ns = (-secs) * 1000000;
 			secs = 0;
 			ks->ks_waiting = 0;
 		}
+		else
+		{
+			if (secs > 0)
+				ks->ks_waiting = 1;
+			else
+			{
+				/* ms -> ns */
+				ns = (-secs) * 1000000;
+				secs = 0;
+				ks->ks_waiting = 0;
+			}
+		}
+
+		error = kernelq_receive(kq, secs, ns);
+		ks->ks_waiting = 0;
+		if (error < 0)
+			return(NULL);
+		count = kq->kq_event_count - kq->kq_event_position;
+
+		if (kernelq_transition(kq, Scheduler_GetTaskQueue(ks)) < 0)
+			return(NULL);
 	}
 
-	error = kernelq_enqueue(kq, secs, ns);
-	ks->ks_waiting = 0;
-	if (error < 0)
-		return(NULL);
-
-	return(kernelq_transition(kq));
+	Py_RETURN_INTEGER(count);
 }
 
-static PyMethodDef
+STATIC(PyMethodDef)
 ks_methods[] = {
 	#define PyMethod_Id(N) ks_##N
-		{"force", (PyCFunction) ks_interrupt, METH_NOARGS, NULL},
-		{"alarm", (PyCFunction) ks_defer, METH_VARARGS|METH_KEYWORDS, NULL},
-
 		PyMethod_None(void),
 		PyMethod_None(close),
 
@@ -291,26 +381,23 @@ ks_methods[] = {
 		PyMethod_None(interrupt),
 		PyMethod_Sole(execute),
 
-		PyMethod_Variable(track),
-		PyMethod_Variable(untrack),
-
-		PyMethod_Keywords(defer),
-		PyMethod_Sole(cancel),
-		PyMethod_Keywords(recur),
 		PyMethod_Sole(enqueue),
+		PyMethod_Keywords(dispatch),
+		PyMethod_Keywords(cancel),
+		PyMethod_None(operations),
 
 		PyMethod_None(_set_waiting),
 	#undef PyMethod_Id
 	{NULL,},
 };
 
-static PyMemberDef ks_members[] = {
-	{"waiting", T_PYSSIZET, offsetof(struct Scheduler, ks_waiting), READONLY,
-		PyDoc_STR("Whether or not the Scheduler object is with statement block.")},
+STATIC(PyMemberDef)
+ks_members[] = {
+	{"waiting", T_PYSSIZET, offsetof(struct Scheduler, ks_waiting), READONLY, NULL},
 	{NULL,},
 };
 
-static PyObj
+STATIC(PyObj)
 ks_get_closed(PyObj self, void *closure)
 {
 	Scheduler ks = (Scheduler) self;
@@ -323,7 +410,7 @@ ks_get_closed(PyObj self, void *closure)
 	return(rob);
 }
 
-static PyObj
+STATIC(PyObj)
 ks_get_has_tasks(PyObj self, void *closure)
 {
 	Scheduler ks = (Scheduler) self;
@@ -336,13 +423,14 @@ ks_get_has_tasks(PyObj self, void *closure)
 	return(rob);
 }
 
-static PyGetSetDef ks_getset[] = {
+STATIC(PyGetSetDef)
+ks_getset[] = {
 	{"closed", ks_get_closed, NULL, NULL},
 	{"loaded", ks_get_has_tasks, NULL, NULL},
 	{NULL,},
 };
 
-static int
+STATIC(int)
 ks_clear(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
@@ -351,7 +439,7 @@ ks_clear(PyObj self)
 	return(0);
 }
 
-static void
+STATIC(void)
 ks_dealloc(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
@@ -362,7 +450,7 @@ ks_dealloc(PyObj self)
 	Py_TYPE(self)->tp_free(self);
 }
 
-static int
+STATIC(int)
 ks_traverse(PyObj self, visitproc visit, void *arg)
 {
 	Scheduler ks = (Scheduler) self;
@@ -376,7 +464,7 @@ ks_traverse(PyObj self, visitproc visit, void *arg)
 	return(0);
 }
 
-static PyObj
+STATIC(PyObj)
 ks_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
 	static char *kwlist[] = {NULL,};
@@ -391,7 +479,7 @@ ks_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 		return(NULL);
 
 	ks = (Scheduler) rob;
-	ks->ks_waiting = 0;
+	ks->ks_waiting = 2;
 
 	if (taskq_initialize(Scheduler_GetTaskQueue(ks)) < 0)
 	{
@@ -414,43 +502,19 @@ ks_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 PyTypeObject
 SchedulerType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	FACTOR_PATH("Scheduler"),        /* tp_name */
-	sizeof(struct Scheduler),        /* tp_basicsize */
-	0,                            /* tp_itemsize */
-	ks_dealloc,                   /* tp_dealloc */
-	NULL,                         /* tp_print */
-	NULL,                         /* tp_getattr */
-	NULL,                         /* tp_setattr */
-	NULL,                         /* tp_compare */
-	NULL,                         /* tp_repr */
-	NULL,                         /* tp_as_number */
-	NULL,                         /* tp_as_sequence */
-	NULL,                         /* tp_as_mapping */
-	NULL,                         /* tp_hash */
-	NULL,                         /* tp_call */
-	NULL,                         /* tp_str */
-	NULL,                         /* tp_getattro */
-	NULL,                         /* tp_setattro */
-	NULL,                         /* tp_as_buffer */
-	Py_TPFLAGS_BASETYPE|
-	Py_TPFLAGS_HAVE_GC|
-	Py_TPFLAGS_DEFAULT,           /* tp_flags */
-	NULL,                         /* tp_doc */
-	ks_traverse,                  /* tp_traverse */
-	ks_clear,                     /* tp_clear */
-	NULL,                         /* tp_richcompare */
-	0,                            /* tp_weaklistoffset */
-	NULL,                         /* tp_iter */
-	NULL,                         /* tp_iternext */
-	ks_methods,                   /* tp_methods */
-	ks_members,                   /* tp_members */
-	ks_getset,                    /* tp_getset */
-	NULL,                         /* tp_base */
-	NULL,                         /* tp_dict */
-	NULL,                         /* tp_descr_get */
-	NULL,                         /* tp_descr_set */
-	0,                            /* tp_dictoffset */
-	NULL,                         /* tp_init */
-	NULL,                         /* tp_alloc */
-	ks_new,                       /* tp_new */
+	.tp_name = FACTOR_PATH("Scheduler"),
+	.tp_basicsize = sizeof(struct Scheduler),
+	.tp_itemsize = 0,
+	.tp_flags =
+		Py_TPFLAGS_BASETYPE|
+		Py_TPFLAGS_HAVE_GC|
+		Py_TPFLAGS_DEFAULT,
+	.tp_new = ks_new,
+	.tp_dealloc = ks_dealloc,
+
+	.tp_traverse = ks_traverse,
+	.tp_clear = ks_clear,
+	.tp_methods = ks_methods,
+	.tp_members = ks_members,
+	.tp_getset = ks_getset,
 };

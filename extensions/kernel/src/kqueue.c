@@ -1,140 +1,44 @@
 /**
 	// kqueue based KernelQueue implementation.
+	// Provides supporting kernel event functionality for &.kernel.Scheduler.
 */
 #include <errno.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdint.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/event.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 
-#ifndef HAVE_STDINT_H
-	/* relying on Python's checks */
-	#include <stdint.h>
-#endif
-
 #ifndef INITIAL_TASKS_ALLOCATED
 	#define INITIAL_TASKS_ALLOCATED 4
 #endif
 
-#ifndef MAX_TASKS_PER_SEGMENT
-	#define MAX_TASKS_PER_SEGMENT 128
-#endif
+#include "Scheduling.h"
 
-#define KQ_FILTERS() \
-	FILTER(EVFILT_USER) \
-	FILTER(EVFILT_PROC) \
-	FILTER(EVFILT_SIGNAL) \
-	FILTER(EVFILT_VNODE) \
-	FILTER(EVFILT_TIMER)
-
-#define KQ_FLAGS() \
-	FLAG(EV_ADD) \
-	FLAG(EV_ENABLE) \
-	FLAG(EV_DISABLE) \
-	FLAG(EV_DELETE) \
-	FLAG(EV_RECEIPT) \
-	FLAG(EV_ONESHOT) \
-	FLAG(EV_CLEAR) \
-	FLAG(EV_EOF) \
-	FLAG(EV_ERROR)
-
-#include "taskq.h"
-#include "kernelq.h"
-#include "signals.h"
+int _kq_reference_update(KernelQueue, Link, PyObj *);
 
 STATIC(int)
-note_unit(int unit, unsigned long *l)
+kernelq_kevent_delta(KernelQueue kq, int retry, kevent_t *event)
 {
-	const int ms = (0xCE << 2) | 0xBC;
-	int note;
-
-	switch (unit)
-	{
-		#ifdef NOTE_NSECONDS
-			case 'n':
-				note = NOTE_NSECONDS;
-			break;
-		#else
-			#warning Converting nanoseconds to milliseconds when necessary.
-			case 'n':
-				/* nanoseconds to milliseconds */
-				note = 0;
-				*l = *l / 1000000;
-			break;
-		#endif
-
-		#ifdef NOTE_USECONDS
-			case 'u':
-			case ms:
-				note = NOTE_USECONDS; /* microseconds */
-			break;
-		#else
-			#warning Converting microseconds to milliseconds when necessary.
-			case 'u':
-				/* microseconds to milliseconds */
-				note = 0;
-				*l = *l / 1000;
-			break;
-		#endif
-
-		#ifdef NOTE_SECONDS
-			case 's':
-				note = NOTE_SECONDS;
-			break;
-		#else
-			#warning Converting seconds to milliseconds when necessary.
-			case 's':
-				/* microseconds to milliseconds */
-				note = 0;
-				*l = (*l) * 1000;
-			break;
-		#endif
-
-		case 'm':
-			note = 0; /* milliseconds */
-		break;
-
-		default:
-			PyErr_Format(PyExc_ValueError, "invalid unit code '%c' for timer", unit);
-			note = -1;
-		break;
-	}
-
-	return(note);
-}
-
-STATIC(int)
-kernelq_kevent(KernelQueue kq,
-	int retry, int *out,
-	kevent_t *changes, int nchanges,
-	kevent_t *events, int nevents,
-	const struct timespec *timeout)
-{
+	struct timespec ts = {0,0};
 	RETRY_STATE_INIT;
 	int r = -1;
 
-	RETRY_SYSCALL:
-	r = kevent(kq->kq_root, changes, nchanges, events, nevents, timeout);
-	if (r >= 0)
-		*out = r;
-	else
-	{
-		/*
-			// Complete failure. Probably an interrupt or EINVAL.
-		*/
-		*out = 0;
+	/* Force receipt. */
+	event->flags |= EV_RECEIPT;
 
+	RETRY_SYSCALL:
+	r = kevent(kq->kq_root, event, 1, event, 1, &ts);
+	if (r < 0)
+	{
 		switch (errno)
 		{
 			case EINTR:
-				/*
-					// The caller can designate whether or not retry will occur.
-				*/
+			{
 				switch (retry)
 				{
 					case -1:
@@ -146,20 +50,174 @@ kernelq_kevent(KernelQueue kq,
 					break;
 
 					case 0:
-						/*
-							// Purposefully allow it to fall through. Usually a signal occurred.
-							// Falling through is appropriate as it usually means
-							// processing an empty task queue.
-						*/
+						PyErr_SetFromErrno(PyExc_OSError);
 						return(-1);
 					break;
 				}
-			case ENOMEM:
-				LIMITED_RETRY();
+			}
 
+			case EBADF:
+				/**
+					// Force -1 to avoid the possibility of acting on a kqueue
+					// that was allocated by another part of the process after
+					// an unexpected close occurred on this &kq->kq_root.
+				*/
+				kq->kq_root = -1;
+			case ENOMEM:
 			default:
-				return(-1);
+			{
+				PyErr_SetFromErrno(PyExc_OSError);
+				return(-2);
+			}
 			break;
+		}
+	}
+	else if (r != 1)
+	{
+		if (PyErr_WarnFormat(PyExc_RuntimeWarning, 0,
+			"kevent processed unexpected number of events: %d", r) < 0)
+			return(-9);
+	}
+
+	/* Check for filter error. */
+	switch (KFILTER_ERROR(event))
+	{
+		case 0: break;
+
+		case ENOENT:
+			if (event->flags & EV_DELETE)
+			{
+				/* Don't raise already deleted errors. */
+				return(0);
+			}
+			/* Intentionally pass through if not EV_DELETE */
+		default:
+		{
+			errno = event->data;
+			PyErr_SetFromErrno(PyExc_OSError);
+			return(-3);
+		}
+		break;
+	}
+
+	return(0);
+}
+
+/**
+	// Interpret event_t for use with a kqueue filter.
+	// Duplicate file descriptors or open files as needed.
+*/
+CONCEAL(int)
+kevent_identify(kevent_t *kev, event_t *evs)
+{
+	switch (evs->evs_type)
+	{
+		case EV_TYPE_ID(meta_actuate):
+		{
+			EV_USER_SETUP(kev);
+			kev->ident = (uintptr_t) evs;
+			kev->flags |= EV_ONESHOT;
+			EV_USER_TRIGGER(kev);
+		}
+		break;
+
+		case EV_TYPE_ID(never):
+		case EV_TYPE_ID(meta_terminate):
+		{
+			EV_USER_SETUP(kev);
+			kev->ident = (uintptr_t) evs;
+			kev->flags |= EV_ONESHOT;
+		}
+		break;
+
+		case EV_TYPE_ID(process_exit):
+		{
+			kev->fflags = NOTE_EXIT;
+			kev->flags |= EV_ONESHOT;
+
+			switch (evs->evs_resource_t)
+			{
+				case evr_kport:
+					kev->filter = EVFILT_PROCDESC;
+					kev->ident = evs->evs_resource.procref.procfd;
+				break;
+
+				case evr_identifier:
+					kev->filter = EVFILT_PROC;
+					kev->ident = evs->evs_resource.process;
+				break;
+
+				default:
+					return(-1);
+				break;
+			}
+		}
+		break;
+
+		case EV_TYPE_ID(process_signal):
+		{
+			kev->filter = EVFILT_SIGNAL;
+			kev->ident = evs->evs_resource.signal_code;
+		}
+		break;
+
+		case EV_TYPE_ID(time):
+		{
+			kev->filter = EVFILT_TIMER;
+			kev->ident = (uintptr_t) evs;
+			kev->fflags = NOTE_MSECONDS;
+		}
+		break;
+
+		default:
+		{
+			/*
+				// Common file descriptor case.
+			*/
+			kev->ident = evs->evs_resource.io[0];
+
+			switch (evs->evs_type)
+			{
+				/* Level triggered I/O */
+				case EV_TYPE_ID(io_transmit):
+				{
+					kev->filter = EVFILT_WRITE;
+				}
+				break;
+
+				case EV_TYPE_ID(io_status):
+				case EV_TYPE_ID(io_receive):
+				{
+					kev->filter = EVFILT_READ;
+				}
+				break;
+
+				case EV_TYPE_ID(fs_status):
+				{
+					kev->filter = EVFILT_VNODE;
+					kev->fflags = EVENT_FS_STATUS_FLAGS;
+				}
+				break;
+
+				case EV_TYPE_ID(fs_delta):
+				{
+					kev->filter = EVFILT_VNODE;
+					kev->fflags = EVENT_FS_DELTA_FLAGS;
+				}
+				break;
+
+				case EV_TYPE_ID(fs_void):
+				{
+					kev->filter = EVFILT_VNODE;
+					kev->fflags = EVENT_FS_VOID_FLAGS;
+					kev->flags |= EV_ONESHOT;
+				}
+				break;
+
+				default:
+					return(-2);
+				break;
+			}
 		}
 	}
 
@@ -167,98 +225,271 @@ kernelq_kevent(KernelQueue kq,
 }
 
 /**
-	// Set Python exception from kevent error.
+	// Called by &.kernel.Scheduler.interrupt.
 */
-STATIC(int)
-check_kevent(kevent_t *ev)
-{
-	if (ev->flags & EV_ERROR && ev->data != 0)
-	{
-		errno = ev->data;
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(-1);
-	}
-
-	return(0);
-}
-
 CONCEAL(int)
 kernelq_interrupt(KernelQueue kq)
 {
-	const struct timespec ts = {0,0};
-	int nkevents = 0;
 	kevent_t kev = {
-		.udata = (void *) kq,
+		.udata = (void *) NULL,
 		.ident = (uintptr_t) kq,
-		.filter = EVFILT_USER,
-		.fflags = NOTE_TRIGGER,
-		.data = 0,
-		.flags = EV_RECEIPT,
 	};
-
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, NULL, 0, &ts) < 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(-1);
-	}
-
-	return(0);
+	EV_USER_TRIGGER(&kev);
+	return(kernelq_kevent_delta(kq, 1, &kev));
 }
 
-CONCEAL(int)
-kernelq_setup_interrupt(KernelQueue kq)
+STATIC(int)
+kernelq_interrupt_setup(KernelQueue kq)
 {
-	const struct timespec ts = {0,0};
-	int nkevents = 0;
 	kevent_t kev = {
-		.udata = (void *) kq,
+		.udata = (void *) NULL,
 		.ident = (uintptr_t) kq,
-		.flags = EV_ADD|EV_RECEIPT|EV_CLEAR,
-		.filter = EVFILT_USER,
+	};
+	EV_USER_SETUP(&kev);
+	return(kernelq_kevent_delta(kq, 1, &kev));
+}
+
+STATIC(void) inline
+kevent_set_timer(kevent_t *kev, unsigned long long ns)
+{
+	#if SIZEOF_VOID_P <= 32
+		/*
+			// ! WARNING: SIZEOF_VOID_P != sizeof(kev->data)
+
+			// Prioritize milliseconds when data field is *likely* 32-bit.
+			// With a 64-bit field, there is substantial room for the near future,
+			// but 32-bits of nanoseconds gives us about 4.2 seconds.
+		*/
+		uint32_t s = 0;
+
+		if (ns > (0xFFFFFFFFULL * 1000000))
+		{
+			/* Exceeds what 32-bit milliseconds can refer to. */
+
+			kev->fflags = NOTE_SECONDS;
+			kev->data = ns / 1000000000;
+		}
+		else
+		{
+			#if defined(NOTE_MSECONDS)
+				kev->fflags = NOTE_MSECONDS;
+				kev->data = ns / 1000000;
+			#elif defined(NOTE_USECONDS)
+				kev->fflags = NOTE_USECONDS;
+				kev->data = ns / 1000000000;
+			#elif defined(NOTE_NSECONDS)
+				kev->fflags = NOTE_NSECONDS;
+				kev->data = ns;
+			#endif
+		}
+	#else
+		/*
+			// Simple 64-bit case as &.kernel.Event is configured to
+			// hold 64-bits of nanoseconds. Prioritize nanoseconds and convert
+			// to more course units when not available.
+		*/
+		#if defined(NOTE_NSECONDS)
+			kev->fflags = NOTE_NSECONDS;
+			kev->data = ns;
+		#elif defined(NOTE_USECONDS)
+			kev->fflags = NOTE_USECONDS;
+			kev->data = ns / 1000;
+		#elif defined(NOTE_MSECONDS)
+			kev->fflags = NOTE_MSECONDS;
+			kev->data = ns / 1000000;
+		#else
+			kev->fflags = NOTE_SECONDS;
+			kev->data = ns / 1000000000;
+		#endif
+	#endif
+}
+
+/**
+	// Establish the link with the kernel event.
+*/
+CONCEAL(int)
+kernelq_schedule(KernelQueue kq, Link ln, int cyclic)
+{
+	kevent_t kev = {
+		.flags = EV_ADD|EV_RECEIPT,
 		.fflags = 0,
-		.data = 0,
+		.udata = ln,
 	};
+	Event ev = ln->ln_event;
+	PyObj current = NULL;
 
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
+	if (kevent_identify(&kev, Event_Specification(ln->ln_event)) < 0)
 	{
-		PyErr_SetFromErrno(PyExc_OSError);
+		/* Unrecognized EV_TYPE */
+		PyErr_SetString(PyExc_ValueError, "unrecognized event type");
 		return(-1);
 	}
 
+	/**
+		// Configure cyclic flag.
+	*/
+	switch (cyclic)
+	{
+		case -1:
+		{
+			/* Inherit from &kevent_identify. */
+			if (kev.flags & EV_ONESHOT)
+				Link_Clear(ln, cyclic);
+			else
+				Link_Set(ln, cyclic);
+		}
+		break;
+
+		case 0:
+		{
+			/* All filters support one shot. */
+			Link_Clear(ln, cyclic);
+			kev.flags |= EV_ONESHOT;
+		}
+		break;
+
+		case 1:
+		{
+			Link_Set(ln, cyclic);
+
+			if (kev.flags & EV_ONESHOT)
+			{
+				/* kevent_identify designates this restriction via EV_ONESHOT. */
+				PyErr_SetString(PyExc_ValueError, "cyclic behavior not supported on event");
+				return(-1);
+			}
+		}
+		break;
+	}
+
+	switch (kev.filter)
+	{
+		case EVFILT_TIMER:
+		{
+			kevent_set_timer(&kev, ev->ev_spec.evs_resource.time);
+
+			switch (ev->ev_spec.evs_type)
+			{
+				case EV_TYPE_ID(never):
+					kev.flags |= EV_DISABLE;
+				break;
+
+				default:
+					;
+				break;
+			}
+		}
+		break;
+
+		case EVFILT_VNODE:
+			kev.flags |= EV_CLEAR;
+		break;
+
+		default:
+			kev.data = 0;
+		break;
+	}
+
+	/*
+		// Update prior to kevent to make clean up easier on failure.
+	*/
+	if (_kq_reference_update(kq, ln, &current) < 0)
+		return(-1);
+
+	if (kernelq_kevent_delta(kq, 1, &kev) < 0)
+	{
+		if (current != NULL && current != ln)
+		{
+			PyObj old;
+
+			if (_kq_reference_update(kq, ln, &old) < 0)
+				PyErr_WriteUnraisable(ln);
+		}
+
+		return(-2);
+	}
+
+	/*
+		// Release old record (current), if any.
+		// Scheduler is now holding the reference to &record via kq_references.
+	*/
+	Py_XDECREF(current);
+	Link_Set(ln, dispatched);
 	return(0);
 }
 
-#define SIGNALT \
-	.flags = 0, \
-	.data = 0, \
-	.flags = EV_ADD|EV_RECEIPT|EV_CLEAR, \
-	.filter = EVFILT_SIGNAL
-
-CONCEAL(int)
-kernelq_setup_signals(KernelQueue kq, void *ref)
+CONCEAL(PyObj)
+kernelq_cancel(KernelQueue kq, Link ln)
 {
-	const struct timespec ts = {0,0};
-	int nkevents;
-	kevent_t keva[] = {
-		#define SIG(SN) {SIGNALT, .ident = SN, .udata = ref},
-			SIGNAL_CONNECTIONS()
-		#undef SIG
+	kevent_t kev = {
+		.flags = EV_DELETE|EV_RECEIPT,
+		.data = 0,
+		.udata = 0,
 	};
+	PyObj original;
 
-	nkevents = sizeof(keva) / sizeof(kevent_t);
-	if (kernelq_kevent(kq, 1, &nkevents, keva, nkevents, keva, nkevents, &ts) < 0)
+	if (kevent_identify(&kev, Event_Specification(ln->ln_event)) < 0)
 	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(-1);
+		/* Unrecognized EV_TYPE */
+		PyErr_SetString(PyExc_TypeError, "unrecognized event type");
+		return(NULL);
 	}
 
-	if (nkevents != (sizeof(keva) / sizeof(kevent_t)))
+	/*
+		// Prepare for cancellation by adding the existing
+		// scheduled &ln to the cancellation list. This
+		// allows any concurrently collected event to be
+		// safely enqueued using &ln.
+	*/
+
+	original = PyDict_GetItem(kq->kq_references, ln->ln_event); /* borrowed */
+	if (original == NULL)
 	{
-		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
-			"scheduler could not establish all signal connections");
+		/* No event in table. No cancellation necessary. */
+		if (PyErr_Occurred())
+			return(NULL);
+		else
+			Py_RETURN_NONE;
 	}
 
-	return(0);
+	/*
+		// Maintain reference count in case of concurrent use(collected event).
+	*/
+	if (PyList_Append(kq->kq_cancellations, original) < 0)
+		return(NULL);
+
+	/* Delete link from references */
+	if (PyDict_DelItem(kq->kq_references, ln->ln_event) < 0)
+	{
+		/* Nothing has actually changed here, so just return the error. */
+		/* Cancellation list will be cleared by &.kernel.Scheduler.wait */
+		return(NULL);
+	}
+
+	if (kernelq_kevent_delta(kq, 1, &kev) < 0)
+	{
+		Link prior = (Link) original;
+
+		/*
+			// Cancellation failed.
+			// Likely a critical error, but try to recover.
+		*/
+		if (PyDict_SetItem(kq->kq_references, prior->ln_event, original) < 0)
+		{
+			/*
+				// Could not restore the reference position.
+				// Prefer leaking the link over risking a SIGSEGV
+				// after the kq_cancellations list has been cleared.
+			*/
+			Py_INCREF(original);
+			PyErr_WarnFormat(PyExc_RuntimeWarning, 0,
+				"event link leaked due to cancellation failure");
+		}
+
+		return(NULL);
+	}
+
+	Py_RETURN_NONE;
 }
 
 CONCEAL(int)
@@ -268,11 +499,11 @@ kernelq_initialize(KernelQueue kq)
 	int nkevents;
 	kevent_t kev;
 
-	kq->kq_references = PySet_New(0);
+	kq->kq_references = PyDict_New();
 	if (kq->kq_references == NULL)
 		return(-1);
 
-	kq->kq_cancellations = PySet_New(0);
+	kq->kq_cancellations = PyList_New(0);
 	if (kq->kq_cancellations == NULL)
 		return(-2);
 
@@ -283,18 +514,11 @@ kernelq_initialize(KernelQueue kq)
 		return(-3);
 	}
 
-	if (kernelq_setup_interrupt(kq) < 0)
+	if (kernelq_interrupt_setup(kq) < 0)
 	{
 		close(kq->kq_root);
 		kq->kq_root = -1;
 		return(-4);
-	}
-
-	if (kernelq_setup_signals(kq, NULL) < 0)
-	{
-		close(kq->kq_root);
-		kq->kq_root = -1;
-		return(-5);
 	}
 
 	return(0);
@@ -305,13 +529,6 @@ kernelq_clear(KernelQueue kq)
 {
 	Py_CLEAR(kq->kq_references);
 	Py_CLEAR(kq->kq_cancellations);
-
-	if (kq->kq_root != -1)
-	{
-		close(kq->kq_root);
-		PyErr_WarnFormat(PyExc_ResourceWarning, 0,
-			FACTOR_PATH("Scheduler") " instance not closed before deallocation");
-	}
 }
 
 CONCEAL(int)
@@ -319,6 +536,7 @@ kernelq_traverse(KernelQueue kq, PyObj self, visitproc visit, void *arg)
 {
 	Py_VISIT(kq->kq_references);
 	Py_VISIT(kq->kq_cancellations);
+
 	return(0);
 }
 
@@ -342,382 +560,210 @@ kernelq_close(KernelQueue kq)
 	return(1);
 }
 
-STATIC(int)
-acquire_kernel_ref(KernelQueue kq, PyObj link)
-{
-	switch (PySet_Contains(kq->kq_references, link))
-	{
-		case 1:
-			PyErr_SetString(PyExc_RuntimeError, "link already referenced by kernel");
-			return(-1);
-		break;
-
-		case 0:
-			/* not present */
-		break;
-
-		default:
-			return(-1);
-		break;
-	}
-
-	return(PySet_Add(kq->kq_references, link));
-}
-
-/**
-	// Begin listening for the process exit event.
-*/
-CONCEAL(PyObj)
-kernelq_process_watch(KernelQueue kq, pid_t target, void *ref)
-{
-	const static struct timespec ts = {0,0};
-	int nkevents = 0;
-	kevent_t kev = {
-		.filter = EVFILT_PROC,
-		.fflags = NOTE_EXIT,
-		.flags = EV_ADD|EV_RECEIPT|EV_CLEAR,
-		.data = 0,
-		.ident = target,
-		.udata = ref,
-	};
-
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-	else
-	{
-		if (check_kevent(&kev) < 0)
-			return(NULL);
-	}
-
-	Py_RETURN_NONE;
-}
-
-CONCEAL(PyObj)
-kernelq_process_ignore(KernelQueue kq, pid_t target, void *ref)
-{
-	const static struct timespec ts = {0,0};
-	int nkevents = 0;
-	kevent_t kev = {
-		.filter = EVFILT_PROC,
-		.fflags = NOTE_EXIT,
-		.flags = EV_DELETE|EV_RECEIPT,
-		.data = 0,
-		.ident = target,
-		.udata = ref,
-	};
-
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-	else
-	{
-		if (check_kevent(&kev) < 0)
-			return(NULL);
-	}
-
-	Py_RETURN_NONE;
-}
-
-CONCEAL(int)
-kernelq_recur(KernelQueue kq, int unit, unsigned long quantity, PyObj ref)
-{
-	const static struct timespec ts = {0,0};
-	int nkevents = 0;
-	kevent_t kev = {
-		.filter = EVFILT_TIMER,
-		.flags = EV_ADD|EV_RECEIPT|EV_ENABLE,
-		.ident = (uintptr_t) ref,
-		.udata = ref,
-		.fflags = -1,
-		.data = quantity,
-	};
-
-	kev.fflags = note_unit(unit, &kev.data);
-	if (kev.fflags < 0)
-		return(-1);
-
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(-2);
-	}
-	else
-	{
-		if (check_kevent(&kev) < 0)
-			return(-3);
-	}
-
-	if (PySet_Add(kq->kq_references, (PyObj) ref) < 0)
-	{
-		/* error */
-	}
-
-	return(0);
-}
-
-CONCEAL(int)
-kernelq_defer(KernelQueue kq, int unit, unsigned long quantity, PyObj ref)
-{
-	const static struct timespec ts = {0,0};
-	int nkevents = 0;
-	kevent_t kev = {
-		.filter = EVFILT_TIMER,
-		.flags = EV_ADD|EV_RECEIPT|EV_ENABLE|EV_ONESHOT,
-		.ident = (uintptr_t) ref,
-		.udata = ref,
-		.fflags = -1,
-		.data = quantity,
-	};
-
-	kev.fflags = note_unit(unit, &kev.data);
-	if (kev.fflags < 0)
-		return(-1);
-
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(-2);
-	}
-	else
-	{
-		if (check_kevent(&kev) < 0)
-			return(-3);
-	}
-
-	if (PySet_Add(kq->kq_references, ref) < 0)
-	{
-		/* error */
-	}
-
-	return(0);
-}
-
-CONCEAL(PyObj)
-kernelq_cancel(KernelQueue kq, void *ref)
-{
-	const static struct timespec ts = {0,0};
-	int nkevents = 0;
-	kevent_t kev = {
-		.ident = ref,
-		.udata = 0,
-		.filter = EVFILT_TIMER,
-		.fflags = 0,
-		.data = 0,
-		.flags = EV_DELETE|EV_RECEIPT,
-	};
-
-	if (kernelq_kevent(kq, 1, &nkevents, &kev, 1, &kev, 1, &ts) < 0)
-	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(NULL);
-	}
-	else if (kev.flags & EV_ERROR && kev.data != 0)
-	{
-		switch (kev.data)
-		{
-			case ENOENT:
-				/*
-					// Validate not in reference set.
-				*/
-				Py_RETURN_NONE;
-			break;
-
-			default:
-				errno = kev.data;
-				PyErr_SetFromErrno(PyExc_OSError);
-				return(NULL);
-			break;
-		}
-	}
-
-	/*
-		// Add to cancellation *after* successful kevent()
-	*/
-	if (PySet_Add(kq->kq_cancellations, link) < 0)
-		return(NULL);
-
-	Py_RETURN_NONE;
-}
-
 /**
 	// Receive events from the kernel.
+	// Retry logic is not desired here as the event loop will naturally try again.
 */
 CONCEAL(int)
-kernelq_enqueue(KernelQueue kq, long seconds, long ns)
+kernelq_receive(KernelQueue kq, long seconds, long ns)
 {
-	struct timespec waittime = {seconds, ns};
-	PyObj rob;
-	int error = 0;
+	const struct timespec waittime = {seconds, ns};
+	int r = 0;
 
 	kq->kq_event_position = 0;
 	kq->kq_event_count = 0;
 
 	Py_BEGIN_ALLOW_THREADS
 	{
-		error = kernelq_kevent(kq, 0,
-			&(kq->kq_event_count),
-			NULL, 0,
-			kq->kq_array, CONFIG_STATIC_KEVENTS,
-			&waittime
-		);
+		int nevents = CONFIG_STATIC_KEVENTS - kq->kq_event_position;
+		kevent_t *kq_offset = &(kq->kq_array[kq->kq_event_position]);
+
+		r = kevent(kq->kq_root, NULL, 0, kq_offset, nevents, &waittime);
 	}
 	Py_END_ALLOW_THREADS
 
-	if (error < 0)
+	if (r < 0)
 	{
-		PyErr_SetFromErrno(PyExc_OSError);
-		return(-1);
+		switch (errno)
+		{
+			case EINTR:
+				errno = 0;
+			break;
+
+			case EBADF:
+				/**
+					// Force -1 to avoid the possibility of acting on a kqueue
+					// that was allocated by another part of the process after
+					// an unexpected close occurred on this &kq.kq_root.
+				*/
+				kq->kq_root = -1;
+			default:
+				PyErr_SetFromErrno(PyExc_OSError);
+				return(-1);
+			break;
+		}
 	}
+	else
+		kq->kq_event_count = r;
 
 	return(0);
 }
 
-/**
-	// Transition the received kernel events.
-*/
-CONCEAL(PyObj)
-kernelq_transition(KernelQueue kq)
+STATIC(void)
+pkevent(kevent_t *kev)
 {
-	PyObj rob;
-	int i, error = 0;
+	const char *fname;
+
+	switch (kev->filter)
+	{
+		#define KFILTER(B, TYP) case B: fname = #B; break;
+			KQ_FILTER_LIST();
+		#undef KFILTER
+
+		default:
+			fname = "unknown";
+		break;
+	}
+
+	fprintf(stderr,
+		"%s (%d), fflags: %d,"
+		" ident: %p, data: %p, udata: %p, flags:"
+		" "
+		#define FLAG(FLG) "%s"
+			KQ_FLAG_LIST()
+		#undef FLAG
+		"\n",
+		fname, kev->filter, kev->fflags,
+		(void *) kev->ident,
+		(void *) kev->data,
+		(void *) kev->udata,
+		#define FLAG(FLG) (kev->flags & FLG) ? (#FLG "|") : "",
+			KQ_FLAG_LIST()
+		#undef FLAG
+		""
+	);
+
+	return;
+}
+
+/**
+	// Transition the received kernel events to enqueued tasks.
+
+	// [ Returns ]
+	// The count of processed events or negative value on error.
+*/
+CONCEAL(int)
+kernelq_transition(KernelQueue kq, TaskQueue tq)
+{
 	PyObj refset = kq->kq_references;
 	PyObj cancelset = kq->kq_cancellations;
 
-	rob = PyList_New(0);
-	if (rob == NULL)
-		return(NULL);
-
-	for (i = kq->kq_event_position; i < kq->kq_event_count; ++i)
+	for (; kq->kq_event_position < kq->kq_event_count; ++(kq->kq_event_position))
 	{
-		PyObj link;
+		PyObj task; /* tuple attached to event data */
+		Link ln;
 		kevent_t *kev;
-		PyObj ob;
 
-		kev = &(kq->kq_array[i]);
-		link = (PyObj) kev->udata;
+		kev = &(kq->kq_array[kq->kq_event_position]);
+		ln = (Link) kev->udata;
 
 		switch (kev->filter)
 		{
-			case EVFILT_PROC:
-				ob = Py_BuildValue("(slO)", "process", (long) kev->ident, link ? link : Py_None);
-				if (kev->fflags & NOTE_EXIT && link != NULL)
-				{
-					/* done with filter entry */
-
-					if (PySet_Discard(refset, link) < 0)
-					{
-						/* note internal error */
-						error = 1;
-					}
-				}
+			case EVFILT_SIGNAL:
+			{
+				int signo = kev->ident;
+			}
 			break;
 
-			case EVFILT_SIGNAL:
-				ob = Py_BuildValue("(ss)", "signal", signal_string(kev->ident));
+			case EVFILT_PROC:
+			case EVFILT_PROCDESC:
+			{
+				assert(kev->fflags & NOTE_EXIT);
+			}
+			break;
+
+			case EVFILT_VNODE:
+			{
+				kport_t fd = kev->ident;
+			}
 			break;
 
 			case EVFILT_TIMER:
 			{
-				if (link == NULL)
-					/* core status? */
-					continue;
-
-				switch (PySet_Contains(cancelset, link))
-				{
-					case 1:
-					{
-						if (PySet_Discard(refset, link) < 0)
-						{
-							error = 1;
-						}
-
-						if (PySet_Discard(cancelset, link) < 0)
-						{
-							error = 1;
-						}
-
-						continue;
-					}
-					break;
-
-					case 0:
-						/* not cancelled */
-					break;
-
-					default:
-						/* -1 error */
-						error = 1;
-					break;
-				}
-
-				if (kev->flags & EV_ONESHOT)
-				{
-					/* defer */
-					ob = Py_BuildValue("(sO)", "alarm", link);
-
-					if (PySet_Discard(refset, link) < 0)
-					{
-						/* error */
-						error = 1;
-					}
-				}
-				else
-				{
-					ob = Py_BuildValue("(sO)", "recur", link);
-				}
+				uintptr_t id = kev->ident;
 			}
 			break;
 
 			case EVFILT_USER:
-				/*
-					// Currently, only used to interrupt.
-				*/
-				continue;
+			{
+				/* &.kernel.Scheduler.interrupt, nothing to do. */
+				if (ln == NULL)
+					continue;
+			}
+			break;
+
+			case EVFILT_WRITE:
+			case EVFILT_READ:
+			{
+				kport_t fd = kev->ident;
+			}
 			break;
 
 			default:
+			{
 				/*
 					// unknown event, throw warning
 				*/
+				PyErr_WarnFormat(PyExc_Warning, 0, "unrecognized event (%d) received", kev->filter);
 				continue;
+			}
 			break;
 		}
 
-		if (ob == NULL || error != 0)
-		{
-			Py_DECREF(rob);
-			return(NULL);
-		}
-		PyList_Append(rob, ob);
-	}
+		assert(Py_TYPE(ln) == &LinkType);
 
-	kq->kq_event_position = i;
+		if (taskq_enqueue(tq, ln) < 0)
+			return(-1);
+
+		if (!Link_Get(ln, cyclic))
+		{
+			if (kev->flags & EV_ONESHOT)
+				Link_Set(ln, cancelled);
+			else
+			{
+				kev->flags = EV_DELETE|EV_RECEIPT;
+
+				if (kernelq_kevent_delta(kq, 1, kev) < 0)
+				{
+					PyErr_WriteUnraisable(ln);
+					PyErr_Clear();
+				}
+				else
+					Link_Set(ln, cancelled);
+			}
+
+			if (PyDict_DelItem(refset, ln->ln_event) < 0)
+			{
+				PyErr_WriteUnraisable(ln);
+				PyErr_Clear();
+			}
+		}
+	}
 
 	/*
-		// Complete timer cancellations.
+		// Clear cancellation references.
 	*/
-	if (PySet_GET_SIZE(cancelset) > 0)
+	if (PyList_GET_SIZE(cancelset) > 0)
 	{
-		PyObj r = PyObject_CallMethod(refset, "difference_update", "O", cancelset);
-		if (r != NULL)
-			Py_DECREF(r);
-
-		if (PySet_Clear(cancelset))
+		PyObj r = PyObject_CallMethod(cancelset, "clear", "", NULL);
+		if (r == NULL)
 		{
-			/* error? Documentation (3.5) doesn't state error code. */
-			/*
-				// XXX: Exception needs to be communicated on a side channel.
-				// Destroying the collected events is dangerous.
-			*/
-			Py_DECREF(rob);
-			return(NULL);
+			PyErr_WriteUnraisable(NULL);
+			PyErr_Clear();
 		}
+		else
+			Py_DECREF(r);
 	}
 
-	return(rob);
+	return(0);
 }

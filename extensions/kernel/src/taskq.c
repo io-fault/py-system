@@ -23,6 +23,8 @@
 #define TASKQ_PARALLEL_ERROR(string) \
 	PyErr_SetString(PyExc_RuntimeError, string)
 
+#define TASKQ_FULL(TQ) (TQ->q_tailcursor == TQ->q_tail->t_allocated)
+
 #define TASKQ_ALLOCATION_SIZE(STRUCT) \
 	(sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(STRUCT)))
 
@@ -32,8 +34,8 @@
 CONCEAL(int)
 taskq_extend(TaskQueue tq)
 {
-	Tasks tail = tq->q_tail;
 	Tasks new;
+	Tasks tail = tq->q_tail;
 	size_t count = tail->t_allocated;
 
 	if (count < MAX_TASKS_PER_SEGMENT)
@@ -55,22 +57,12 @@ taskq_extend(TaskQueue tq)
 }
 
 /**
-	// Append a single entry to the queue.
+	// Insert task presuming available space.
 */
-CONCEAL(int)
-taskq_enqueue(TaskQueue tq, PyObj callable)
+STATIC(int) inline
+taskq_insert(TaskQueue tq, PyObj callable)
 {
 	Tasks tail = tq->q_tail;
-
-	if (tq->q_tailcursor == tail->t_allocated)
-	{
-		/**
-			// Error actually occurred in the prior call, but the insertion of &callable
-			// did succeed.
-		*/
-		TASKQ_MEMORY_ERROR("task queue could not be extended and must be flushed");
-		return(-1);
-	}
 
 	tail->t_vector[tq->q_tailcursor++] = callable;
 	Py_INCREF(callable);
@@ -79,6 +71,27 @@ taskq_enqueue(TaskQueue tq, PyObj callable)
 		return(taskq_extend(tq));
 
 	return(0);
+}
+
+/**
+	// High-level append.
+*/
+CONCEAL(int)
+taskq_enqueue(TaskQueue tq, PyObj callable)
+{
+	if (TASKQ_FULL(tq))
+	{
+		/**
+			// Extend allocation.
+		*/
+		if (taskq_extend(tq) < 0)
+		{
+			TASKQ_MEMORY_ERROR("task queue could not be extended and must be flushed");
+			return(-1);
+		}
+	}
+
+	return(taskq_insert(tq, callable));
 }
 
 /**
@@ -162,7 +175,7 @@ taskq_continue(TaskQueue tq)
 	// Execute the tasks in the &TaskQueue.q_executing,
 	// and rotate &TaskQueue.q_loading for the next cycle.
 */
-CONCEAL(PyObj)
+CONCEAL(int)
 taskq_execute(TaskQueue tq, PyObj errctl)
 {
 	Tasks exec = tq->q_executing;
@@ -173,7 +186,7 @@ taskq_execute(TaskQueue tq, PyObj errctl)
 	if (exec == NULL)
 	{
 		TASKQ_PARALLEL_ERROR("concurrent task queue execution");
-		return(NULL);
+		return(-1);
 	}
 
 	/* signals processing */
@@ -205,7 +218,7 @@ taskq_execute(TaskQueue tq, PyObj errctl)
 		if (taskq_continue(tq) == -1)
 		{
 			/* re-init executing somehow? force instance dropped? */
-			return(NULL);
+			return(-(total+1));
 		}
 	}
 	else
@@ -216,7 +229,7 @@ taskq_execute(TaskQueue tq, PyObj errctl)
 		tq->q_executing->t_next = NULL;
 	}
 
-	return(PyLong_FromLong((long) total));
+	return(total);
 }
 
 /**

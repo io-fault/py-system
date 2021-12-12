@@ -1,3 +1,6 @@
+/**
+	// &.kernel module.
+*/
 #include <errno.h>
 #include <spawn.h>
 #include <pthread.h>
@@ -5,19 +8,17 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/utsname.h>
-#include <sys/event.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 #include <frameobject.h>
 
-#include <kcore.h>
-#include <kports.h>
+#include "Scheduling.h"
 #include "invocation.h"
 
 /*
-	// For fork callbacks
+	// For fork callbacks.
 */
 static PyObj process_module = NULL;
 static int exit_signal = -1;
@@ -410,9 +411,7 @@ k_initialize(PyObj mod, PyObj ctx)
 {
 	if (process_module != NULL)
 	{
-		/*
-			// Already configured.
-		*/
+		/* Already configured */
 		Py_RETURN_NONE;
 	}
 
@@ -428,28 +427,40 @@ k_initialize(PyObj mod, PyObj ctx)
 	Py_RETURN_NONE;
 }
 
+extern PyTypeObject EventType;
+extern PyTypeObject LinkType;
 extern PyTypeObject SchedulerType;
 extern PyTypeObject InvocationType;
 
 extern PyTypeObject KPortsType;
 KPorts kports_alloc(kport_t, Py_ssize_t);
 KPorts kports_create(kport_t[], Py_ssize_t);
-static struct KPortsAPI _kp_apis = {
+struct KPortsAPI _kp_apis = {
 	&KPortsType,
 	kports_alloc,
 	kports_create,
 };
 
+#include <kext.h>
+CONCEAL(struct ExtensionInterfaces)
+fault_python_ext_if = {
+	&_kp_apis,
+	NULL,
+};
+
 #define PortsType KPortsType
 #define PYTHON_TYPES() \
+	ID(Ports) \
+	ID(Event) \
+	ID(Link) \
 	ID(Invocation) \
-	ID(Scheduler) \
-	ID(Ports)
+	ID(Scheduler)
 
 #define k_preserve kport_clear_cloexec
 #define k_released kport_set_cloexec
 #define k_hostname get_hostname
 #define k_machine_execution_context get_uname
+#define k_machine get_uname
 #define k_clockticks get_clock_ticks
 #define k_set_process_title set_process_title
 #define k_signalexit signalexit
@@ -460,6 +471,7 @@ static struct KPortsAPI _kp_apis = {
 	PyMethod_Sole(released), \
 	PyMethod_None(hostname), \
 	PyMethod_None(machine_execution_context), \
+	PyMethod_None(machine), \
 	PyMethod_None(clockticks), \
 	PyMethod_Sole(set_process_title), \
 	PyMethod_Sole(signalexit), \
@@ -468,7 +480,7 @@ static struct KPortsAPI _kp_apis = {
 #include <fault/python/module.h>
 INIT(module, 0, NULL)
 {
-	PyObj kp_api_ob;
+	PyObj xi_ob = NULL, kp_api_ob = NULL;
 
 	#define ID(NAME) \
 		if (PyType_Ready((PyTypeObject *) &( NAME##Type ))) \
@@ -486,20 +498,26 @@ INIT(module, 0, NULL)
 	if (PyModule_AddIntConstant(module, "machine_addressing", sizeof(void *) * 8))
 		goto error;
 
+	xi_ob = PyCapsule_New(&fault_python_ext_if, "__xi__", NULL);
+	if (xi_ob == NULL)
+		goto error;
+
+	if (PyModule_AddObject(module, "__xi__", xi_ob))
+		goto error;
+
 	kp_api_ob = PyCapsule_New(&_kp_apis, "_kports_api", NULL);
 	if (kp_api_ob == NULL)
 		goto error;
 
 	if (PyModule_AddObject(module, "_kports_api", kp_api_ob))
-	{
-		Py_DECREF(kp_api_ob);
 		goto error;
-	}
 
 	return(0);
 
 	error:
 	{
+		Py_XDECREF(xi_ob);
+		Py_XDECREF(kp_api_ob);
 		return(-1);
 	}
 }
