@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <unistd.h>
+#include <stdint.h>
 
 /* file descriptor transfers */
 #include <sys/param.h>
@@ -31,17 +32,16 @@
 struct KPortsAPI *KP = NULL;
 struct EndpointAPI *EP = NULL;
 
+#if defined(__linux__) && !defined(LIBBSD_OVERLAY)
+	#define getpeereid(...) -1
+#endif
+
 /** Number of kevent structs to allocate when working with kevent(). */
 #ifndef CONFIG_DEFAULT_ARRAY_SIZE
 	#define CONFIG_DEFAULT_ARRAY_SIZE 16
 #endif
 
 #define errpf(...) fprintf(stderr, __VA_ARGS__)
-
-#ifndef HAVE_STDINT_H
-	/* relying on Python checks */
-	#include <stdint.h>
-#endif
 
 /* posix errno macro detection */
 #include <fault/posix/errno.h>
@@ -194,52 +194,6 @@ inet4_from_pyint(void *out, PyObj ob)
 	}
 
 	return(r);
-}
-
-static aport_kind_t
-sockaddr_port(any_addr_t *ss, struct aport_t *dst, size_t dstlen)
-{
-	switch (ss->ss_family)
-	{
-		#define A(AF) \
-			case AF##_pf: { \
-				AF##_casted(afdata, ss); \
-				AF##_port(dst, dstlen, afdata); } \
-				return(AF##_port_kind);
-			ADDRESSING()
-		#undef A
-	}
-
-	return(aport_kind_none);
-}
-
-/**
-	// [ Parameters ]
-	// /ss/
-		// Source address structure.
-	// /dst/
-		// Destination memory buffer for the interface string
-		// to be written to.
-	// /dstlen/
-		// Length of &dst string.
-
-	// [ Returns ]
-	// The &ss parameter is the destination of the interface
-	// described in &dst.
-*/
-static void
-sockaddr_interface(any_addr_t *ss, char *dst, size_t dstlen)
-{
-	switch (ss->ss_family)
-	{
-		#define A(AF) \
-			case AF##_pf: { \
-				AF##_casted(afdata, ss); \
-				AF##_str(dst, dstlen, afdata); \
-			} break;
-			ADDRESSING()
-		#undef A
-	}
 }
 
 #if ! FV_OPTIMAL() || F_TRACE()
@@ -949,50 +903,10 @@ pkevent(kevent_t *kev)
 static void
 pchannel(Channel t)
 {
-	struct sockaddr_storage ss;
-	socklen_t sslen = sizeof(ss);
 	const char *callstr;
-	char buf[512];
-	struct aport_t port;
-	port.data.numeric2 = 0;
-
-	if (Channel_PortLatched(t))
-	{
-		if (Channel_Sends(t))
-		{
-			getpeername(Channel_GetKPoint(t), (if_addr_ref_t) &ss, &sslen);
-		}
-		else
-		{
-			getsockname(Channel_GetKPoint(t), (if_addr_ref_t) &ss, &sslen);
-		}
-	}
-	else
-	{
-		/* skip sockaddr resolution */
-		errno = 1;
-	}
-
-	if (errno == 0)
-	{
-		sockaddr_interface(&ss, buf, sizeof(buf));
-		switch (sockaddr_port(&ss, &port, sizeof(port)))
-		{
-			case aport_kind_numeric2:
-				snprintf(port.data.filename, sizeof(port.data.filename), "%d", port.data.numeric2);
-			break;
-			default:
-			break;
-		}
-	}
-	else
-	{
-		strcpy(buf, "noaddr");
-	}
-	errno = 0;
 
 	errpf(
-		"%s[%d] %s:%s, "
+		"%s[%d], "
 		"errno(%s/%d)[%s], "
 		"state:%s%s%s%s%s%s%s, "
 		"events:%s%s%s, "
@@ -1000,7 +914,6 @@ pchannel(Channel t)
 		"\n",
 		Py_TYPE(t)->tp_name,
 		Channel_GetKPoint(t),
-		buf, port.data.filename,
 		kcall_identifier(Channel_GetKCall(t)),
 		Channel_GetKError(t),
 		Channel_GetKError(t) != 0 ? strerror(Channel_GetKError(t)) : "",
