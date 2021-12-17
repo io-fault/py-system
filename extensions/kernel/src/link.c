@@ -1,5 +1,5 @@
 /**
-	// &.kernel.Link implementation joining events with tasks.
+	// &.kernel.Link implementation joining events with tasks, an event connection.
 */
 #include <fault/libc.h>
 #include <fault/internal.h>

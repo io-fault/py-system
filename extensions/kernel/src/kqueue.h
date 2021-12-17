@@ -6,6 +6,20 @@
 
 #include <sys/event.h>
 
+#define AEV_TRANSMITS(KEV) (KEV->filter & EVFILT_WRITE)
+
+#define AEV_CREATE EV_ADD
+#define AEV_DELETE EV_DELETE
+#define AEV_UPDATE EV_ADD
+
+#define AEV_CYCLIC(KEV) !((KEV)->flags & EV_ONESHOT)
+#define AEV_CYCLIC_ENABLE(KEV) ((KEV)->flags &= ~EV_ONESHOT)
+#define AEV_CYCLIC_DISABLE(KEV) ((KEV)->flags |= EV_ONESHOT)
+
+#define AEV_LINK(KEV) ((Link) (KEV)->udata)
+#define AEV_KPORT(KEV) (Event_KPort(AEV_LINK(KEV)->ln_event))
+
+#define KQ_FRAGMENT kport_t kq_root;
 typedef struct kevent kevent_t;
 
 #ifndef NOTE_MSECONDS
@@ -143,15 +157,4 @@ typedef struct kevent kevent_t;
 #define EVENT_FS_VOID_FLAGS NOTE_RENAME|NOTE_DELETE|NOTE_REVOKE
 #define EVENT_FS_DELTA_FLAGS NOTE_WRITE|NOTE_EXTEND
 #define EVENT_FS_STATUS_FLAGS EVENT_FS_VOID_FLAGS | EVENT_FS_DELTA_FLAGS
-
-/**
-	// kqueue specific data structure providing the identity of the filter.
-	// Used to support cancellation of connected events via &.kernel.Link.
-*/
-typedef int kqp_t;
-typedef struct KQI kqi_t;
-struct KQI {
-	int kq_filter;
-	intptr_t kq_ident;
-};
 #endif

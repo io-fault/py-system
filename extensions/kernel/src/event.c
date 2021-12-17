@@ -2,6 +2,7 @@
 	// &.kernel.Event implementation.
 */
 #include <fcntl.h>
+#include <signal.h>
 
 #include <fault/libc.h>
 #include <fault/internal.h>
@@ -13,16 +14,50 @@ PyTypeObject EventType;
 extern PyTypeObject KPortsType;
 
 CONCEAL(kport_t)
-fs_event_open(PyObj fsref)
+Event_KPort(event_t *evs)
 {
-	kport_t fd = -1;
-	const char *path = PyBytes_AS_STRING(fsref);
+	switch (evs->evs_type)
+	{
+		case EV_TYPE_ID(process_exit):
+		{
+			switch (evs->evs_resource_t)
+			{
+				case evr_kport:
+					return(evs->evs_resource.procref.procfd);
+				break;
+			}
+		}
+		break;
 
-	fd = open(path, O_EVTONLY);
-	if (fd < 0)
-		PyErr_SetFromErrno(PyExc_OSError);
+		case EV_TYPE_ID(process_signal):
+		{
+			switch (evs->evs_resource_t)
+			{
+				case evr_kport:
+					return(evs->evs_resource.sigref.sigfd);
+				break;
+			}
+		}
+		break;
 
-	return(fd);
+		default:
+		{
+			switch (evs->evs_resource_t)
+			{
+				case evr_obkp_pair:
+					return(evs->evs_resource.obkp.kre);
+				break;
+
+				case evr_kport:
+					return(evs->evs_resource.io[0]);
+				break;
+			}
+		}
+		break;
+	}
+
+	/* Not an event with a valid kport_t. */
+	return(-1);
 }
 
 /**
@@ -31,13 +66,14 @@ fs_event_open(PyObj fsref)
 CONCEAL(int)
 ev_nanoseconds(Event ev, PyObj args, PyObj kw)
 {
-	static const char *kwlist[] = {
+	const char *kwlist[] = {
 		"nanosecond", "microsecond", "millisecond", "second", NULL
 	};
 	unsigned long ms = 0, s = 0;
 	unsigned long long ns = 0, us = 0;
+	union EventResource *evr = Event_Resource(ev);
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "|KKkk", kwlist, &ns, &us, &ms, &s))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "|KKkk", (char **) kwlist, &ns, &us, &ms, &s))
 		return(-1);
 
 	/* Convert to 64-bit nanosecond offset. */
@@ -48,8 +84,42 @@ ev_nanoseconds(Event ev, PyObj args, PyObj kw)
 	if (us > 0)
 		ns += (1000ULL * us);
 
-	ev->ev_spec.evs_resource_t = evr_identifier;
-	ev->ev_spec.evs_resource.time = ns;
+	#if __linux__
+	if (ns == 0)
+		ns = 1; /* timerfd's are disabled if set to zero. */
+	{
+		kport_t kp = -1;
+		struct itimerspec old, its = {
+			.it_interval = {
+				.tv_sec  = ns / 1000000000ULL,
+				.tv_nsec = ns % 1000000000ULL,
+			},
+		};
+		its.it_value = its.it_interval;
+
+		kp = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
+		if (kp < 0)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			return(-1);
+		}
+
+		if (timerfd_settime(kp, 0, &its, &old) < 0)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			close(kp);
+			errno = 0;
+
+			return(-2);
+		}
+
+		Event_SetResourceType(ev, evr_kport);
+		evr->io[0] = kp;
+	}
+	#else
+		Event_SetResourceType(ev, evr_identifier);
+		evr->time = ns;
+	#endif
 	return(0);
 }
 
@@ -59,23 +129,39 @@ ev_nanoseconds(Event ev, PyObj args, PyObj kw)
 CONCEAL(int)
 ev_pid_reference(Event ev, PyObj args, PyObj kw)
 {
-	static const char *kwlist[] = {"pid", "port", NULL};
+	const char *kwlist[] = {"pid", "kport", NULL};
 	Py_ssize_t pid;
 	kport_t port = -1;
+	union EventResource *evr = Event_Resource(ev);
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "n|i", kwlist, &pid, &port))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "n|i", (char **) kwlist, &pid, &port))
 		return(-1);
 
 	if (port < 0)
 	{
-		ev->ev_spec.evs_resource_t = evr_identifier;
-		ev->ev_spec.evs_resource.process = pid;
+		#ifdef __linux__
+			int pidfd_open(pid_t, unsigned int);
+
+			Event_SetResourceType(ev, evr_kport);
+			port = pidfd_open(pid, 0);
+			evr->procref.process = pid;
+			evr->procref.procfd = port;
+
+			if (port < 0)
+			{
+				PyErr_SetFromErrno(PyExc_OSError);
+				return(-1);
+			}
+		#else
+			Event_SetResourceType(ev, evr_identifier);
+			evr->process = pid;
+		#endif
 	}
 	else
 	{
-		ev->ev_spec.evs_resource_t = evr_kport;
-		ev->ev_spec.evs_resource.procref.procfd = port;
-		ev->ev_spec.evs_resource.procref.process = pid;
+		Event_SetResourceType(ev, evr_kport);
+		evr->procref.procfd = port;
+		evr->procref.process = pid;
 	}
 
 	return(0);
@@ -87,25 +173,54 @@ ev_pid_reference(Event ev, PyObj args, PyObj kw)
 CONCEAL(int)
 ev_signal_reference(Event ev, PyObj args, PyObj kw)
 {
-	static const char *kwlist[] = {"signal", "port", NULL};
+	const char *kwlist[] = {"signal", "kport", NULL};
 	int signo = 0;
-	kport_t port = -1;
+	kport_t kp = -1;
+	union EventResource *evr = Event_Resource(ev);
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "i|i", kwlist, &signo, &port))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "i|i", (char **) kwlist, &signo, &kp))
 		return(-1);
 
-	if (port < 0)
+	if (kp < 0)
 	{
-		ev->ev_spec.evs_resource_t = evr_identifier;
-		ev->ev_spec.evs_resource.signal_code = signo;
+		#ifdef __linux__
+			sigset_t mask, old;
+
+			if (sigemptyset(&mask) < 0)
+				goto return_errno;
+
+			if (sigaddset(&mask, signo) < 0)
+				goto return_errno;
+
+			if (sigprocmask(SIG_BLOCK, &mask, &old) < 0)
+				goto return_errno;
+
+			kp = ev->ev_spec.evs_resource.sigref.sigfd = signalfd(-1, &mask, SFD_CLOEXEC);
+			if (kp < 0)
+				goto return_errno;
+
+			Event_SetResourceType(ev, evr_kport);
+			evr->sigref.signal_code = signo;
+			evr->sigref.sigfd = kp;
+		#else
+			Event_SetResourceType(ev, evr_identifier);
+			evr->signal_code = signo;
+		#endif
 	}
 	else
 	{
 		ev->ev_spec.evs_resource_t = evr_kport;
-		ev->ev_spec.evs_resource.sigref.sigfd = port;
-		ev->ev_spec.evs_resource.sigref.signal_code = signo;
+		evr->sigref.sigfd = kp;
+		evr->sigref.signal_code = signo;
 	}
+
 	return(0);
+
+	return_errno:
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(-1);
+	}
 }
 
 /**
@@ -114,17 +229,47 @@ ev_signal_reference(Event ev, PyObj args, PyObj kw)
 CONCEAL(int)
 ev_reference(Event ev, PyObj args, PyObj kw)
 {
-	static const char *kwlist[] = {
+	const char *kwlist[] = {
 		"reference", NULL
 	};
-	PyObj ref = NULL;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "O", kwlist, &ref))
+	union EventResource *evr = Event_Resource(ev);
+	PyObj ref = NULL;
+	kport_t kp = -1;
+
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O", (char **) kwlist, &ref))
 		return(-1);
 
-	Py_INCREF(ref);
-	ev->ev_spec.evs_resource_t = evr_object;
-	ev->ev_spec.evs_resource.ref_object = 0;
+	#ifdef __linux__
+		kp = eventfd(0, EFD_CLOEXEC);
+		if (kp < 0)
+		{
+			PyErr_SetFromErrno(PyExc_OSError);
+			return(-1);
+		}
+
+		Py_INCREF(ref);
+		Event_SetResourceType(ev, evr_obkp_pair);
+		evr->obkp.src = ref;
+
+		if (Event_Type(ev) == EV_TYPE_ID(meta_actuate))
+		{
+			uint64_t u = 1;
+			if (write(kp, &u, sizeof(u)) < 0)
+			{
+				PyErr_SetFromErrno(PyExc_OSError);
+				return(-1);
+			}
+		}
+
+		evr->obkp.kre = kp;
+	#else
+		/* EVFILT_USER or disabled zero EVFILT_TIMER */
+		Py_INCREF(ref);
+		Event_SetResourceType(ev, evr_object);
+		evr->ref_object = ref;
+	#endif
+
 	return(0);
 }
 
@@ -139,7 +284,7 @@ ev_filesystem_reference(Event ev, PyObj args, PyObj kw)
 	int fileno = -1;
 	PyObj path = NULL;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|i", kwlist, &path, &fileno))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "O|i", (char **) kwlist, &path, &fileno))
 		return(-1);
 
 	Py_INCREF(path);
@@ -150,12 +295,16 @@ ev_filesystem_reference(Event ev, PyObj args, PyObj kw)
 	/* Open if fileno is not given. */
 	if (fileno < 0)
 	{
+		enum EventType evt = ev->ev_spec.evs_type;
 		PyObj bytespath = NULL;
 
 		if (!PyUnicode_FSConverter(path, &bytespath))
-			return(-1);
-		ev->ev_spec.evs_resource.obkp.kre = fs_event_open(bytespath);
+			return(-2);
+
+		ev->ev_spec.evs_resource.obkp.kre = fs_event_open(PyBytes_AS_STRING(bytespath), evt);
 		Py_DECREF(bytespath);
+		if (ev->ev_spec.evs_resource.obkp.kre < 0)
+			return(-3);
 	}
 
 	return(0);
@@ -172,7 +321,7 @@ ev_io_reference(Event ev, PyObj args, PyObj kw)
 	};
 	int port = -1, rel = -1;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "|ii", kwlist, &port, &rel))
+	if (!PyArg_ParseTupleAndKeywords(args, kw, "|ii", (char **) kwlist, &port, &rel))
 		return(-1);
 
 	ev->ev_spec.evs_resource_t = evr_kport;
@@ -522,6 +671,26 @@ ev_new(PyTypeObject *typ, PyObj args, PyObj kw)
 }
 
 STATIC(void)
+ev_release(Event ev)
+{
+	int errsnap = errno;
+	kport_t kp;
+
+	kp = Event_KPort(Event_Specification(ev));
+	if (kp < 0)
+		return;
+
+	if (close(kp) < 0)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		PyErr_WriteUnraisable(ev);
+		errno = errsnap;
+	}
+
+	return;
+}
+
+STATIC(void)
 ev_clear(Event ev)
 {
 	switch (ev->ev_spec.evs_resource_t)
@@ -566,6 +735,7 @@ ev_traverse(PyObj self, visitproc visit, void *arg)
 STATIC(void)
 ev_dealloc(Event ev)
 {
+	ev_release(ev);
 	ev_clear(ev);
 	ev->ev_spec.evs_type = EV_TYPE_ID(invalid);
 	Py_TYPE(ev)->tp_free(ev);

@@ -82,7 +82,7 @@ signal_codes = {
 	'limit/time': signal.SIGVTALRM,
 
 	'terminal/stop': signal.SIGTSTP,
-	'terminal/query': getattr(signal, 'SIGINFO', None),
+	'terminal/query': getattr(signal, 'SIGINFO', None) or getattr(signal, 'SIGUSR1', None),
 	'terminal/delta': getattr(signal, 'SIGWINCH', None),
 	'terminal/closed': signal.SIGHUP,
 	'terminal/background-read': signal.SIGTTIN,

@@ -19,17 +19,37 @@
 
 #include "Scheduling.h"
 
-int _kq_reference_update(KernelQueue, Link, PyObj *);
+/**
+	// The source file is unconditionally compiled.
+	// Guard against compiling when not targeting kqueue-1.
+*/
+#if __EV_KQUEUE__(1)
 
-STATIC(int)
-kernelq_kevent_delta(KernelQueue kq, int retry, kevent_t *event)
+/**
+	// Primarily for macos. BSD's just need RDONLY.
+	// ev_type is ignored here as the subevent set is determined by kernelq_identify.
+*/
+CONCEAL(kport_t)
+fs_event_open(const char *path, enum EventType ev_type)
+{
+	kport_t fd = -1;
+
+	fd = open(path, O_EVTONLY);
+	if (fd < 0)
+		PyErr_SetFromErrno(PyExc_OSError);
+
+	return(fd);
+}
+
+CONCEAL(int)
+kernelq_delta(KernelQueue kq, int ctl, kport_t kp, kevent_t *event)
 {
 	struct timespec ts = {0,0};
 	RETRY_STATE_INIT;
 	int r = -1;
 
 	/* Force receipt. */
-	event->flags |= EV_RECEIPT;
+	event->flags |= ctl|EV_RECEIPT;
 
 	RETRY_SYSCALL:
 	r = kevent(kq->kq_root, event, 1, event, 1, &ts);
@@ -37,25 +57,6 @@ kernelq_kevent_delta(KernelQueue kq, int retry, kevent_t *event)
 	{
 		switch (errno)
 		{
-			case EINTR:
-			{
-				switch (retry)
-				{
-					case -1:
-						UNLIMITED_RETRY();
-					break;
-
-					case 1:
-						LIMITED_RETRY();
-					break;
-
-					case 0:
-						PyErr_SetFromErrno(PyExc_OSError);
-						return(-1);
-					break;
-				}
-			}
-
 			case EBADF:
 				/**
 					// Force -1 to avoid the possibility of acting on a kqueue
@@ -63,6 +64,9 @@ kernelq_kevent_delta(KernelQueue kq, int retry, kevent_t *event)
 					// an unexpected close occurred on this &kq->kq_root.
 				*/
 				kq->kq_root = -1;
+
+			case EINTR:
+				LIMITED_RETRY();
 			case ENOMEM:
 			default:
 			{
@@ -105,19 +109,20 @@ kernelq_kevent_delta(KernelQueue kq, int retry, kevent_t *event)
 
 /**
 	// Interpret event_t for use with a kqueue filter.
-	// Duplicate file descriptors or open files as needed.
 */
 CONCEAL(int)
-kevent_identify(kevent_t *kev, event_t *evs)
+kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
 {
+	*kp = -1;
+
 	switch (evs->evs_type)
 	{
 		case EV_TYPE_ID(meta_actuate):
 		{
 			EV_USER_SETUP(kev);
 			kev->ident = (uintptr_t) evs;
-			kev->flags |= EV_ONESHOT;
 			EV_USER_TRIGGER(kev);
+			AEV_CYCLIC_DISABLE(kev);
 		}
 		break;
 
@@ -126,20 +131,20 @@ kevent_identify(kevent_t *kev, event_t *evs)
 		{
 			EV_USER_SETUP(kev);
 			kev->ident = (uintptr_t) evs;
-			kev->flags |= EV_ONESHOT;
+			AEV_CYCLIC_DISABLE(kev);
 		}
 		break;
 
 		case EV_TYPE_ID(process_exit):
 		{
 			kev->fflags = NOTE_EXIT;
-			kev->flags |= EV_ONESHOT;
+			AEV_CYCLIC_DISABLE(kev);
 
 			switch (evs->evs_resource_t)
 			{
 				case evr_kport:
 					kev->filter = EVFILT_PROCDESC;
-					kev->ident = evs->evs_resource.procref.procfd;
+					*kp = kev->ident = evs->evs_resource.procref.procfd;
 				break;
 
 				case evr_identifier:
@@ -158,6 +163,7 @@ kevent_identify(kevent_t *kev, event_t *evs)
 		{
 			kev->filter = EVFILT_SIGNAL;
 			kev->ident = evs->evs_resource.signal_code;
+			AEV_CYCLIC_ENABLE(kev);
 		}
 		break;
 
@@ -166,6 +172,7 @@ kevent_identify(kevent_t *kev, event_t *evs)
 			kev->filter = EVFILT_TIMER;
 			kev->ident = (uintptr_t) evs;
 			kev->fflags = NOTE_MSECONDS;
+			AEV_CYCLIC_ENABLE(kev);
 		}
 		break;
 
@@ -174,14 +181,16 @@ kevent_identify(kevent_t *kev, event_t *evs)
 			/*
 				// Common file descriptor case.
 			*/
-			kev->ident = evs->evs_resource.io[0];
+			*kp = (kport_t) evs->evs_resource.io[0];
+			kev->ident = *kp;
+			AEV_CYCLIC_ENABLE(kev);
 
 			switch (evs->evs_type)
 			{
-				/* Level triggered I/O */
 				case EV_TYPE_ID(io_transmit):
 				{
 					kev->filter = EVFILT_WRITE;
+					kev->flags |= EV_CLEAR;
 				}
 				break;
 
@@ -189,6 +198,7 @@ kevent_identify(kevent_t *kev, event_t *evs)
 				case EV_TYPE_ID(io_receive):
 				{
 					kev->filter = EVFILT_READ;
+					kev->flags &= ~EV_CLEAR;
 				}
 				break;
 
@@ -210,7 +220,7 @@ kevent_identify(kevent_t *kev, event_t *evs)
 				{
 					kev->filter = EVFILT_VNODE;
 					kev->fflags = EVENT_FS_VOID_FLAGS;
-					kev->flags |= EV_ONESHOT;
+					AEV_CYCLIC_DISABLE(kev);
 				}
 				break;
 
@@ -235,7 +245,16 @@ kernelq_interrupt(KernelQueue kq)
 		.ident = (uintptr_t) kq,
 	};
 	EV_USER_TRIGGER(&kev);
-	return(kernelq_kevent_delta(kq, 1, &kev));
+	return(kernelq_delta(kq, 0, -1, &kev));
+}
+
+/**
+	// Nothing to do for kqueue.
+*/
+CONCEAL(int)
+kernelq_interrupt_accept(KernelQueue kq)
+{
+	return(0);
 }
 
 STATIC(int)
@@ -246,7 +265,7 @@ kernelq_interrupt_setup(KernelQueue kq)
 		.ident = (uintptr_t) kq,
 	};
 	EV_USER_SETUP(&kev);
-	return(kernelq_kevent_delta(kq, 1, &kev));
+	return(kernelq_delta(kq, AEV_CREATE, -1, &kev));
 }
 
 STATIC(void) inline
@@ -308,59 +327,26 @@ kevent_set_timer(kevent_t *kev, unsigned long long ns)
 	// Establish the link with the kernel event.
 */
 CONCEAL(int)
-kernelq_schedule(KernelQueue kq, Link ln, int cyclic)
+kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 {
+	PyObj current = NULL;
+	kport_t kp = -1;
 	kevent_t kev = {
 		.flags = EV_ADD|EV_RECEIPT,
 		.fflags = 0,
 		.udata = ln,
 	};
 	Event ev = ln->ln_event;
-	PyObj current = NULL;
 
-	if (kevent_identify(&kev, Event_Specification(ln->ln_event)) < 0)
+	if (kernelq_identify(&kp, &kev, Event_Specification(ln->ln_event)) < 0)
 	{
 		/* Unrecognized EV_TYPE */
 		PyErr_SetString(PyExc_ValueError, "unrecognized event type");
 		return(-1);
 	}
 
-	/**
-		// Configure cyclic flag.
-	*/
-	switch (cyclic)
-	{
-		case -1:
-		{
-			/* Inherit from &kevent_identify. */
-			if (kev.flags & EV_ONESHOT)
-				Link_Clear(ln, cyclic);
-			else
-				Link_Set(ln, cyclic);
-		}
-		break;
-
-		case 0:
-		{
-			/* All filters support one shot. */
-			Link_Clear(ln, cyclic);
-			kev.flags |= EV_ONESHOT;
-		}
-		break;
-
-		case 1:
-		{
-			Link_Set(ln, cyclic);
-
-			if (kev.flags & EV_ONESHOT)
-			{
-				/* kevent_identify designates this restriction via EV_ONESHOT. */
-				PyErr_SetString(PyExc_ValueError, "cyclic behavior not supported on event");
-				return(-1);
-			}
-		}
-		break;
-	}
+	if (kernelq_cyclic_event(kq, cyclic, ln, &kev) < 0)
+		return(-2);
 
 	switch (kev.filter)
 	{
@@ -381,6 +367,7 @@ kernelq_schedule(KernelQueue kq, Link ln, int cyclic)
 		}
 		break;
 
+		case EVFILT_WRITE:
 		case EVFILT_VNODE:
 			kev.flags |= EV_CLEAR;
 		break;
@@ -393,16 +380,16 @@ kernelq_schedule(KernelQueue kq, Link ln, int cyclic)
 	/*
 		// Update prior to kevent to make clean up easier on failure.
 	*/
-	if (_kq_reference_update(kq, ln, &current) < 0)
+	if (kernelq_reference_update(kq, ln, &current) < 0)
 		return(-1);
 
-	if (kernelq_kevent_delta(kq, 1, &kev) < 0)
+	if (kernelq_delta(kq, AEV_CREATE, -1, &kev) < 0)
 	{
 		if (current != NULL && current != ln)
 		{
 			PyObj old;
 
-			if (_kq_reference_update(kq, ln, &old) < 0)
+			if (kernelq_reference_update(kq, ln, &old) < 0)
 				PyErr_WriteUnraisable(ln);
 		}
 
@@ -416,80 +403,6 @@ kernelq_schedule(KernelQueue kq, Link ln, int cyclic)
 	Py_XDECREF(current);
 	Link_Set(ln, dispatched);
 	return(0);
-}
-
-CONCEAL(PyObj)
-kernelq_cancel(KernelQueue kq, Link ln)
-{
-	kevent_t kev = {
-		.flags = EV_DELETE|EV_RECEIPT,
-		.data = 0,
-		.udata = 0,
-	};
-	PyObj original;
-
-	if (kevent_identify(&kev, Event_Specification(ln->ln_event)) < 0)
-	{
-		/* Unrecognized EV_TYPE */
-		PyErr_SetString(PyExc_TypeError, "unrecognized event type");
-		return(NULL);
-	}
-
-	/*
-		// Prepare for cancellation by adding the existing
-		// scheduled &ln to the cancellation list. This
-		// allows any concurrently collected event to be
-		// safely enqueued using &ln.
-	*/
-
-	original = PyDict_GetItem(kq->kq_references, ln->ln_event); /* borrowed */
-	if (original == NULL)
-	{
-		/* No event in table. No cancellation necessary. */
-		if (PyErr_Occurred())
-			return(NULL);
-		else
-			Py_RETURN_NONE;
-	}
-
-	/*
-		// Maintain reference count in case of concurrent use(collected event).
-	*/
-	if (PyList_Append(kq->kq_cancellations, original) < 0)
-		return(NULL);
-
-	/* Delete link from references */
-	if (PyDict_DelItem(kq->kq_references, ln->ln_event) < 0)
-	{
-		/* Nothing has actually changed here, so just return the error. */
-		/* Cancellation list will be cleared by &.kernel.Scheduler.wait */
-		return(NULL);
-	}
-
-	if (kernelq_kevent_delta(kq, 1, &kev) < 0)
-	{
-		Link prior = (Link) original;
-
-		/*
-			// Cancellation failed.
-			// Likely a critical error, but try to recover.
-		*/
-		if (PyDict_SetItem(kq->kq_references, prior->ln_event, original) < 0)
-		{
-			/*
-				// Could not restore the reference position.
-				// Prefer leaking the link over risking a SIGSEGV
-				// after the kq_cancellations list has been cleared.
-			*/
-			Py_INCREF(original);
-			PyErr_WarnFormat(PyExc_RuntimeWarning, 0,
-				"event link leaked due to cancellation failure");
-		}
-
-		return(NULL);
-	}
-
-	Py_RETURN_NONE;
 }
 
 CONCEAL(int)
@@ -524,22 +437,6 @@ kernelq_initialize(KernelQueue kq)
 	return(0);
 }
 
-CONCEAL(void)
-kernelq_clear(KernelQueue kq)
-{
-	Py_CLEAR(kq->kq_references);
-	Py_CLEAR(kq->kq_cancellations);
-}
-
-CONCEAL(int)
-kernelq_traverse(KernelQueue kq, PyObj self, visitproc visit, void *arg)
-{
-	Py_VISIT(kq->kq_references);
-	Py_VISIT(kq->kq_cancellations);
-
-	return(0);
-}
-
 /**
 	// Close the event queue kernel resources.
 
@@ -568,10 +465,7 @@ CONCEAL(int)
 kernelq_receive(KernelQueue kq, long seconds, long ns)
 {
 	const struct timespec waittime = {seconds, ns};
-	int r = 0;
-
-	kq->kq_event_position = 0;
-	kq->kq_event_count = 0;
+	int r = -1;
 
 	Py_BEGIN_ALLOW_THREADS
 	{
@@ -645,125 +539,4 @@ pkevent(kevent_t *kev)
 
 	return;
 }
-
-/**
-	// Transition the received kernel events to enqueued tasks.
-
-	// [ Returns ]
-	// The count of processed events or negative value on error.
-*/
-CONCEAL(int)
-kernelq_transition(KernelQueue kq, TaskQueue tq)
-{
-	PyObj refset = kq->kq_references;
-	PyObj cancelset = kq->kq_cancellations;
-
-	for (; kq->kq_event_position < kq->kq_event_count; ++(kq->kq_event_position))
-	{
-		PyObj task; /* tuple attached to event data */
-		Link ln;
-		kevent_t *kev;
-
-		kev = &(kq->kq_array[kq->kq_event_position]);
-		ln = (Link) kev->udata;
-
-		switch (kev->filter)
-		{
-			case EVFILT_SIGNAL:
-			{
-				int signo = kev->ident;
-			}
-			break;
-
-			case EVFILT_PROC:
-			case EVFILT_PROCDESC:
-			{
-				assert(kev->fflags & NOTE_EXIT);
-			}
-			break;
-
-			case EVFILT_VNODE:
-			{
-				kport_t fd = kev->ident;
-			}
-			break;
-
-			case EVFILT_TIMER:
-			{
-				uintptr_t id = kev->ident;
-			}
-			break;
-
-			case EVFILT_USER:
-			{
-				/* &.kernel.Scheduler.interrupt, nothing to do. */
-				if (ln == NULL)
-					continue;
-			}
-			break;
-
-			case EVFILT_WRITE:
-			case EVFILT_READ:
-			{
-				kport_t fd = kev->ident;
-			}
-			break;
-
-			default:
-			{
-				/*
-					// unknown event, throw warning
-				*/
-				PyErr_WarnFormat(PyExc_Warning, 0, "unrecognized event (%d) received", kev->filter);
-				continue;
-			}
-			break;
-		}
-
-		assert(Py_TYPE(ln) == &LinkType);
-
-		if (taskq_enqueue(tq, ln) < 0)
-			return(-1);
-
-		if (!Link_Get(ln, cyclic))
-		{
-			if (kev->flags & EV_ONESHOT)
-				Link_Set(ln, cancelled);
-			else
-			{
-				kev->flags = EV_DELETE|EV_RECEIPT;
-
-				if (kernelq_kevent_delta(kq, 1, kev) < 0)
-				{
-					PyErr_WriteUnraisable(ln);
-					PyErr_Clear();
-				}
-				else
-					Link_Set(ln, cancelled);
-			}
-
-			if (PyDict_DelItem(refset, ln->ln_event) < 0)
-			{
-				PyErr_WriteUnraisable(ln);
-				PyErr_Clear();
-			}
-		}
-	}
-
-	/*
-		// Clear cancellation references.
-	*/
-	if (PyList_GET_SIZE(cancelset) > 0)
-	{
-		PyObj r = PyObject_CallMethod(cancelset, "clear", "", NULL);
-		if (r == NULL)
-		{
-			PyErr_WriteUnraisable(NULL);
-			PyErr_Clear();
-		}
-		else
-			Py_DECREF(r);
-	}
-
-	return(0);
-}
+#endif /* kqueue exclusive */

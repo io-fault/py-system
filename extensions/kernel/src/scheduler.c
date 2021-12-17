@@ -15,6 +15,17 @@
 
 #include "Scheduling.h"
 
+/**
+	// Interrupt a running &.kernel.Scheduler.wait call.
+
+	// [ Returns ]
+	// /`0`/
+		// Not Waiting; no interrupt issued.
+	// /`1`/
+		// Scheduler was waiting, but interrupt was already issued.
+	// /`2`/
+		// Interrupt issued to system.
+*/
 STATIC(int) inline
 interrupt_wait(Scheduler ks)
 {
@@ -172,8 +183,10 @@ STATIC(PyObj)
 ks_void(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
+	KernelQueue kq = Scheduler_GetKernelQueue(ks);
 
-	kernelq_close(Scheduler_GetKernelQueue(ks));
+	kernelq_close(kq);
+	PyDict_Clear(kq->kq_references);
 	Py_RETURN_NONE;
 }
 
@@ -206,55 +219,15 @@ ks_interrupt(PyObj self)
 	return(rob);
 }
 
-/**
-	// Replace the link in the reference dictionary, but return
-	// the existing object if any.
-*/
-CONCEAL(int)
-_kq_reference_update(KernelQueue kq, Link ln, PyObj *current)
-{
-	*current = PyDict_GetItem(kq->kq_references, ln->ln_event);
-
-	if (*current != NULL)
-	{
-		/* Acquire the necessary reference to allow substitution. */
-		if (PyList_Append(kq->kq_cancellations, *current) < 0)
-			return(-1);
-	}
-
-	/* Insert or replace. */
-	if (PyDict_SetItem(kq->kq_references, ln->ln_event, ln) < 0)
-		return(-2);
-
-	return(0);
-}
-
-CONCEAL(int)
-_kq_reference_delete(KernelQueue kq, Event ev)
-{
-	PyObj current = PyDict_GetItem(kq->kq_references, (PyObj) ev);
-
-	if (current != NULL)
-	{
-		/* Acquire the necessary reference to allow substitution. */
-		if (PyList_Append(kq->kq_cancellations, current) < 0)
-			return(-1);
-	}
-
-	if (PyDict_DelItem(kq->kq_references, ev) < 0)
-		return(-2);
-
-	return(0);
-}
-
 STATIC(PyObj)
 ks_dispatch(PyObj self, PyObj args, PyObj kw)
 {
 	const static char *kwlist[] = {"operation", "cyclic", NULL};
+	static int pexits_d = 0;
 
 	Scheduler ks = (Scheduler) self;
 	KernelQueue kq = Scheduler_GetKernelQueue(ks);
-	Link ln;
+	Link ln = NULL;
 	int cyclic = -1;
 
 	if (!PyArg_ParseTupleAndKeywords(args, kw, "O!|p", kwlist, &LinkType, &ln, &cyclic))
@@ -273,11 +246,13 @@ ks_dispatch(PyObj self, PyObj args, PyObj kw)
 			/* fall default/kernelq_scheduler */
 		}
 
+		case EV_TYPE_ID(process_exit):
+			pexits_d += 1;
 		case EV_TYPE_ID(never):
 		case EV_TYPE_ID(meta_terminate):
 		default:
 		{
-			if (kernelq_schedule(kq, ln, cyclic) < 0)
+			if (kernelq_schedule(kq, cyclic, ln) < 0)
 				return(NULL);
 		}
 		break;
@@ -358,6 +333,7 @@ ks_wait(PyObj self, PyObj args)
 			}
 		}
 
+		kq->kq_event_count = kq->kq_event_position = 0;
 		error = kernelq_receive(kq, secs, ns);
 		ks->ks_waiting = 0;
 		if (error < 0)
@@ -401,26 +377,22 @@ STATIC(PyObj)
 ks_get_closed(PyObj self, void *closure)
 {
 	Scheduler ks = (Scheduler) self;
-	PyObj rob = Py_False;
 
 	if (Scheduler_GetKernelQueue(ks)->kq_root == -1)
-		rob = Py_True;
+		Py_RETURN_TRUE;
 
-	Py_INCREF(rob);
-	return(rob);
+	Py_RETURN_FALSE;
 }
 
 STATIC(PyObj)
 ks_get_has_tasks(PyObj self, void *closure)
 {
 	Scheduler ks = (Scheduler) self;
-	PyObj rob = Py_False;
 
 	if (TQ_HAS_TASKS(Scheduler_GetTaskQueue(ks)))
-		rob = Py_True;
+		Py_RETURN_TRUE;
 
-	Py_INCREF(rob);
-	return(rob);
+	Py_RETURN_FALSE;
 }
 
 STATIC(PyGetSetDef)

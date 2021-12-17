@@ -89,8 +89,10 @@ def test_enqueue_interrupt(test):
 	k = module.Scheduler()
 	k._set_waiting()
 	k.enqueue((lambda: None))
-	test/k.wait(2) == 1
+
+	# Clear queue to allow kernelq_receive to be performed.
 	test/k.execute(None) == 1
+	test/k.wait(0) == 1
 
 def test_dispatch_actuate(test):
 	"""
@@ -163,6 +165,9 @@ def test_Link_never_states(test):
 	ks = module.Scheduler()
 	try:
 		ks.dispatch(ln)
+		test/ln.dispatched == True
+		test/ln.cancelled == False
+
 		test/ks.wait(0) == 0
 		test/ks.execute(None) == 0
 		ks.cancel(ln)
@@ -176,8 +181,6 @@ def test_Link_never_states(test):
 def test_Link_scheduler_states(test):
 	"""
 	# - &module.Event.time
-
-	# Check that never is available and has no immediate effect.
 	"""
 
 	events = []
@@ -193,7 +196,7 @@ def test_Link_scheduler_states(test):
 		test/ln.dispatched == True
 		test/ln.cancelled == False
 
-		test/ks.wait(0) == 1
+		test/ks.wait(1) == 1
 		test/ks.execute(None) == 1
 
 		test/ks.wait(0) == 0
@@ -280,23 +283,33 @@ def test_Event_process_pid(test):
 	# Expect argument requirement.
 	test/TypeError ^ allocproc
 
-	xev = allocproc(0)
-	test.isinstance(xev, module.Event)
-	xev2 = allocproc(0)
+	try:
+		xev = allocproc(0)
+	except OSError:
+		# linux
+		import os
+		xev = allocproc(os.getpid())
+		xev2 = allocproc(os.getpid())
+		test/id(xev2) != id(xev)
+		test/xev2 != xev
+	else:
+		test.isinstance(xev, module.Event)
+		xev2 = allocproc(0)
 
-	test/id(xev2) != id(xev)
-	test/xev2 == xev
-	test/allocproc(0) != allocproc(1)
-	test/allocproc(1) == allocproc(1)
+		test/id(xev2) != id(xev)
+		test/xev2 == xev
+		test/allocproc(0) != allocproc(1)
+		test/allocproc(1) == allocproc(1)
 
 def test_Event_time(test):
 	ki = module.Scheduler()
 	try:
 		ln = module.Link(module.Event.time(1), (lambda ln: None))
 		ki.dispatch(ln, cyclic=False)
-		test/ki.wait() == 1
+		test/ki.wait(1) == 1
 		test/ki.wait(0) == 0
 		test/ki.wait(0) == 0
+		test/ki.execute(None) == 1
 	finally:
 		ki.void()
 		test.garbage()
@@ -422,8 +435,9 @@ def test_Scheduler_io_pipe(test):
 	ioe = []
 
 	r, w = os.pipe()
-	flags = fcntl.fcntl(r, fcntl.F_GETFL)
-	fcntl.fcntl(r, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+	for x in [r, w]:
+		flags = fcntl.fcntl(x, fcntl.F_GETFL)
+		fcntl.fcntl(x, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
 	rxe = module.Event.io_receive(r, w)
 	txe = module.Event.io_transmit(w, r)
@@ -436,7 +450,6 @@ def test_Scheduler_io_pipe(test):
 		ki.dispatch(rx)
 		ki.dispatch(tx)
 
-		# Write should always be available.
 		data = b'first'
 		ki.wait(0)
 		ki.execute(None)
@@ -448,6 +461,7 @@ def test_Scheduler_io_pipe(test):
 		data = b'second'
 		ki.wait(0)
 		ki.execute(None)
+		tx()
 		# Allow receive to occur.
 		data = b''
 		ki.wait(0)
@@ -458,7 +472,7 @@ def test_Scheduler_io_pipe(test):
 
 	ioe = [x for x in ioe if x]
 	test/ioe[0] == b'first'
-	test/ioe[1] == b'second'
+	ioe[1] in test/{b'second', b'second'*2}
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

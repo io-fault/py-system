@@ -82,18 +82,23 @@ ev_type_name(enum EventType etyp)
 static inline enum EventType
 ev_type_code(const char *n)
 {
-	#define STRCASE(a) ((a[0] << 24) | (a[1] << 16) | (a[2] << 8) | (a[3] << 0))
+	#define _SHIFT(B,O) (B << O)
+	#define STRSHIFT(a) \
+		(_SHIFT(a[0],24)|_SHIFT(a[1],16)|_SHIFT(a[2],8)|_SHIFT(a[3],0))
+	#define STRCASE(a,b,c,d) \
+		(_SHIFT(a,24)|_SHIFT(b,16)|_SHIFT(c,8)|_SHIFT(d,0))
+
 	uint32_t init;
-	char buf[4] = {0,};
+	char buf[4] = {0,0,0,0,};
 	const char *ext = &n[3];
 
 	strncpy(buf, n, 3);
-	init = STRCASE(buf);
+	init = STRSHIFT(buf);
 
 	switch (init)
 	{
-		case STRCASE("io-\0"):
-		case STRCASE("io_\0"):
+		case STRCASE('i','o','-','\0'):
+		case STRCASE('i','o','_','\0'):
 		{
 			if (strcmp(ext, "receive") == 0)
 				return(EV_TYPE_ID(io_receive));
@@ -102,8 +107,8 @@ ev_type_code(const char *n)
 		}
 		break;
 
-		case STRCASE("fs-\0"):
-		case STRCASE("fs_\0"):
+		case STRCASE('f','s','-','\0'):
+		case STRCASE('f','s','_','\0'):
 		{
 			if (strcmp(ext, "delta") == 0)
 				return(EV_TYPE_ID(fs_delta));
@@ -114,7 +119,7 @@ ev_type_code(const char *n)
 		}
 		break;
 
-		case STRCASE("met\0"):
+		case STRCASE('m','e','t','\0'):
 		{
 			/* meta[-_] */
 			if (ext[0] == 'a' && (ext[1] == '-' || ext[1] == '_'))
@@ -128,22 +133,22 @@ ev_type_code(const char *n)
 			}
 		}
 
-		case STRCASE("tim\0"):
+		case STRCASE('t','i','m','\0'):
 			if (strcmp(ext, "e") == 0)
 				return(EV_TYPE_ID(time));
 		break;
 
-		case STRCASE("nev\0"):
+		case STRCASE('n','e','v','\0'):
 			if (strcmp(ext, "er") == 0)
 				return(EV_TYPE_ID(never));
 		break;
 
-		case STRCASE("pro\0"):
+		case STRCASE('p','r','o','\0'):
 			if (strcmp(ext, "cess_exit") == 0)
 				return(EV_TYPE_ID(process_exit));
 		break;
 
-		case STRCASE("sig\0"):
+		case STRCASE('s','i','g','\0'):
 			if (strcmp(ext, "nal") == 0)
 				return(EV_TYPE_ID(process_signal));
 		break;
@@ -154,7 +159,9 @@ ev_type_code(const char *n)
 	}
 
 	return(EV_TYPE_ID(invalid));
+	#undef STRSHIFT
 	#undef STRCASE
+	#undef _SHIFT
 }
 
 /**
@@ -266,6 +273,9 @@ evs_type_identifier(struct EventSpecification *evs)
 #define Event_Type(EV) (Event_Specification(EV)->evs_type)
 #define Event_ResourceType(EV) (Event_Specification(EV)->evs_resource_t)
 #define Event_Resource(EV) (&Event_Specification(EV)->evs_resource)
+#define Event_SetResourceType(EV, RTYPE) Event_ResourceType(EV) = RTYPE
+kport_t Event_KPort(event_t *);
+
 typedef struct Event *Event;
 struct Event {
 	PyObject_HEAD
