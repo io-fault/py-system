@@ -39,7 +39,7 @@ int kernelq_reference_update(KernelQueue, Link, PyObj *);
 int kernelq_reference_delete(KernelQueue, Event);
 int kernelq_cyclic_event(KernelQueue, int, Link, kevent_t *);
 
-int kernelq_identify(kport_t *, kevent_t *, event_t *);
+int kernelq_identify(kevent_t *, event_t *);
 int kernelq_delta(KernelQueue, int, kport_t, kevent_t *);
 int kernelq_interrupt_accept(KernelQueue);
 int kernelq_schedule(KernelQueue, int, Link);

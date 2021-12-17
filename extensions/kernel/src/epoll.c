@@ -116,13 +116,9 @@ fs_read_inotify_event(kport_t kp)
 }
 
 CONCEAL(int)
-kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
+kernelq_identify(kevent_t *kev, event_t *evs)
 {
-	*kp = -1;
-	kev->events |= EPOLL_FLAGS;
-
-	/* Everything EPOLLIN except io_transmit. */
-	kev->events |= EPOLLIN;
+	kev->events |= EPOLL_FLAGS | EPOLLIN;
 
 	switch (evs->evs_type)
 	{
@@ -132,43 +128,18 @@ kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
 		{
 			/* eventfd */
 			AEV_CYCLIC_DISABLE(kev);
-			*kp = evs->evs_resource.obkp.kre;
 		}
 		break;
 
 		case EV_TYPE_ID(process_exit):
 		{
-			pid_t pid = evs->evs_resource.procref.process;
 			AEV_CYCLIC_DISABLE(kev);
-
-			switch (evs->evs_resource_t)
-			{
-				case evr_kport:
-					*kp = evs->evs_resource.procref.procfd;
-				break;
-
-				default:
-					return(-1);
-				break;
-			}
 		}
 		break;
 
 		case EV_TYPE_ID(process_signal):
 		{
-			int signo = evs->evs_resource.signal_code;
 			AEV_CYCLIC_ENABLE(kev);
-
-			switch (evs->evs_resource_t)
-			{
-				case evr_kport:
-					*kp = evs->evs_resource.sigref.sigfd;
-				break;
-
-				default:
-					return(-2);
-				break;
-			}
 		}
 		break;
 
@@ -176,14 +147,12 @@ kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
 		{
 			/* timerfd */
 			AEV_CYCLIC_ENABLE(kev);
-			*kp = evs->evs_resource.io[0];
 		}
 		break;
 
 		default:
 		{
 			AEV_CYCLIC_ENABLE(kev);
-			*kp = evs->evs_resource.io[0];
 
 			switch (evs->evs_type)
 			{
@@ -334,7 +303,8 @@ CONCEAL(int)
 kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 {
 	PyObj current = NULL;
-	kport_t kp = -1;
+	Event ev = ln->ln_event;
+	kport_t kp = Event_GetKPort(ev);
 	kevent_t kev = {
 		.events = 0,
 		.data = {
@@ -342,7 +312,7 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 		},
 	};
 
-	if (kernelq_identify(&kp, &kev, Event_Specification(ln->ln_event)) < 0)
+	if (kernelq_identify(&kev, Event_Specification(ln->ln_event)) < 0)
 	{
 		PyErr_SetString(PyExc_TypeError, "could not recognize event file descriptor");
 		return(-1);

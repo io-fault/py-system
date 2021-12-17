@@ -228,10 +228,11 @@ def test_interrupt(test):
 	"""
 	# - &module.Scheduler.interrupt
 	"""
+	s = (10**9)
 	ki = module.Scheduler()
 	try:
 		a=time.time()
-		ki.dispatch(module.Link(module.Event.time(second=5), (lambda x: None)))
+		ki.dispatch(module.Link(module.Event.time(5*s), (lambda x: None)))
 		test/ki.interrupt() == None
 
 		ki._set_waiting()
@@ -257,22 +258,13 @@ def test_Event_time_units(test):
 	# Time events are distinct regardless of their timing.
 	"""
 	evt = module.Event.time
-	test/evt() != evt(0)
-	test/evt(1) != evt(nanosecond=1)
+	test/evt(0) != evt(0)
+	test/evt(1) != evt(1)
 
-	ms = evt(millisecond=200)
-	test/ms == ms
-	us = evt(microsecond=200)
-	test/us == us
-	ns = evt(nanosecond=200)
+	ns = evt(200)
 	test/ns == ns
-	s = evt(second=200)
-	ns2 = evt(200)
-
-	# All event instances.
-	for i in [s, ms, us, ns, ns2]:
-		test.isinstance(i, module.Event)
-		test/i.type == 'time'
+	test.isinstance(ns, module.Event)
+	test/ns.type == 'time'
 
 def test_Event_process_pid(test):
 	"""
@@ -318,8 +310,9 @@ def test_interrupt_ignored(test):
 	"""
 	# Check that interrupt outside of wait has no effect.
 	"""
+	ms = 10 ** 6 # ns units
 	ki = module.Scheduler()
-	ev = module.Event.time(0, millisecond=1200)
+	ev = module.Event.time(1200*ms)
 	try:
 		a=time.time()
 		ln = module.Link(ev, (lambda x: None))
@@ -333,12 +326,13 @@ def test_interrupt_ignored(test):
 		test.garbage()
 
 def test_time_event_periodic(test):
+	ms = 10 ** 6 # ns units
 	ki = module.Scheduler()
 	events = []
 	try:
 		a=time.time()
 		# recur about 500ms
-		ln = module.Link(module.Event.time(millisecond=100), (lambda x: events.append(x)))
+		ln = module.Link(module.Event.time(100*ms), (lambda x: events.append(x)))
 		ki.dispatch(ln)
 		for x in range(5):
 			ki.wait()
@@ -439,8 +433,8 @@ def test_Scheduler_io_pipe(test):
 		flags = fcntl.fcntl(x, fcntl.F_GETFL)
 		fcntl.fcntl(x, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
-	rxe = module.Event.io_receive(r, w)
-	txe = module.Event.io_transmit(w, r)
+	rxe = module.Event.io_receive(None, r)
+	txe = module.Event.io_transmit(None, w)
 
 	ki = module.Scheduler()
 	try:

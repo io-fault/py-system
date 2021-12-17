@@ -155,7 +155,7 @@ kernelq_transition(KernelQueue kq, TaskQueue tq)
 		if (!Link_Get(ln, cyclic))
 		{
 			kport_t kp = -1;
-			kp = Event_KPort(Event_Specification(ln->ln_event));
+			kp = Event_GetKPort(ln->ln_event);
 
 			/**
 				// If the kevent was recognized as cyclic by the system,
@@ -197,9 +197,10 @@ kernelq_cancel(KernelQueue kq, Link ln)
 {
 	kport_t kp = -1;
 	kevent_t kev = {0,};
+	Event ev = (Event) ln->ln_event;
 	PyObj original;
 
-	if (kernelq_identify(&kp, &kev, Event_Specification(ln->ln_event)) < 0)
+	if (kernelq_identify(&kev, Event_Specification(ev)) < 0)
 	{
 		/* Unrecognized EV_TYPE */
 		PyErr_SetString(PyExc_TypeError, "unrecognized event type");
@@ -230,14 +231,14 @@ kernelq_cancel(KernelQueue kq, Link ln)
 		return(NULL);
 
 	/* Delete link from references */
-	if (PyDict_DelItem(kq->kq_references, ln->ln_event) < 0)
+	if (PyDict_DelItem(kq->kq_references, ev) < 0)
 	{
 		/* Nothing has actually changed here, so just return the error. */
 		/* Cancellation list will be cleared by &.kernel.Scheduler.wait */
 		return(NULL);
 	}
 
-	if (kernelq_delta(kq, AEV_DELETE, kp, &kev) < 0)
+	if (kernelq_delta(kq, AEV_DELETE, Event_GetKPort(ev), &kev) < 0)
 	{
 		Link prior = (Link) original;
 

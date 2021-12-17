@@ -17,7 +17,7 @@
 #define AEV_CYCLIC_DISABLE(KEV) ((KEV)->flags |= EV_ONESHOT)
 
 #define AEV_LINK(KEV) ((Link) (KEV)->udata)
-#define AEV_KPORT(KEV) (Event_KPort(AEV_LINK(KEV)->ln_event))
+#define AEV_KPORT(KEV) (Event_GetKPort(AEV_LINK(KEV)->ln_event))
 
 #define KQ_FRAGMENT kport_t kq_root;
 typedef struct kevent kevent_t;

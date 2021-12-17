@@ -16,7 +16,7 @@
 */
 #define EVENT_TYPE_TIME_LIST() \
 	EV_TYPE(never, ev_reference) \
-	EV_TYPE(time, ev_nanoseconds)
+	EV_TYPE(time, ev_time_units)
 
 /**
 	// IPC related.
@@ -164,65 +164,21 @@ ev_type_code(const char *n)
 	#undef _SHIFT
 }
 
-/**
-	// Identifies what is stored in a &EventResource union.
-
-	// /evr_kport/
-		// One or two file descriptors depending on the event type.
-		// For &evt_io, the &EventResource.io array may hold bad file descriptors.
-		// For &evt_signal and &evt_process_exit, &EventResource.sigref and
-		// &EventResource.procref hold the one file descriptor as the first member.
-	// /evr_identifier/
-		// Time period, signal, or PID without a kport_t. Used with BSD kqueue.
-	// /evr_object/
-		// Used by never and some meta events.
-	// /evr_obkp_pair/
-		// A kport derived using an object. Currently, only used by filesystem events.
-*/
-enum EventResourceType {
-	evr_none = 0,
-	evr_identifier = 1,
-	evr_object,
-	evr_kport,
-	evr_obkp_pair, /* Usually kport derived from object. */
-};
-
-/**
-	// Identifier for the source of produced events.
-*/
-union EventResource {
-	int signal_code;
-	struct {
-		kport_t sigfd;
-		int signal_code;
-	} sigref;
-
-	pid_t process;
-	struct {
-		kport_t procfd;
-		pid_t process;
-	} procref;
-
-	/* nanoseconds */
-	uint64_t time;
-	kport_t io[2];
-
-	/* Arbitrary user data used with never and meta_* */
-	PyObj ref_object;
-
-	/* kport_t kre allocated from PyObject src */
-	struct {
-		PyObj src;
-		kport_t kre;
-	} obkp;
-};
-
 typedef struct EventSpecification event_t;
 struct EventSpecification {
 	enum EventType evs_type;
 
-	enum EventResourceType evs_resource_t;
-	union EventResource evs_resource;
+	PyObj evs_source;
+	kport_t evs_kresource;
+
+	/* Determined by evs_type */
+	union {
+		uint64_t time;
+		pid_t process;
+		int signal_code;
+		kport_t correlation;
+	} evs_field;
+
 	uint8_t evs_terminal[0];
 };
 
@@ -271,10 +227,20 @@ evs_type_identifier(struct EventSpecification *evs)
 
 #define Event_Specification(EV) (&EV->ev_spec)
 #define Event_Type(EV) (Event_Specification(EV)->evs_type)
-#define Event_ResourceType(EV) (Event_Specification(EV)->evs_resource_t)
-#define Event_Resource(EV) (&Event_Specification(EV)->evs_resource)
-#define Event_SetResourceType(EV, RTYPE) Event_ResourceType(EV) = RTYPE
-kport_t Event_KPort(event_t *);
+
+#define Event_GetSource(EV) (EV->ev_spec.evs_source)
+#define Event_GetKPort(EV) (EV->ev_spec.evs_kresource)
+#define Event_GetTime(EV) (EV->ev_spec.evs_field.time)
+#define Event_GetProcess(EV) (EV->ev_spec.evs_field.process)
+#define Event_GetSignal(EV) (EV->ev_spec.evs_field.signal_code)
+#define Event_GetCorrelation(EV) (EV->ev_spec.evs_field.correlation)
+
+#define Event_SetSource(EV, OB) (Event_GetSource(EV) = OB)
+#define Event_SetKPort(EV, KP) (Event_GetKPort(EV) = KP)
+#define Event_SetTime(EV, TIME) (Event_GetTime(EV) = TIME)
+#define Event_SetProcess(EV, PROCID) (Event_GetProcess(EV) = PROCID)
+#define Event_SetSignal(EV, SIG) (Event_GetSignal(EV) = SIG)
+#define Event_SetCorrelation(EV, KP) (Event_GetCorrelation(EV) = KP)
 
 typedef struct Event *Event;
 struct Event {

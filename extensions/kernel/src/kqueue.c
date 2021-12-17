@@ -111,11 +111,12 @@ kernelq_delta(KernelQueue kq, int ctl, kport_t kp, kevent_t *event)
 	// Interpret event_t for use with a kqueue filter.
 */
 CONCEAL(int)
-kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
+kernelq_identify(kevent_t *kev, event_t *evs)
 {
-	*kp = -1;
+	enum EventType evt = evs->evs_type;
+	kport_t kre = evs->evs_kresource;
 
-	switch (evs->evs_type)
+	switch (evt)
 	{
 		case EV_TYPE_ID(meta_actuate):
 		{
@@ -140,21 +141,15 @@ kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
 			kev->fflags = NOTE_EXIT;
 			AEV_CYCLIC_DISABLE(kev);
 
-			switch (evs->evs_resource_t)
+			if (evs->evs_kresource != -1)
 			{
-				case evr_kport:
-					kev->filter = EVFILT_PROCDESC;
-					*kp = kev->ident = evs->evs_resource.procref.procfd;
-				break;
-
-				case evr_identifier:
-					kev->filter = EVFILT_PROC;
-					kev->ident = evs->evs_resource.process;
-				break;
-
-				default:
-					return(-1);
-				break;
+				kev->filter = EVFILT_PROCDESC;
+				kev->ident = kre;
+			}
+			else
+			{
+				kev->filter = EVFILT_PROC;
+				kev->ident = evs->evs_field.process;
 			}
 		}
 		break;
@@ -162,7 +157,7 @@ kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
 		case EV_TYPE_ID(process_signal):
 		{
 			kev->filter = EVFILT_SIGNAL;
-			kev->ident = evs->evs_resource.signal_code;
+			kev->ident = evs->evs_field.signal_code;
 			AEV_CYCLIC_ENABLE(kev);
 		}
 		break;
@@ -181,11 +176,10 @@ kernelq_identify(kport_t *kp, kevent_t *kev, event_t *evs)
 			/*
 				// Common file descriptor case.
 			*/
-			*kp = (kport_t) evs->evs_resource.io[0];
-			kev->ident = *kp;
+			kev->ident = kre;
 			AEV_CYCLIC_ENABLE(kev);
 
-			switch (evs->evs_type)
+			switch (evt)
 			{
 				case EV_TYPE_ID(io_transmit):
 				{
@@ -330,7 +324,6 @@ CONCEAL(int)
 kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 {
 	PyObj current = NULL;
-	kport_t kp = -1;
 	kevent_t kev = {
 		.flags = EV_ADD|EV_RECEIPT,
 		.fflags = 0,
@@ -338,7 +331,7 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 	};
 	Event ev = ln->ln_event;
 
-	if (kernelq_identify(&kp, &kev, Event_Specification(ln->ln_event)) < 0)
+	if (kernelq_identify(&kev, Event_Specification(ev)) < 0)
 	{
 		/* Unrecognized EV_TYPE */
 		PyErr_SetString(PyExc_ValueError, "unrecognized event type");
@@ -352,9 +345,9 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 	{
 		case EVFILT_TIMER:
 		{
-			kevent_set_timer(&kev, ev->ev_spec.evs_resource.time);
+			kevent_set_timer(&kev, Event_GetTime(ev));
 
-			switch (ev->ev_spec.evs_type)
+			switch (Event_Type(ev))
 			{
 				case EV_TYPE_ID(never):
 					kev.flags |= EV_DISABLE;
