@@ -341,7 +341,7 @@ class ControlException(BaseException):
 	def raised(self):
 		raise self
 
-class Panic(ControlException):
+class Critical(ControlException):
 	"""
 	# An exception used to note the failure of a critical resource.
 
@@ -353,6 +353,21 @@ class Panic(ControlException):
 	"""
 
 	__kill__ = True
+
+def panic(message, context=None, /, cause=None):
+	"""
+	# Raise a &Critical exception in the main thread forcing the process to exit.
+	"""
+	from .runtime import interject
+	from signal import pthread_kill
+
+	crit = Critical(message)
+	crit.__cause__ = cause
+
+	# Raise &crit in main thread.
+	interject(crit.raised)
+	# Only executed if not in the main thread.
+	pthread_kill(main_thread_id, 0)
 
 class Interruption(ControlException):
 	"""
@@ -523,7 +538,7 @@ class Fork(ControlException):
 			# The child process' PID.
 
 		# [Exceptions]
-		# /&Panic/
+		# /&Critical/
 			# Raised when the returns in the branches did not return.
 		"""
 		fcontroller = Class(controller, *args, **kw)
@@ -549,7 +564,7 @@ class Fork(ControlException):
 
 			# wait on commit until the fork() in the above pivot() method occurs in the main thread.
 			return T.commit()
-		raise Panic("method branches did not return process identifier")
+		raise Critical("method branches did not return process identifier")
 
 	@classmethod
 	def trap(Class, controller, *args, **kw):
@@ -568,7 +583,7 @@ class Fork(ControlException):
 			Class.__controlled_thread_id__ = thread.identify()
 			try:
 				if not __interject_lock__.locked():
-					raise Panic("interject lock not held")
+					raise Critical("interject lock not held")
 
 				try:
 					__interject_lock__.release()
@@ -587,7 +602,7 @@ class Fork(ControlException):
 
 def critical(context, callable, *args, **kw):
 	"""
-	# A callable used to trap exceptions and interject a &Panic instance caused by the
+	# A callable used to trap exceptions and interject a &Critical instance caused by the
 	# original. This function is intended for critical sections where the failure is likely
 	# to cause the application to become unresponsive via usual routes.
 
@@ -595,7 +610,7 @@ def critical(context, callable, *args, **kw):
 
 	# For example:
 
-	#!/pl/python
+	#!syntax/python
 		from fault.system.process import critical
 
 		def fun():
@@ -610,7 +625,7 @@ def critical(context, callable, *args, **kw):
 		r = callable(*args, **kw)
 		return r
 	except BaseException as exc:
-		ce = Panic("critical call raised exception")
+		ce = Critical("critical call raised exception")
 		ce.__cause__ = exc
 
 		if __control_lock__.locked():
@@ -629,7 +644,7 @@ def protect(*init, looptime=8):
 	# that rely on a set of threads to perform the actual work.
 
 	# [ Exceptions ]
-	# /&Panic/
+	# /&Critical/
 		# Raised in cases where the infinite loop exits.
 
 	# /&Exit/
@@ -651,7 +666,7 @@ def protect(*init, looptime=8):
 			os.kill(os.getpid(), signal_codes['user/1'])
 
 	# Relies on Fork.trip() and runtime.interject to manage the main thread's stack.
-	raise Panic("infinite loop exited") # interject should be used to raise process.Exit()
+	raise Critical("infinite loop exited") # interject should be used to raise process.Exit()
 
 def control(main, *args, **kw):
 	"""
@@ -695,7 +710,7 @@ def control(main, *args, **kw):
 		else:
 			# Fork.trap() should not return.
 			kernel.signalexit(signal.SIGUSR2)
-			raise Panic("system.process.Fork.trap did not raise Exit or Interruption")
+			raise Critical("system.process.Fork.trap did not raise Exit or Interruption")
 
 @contextlib.contextmanager
 def timeout(duration=4, update=signal.alarm, signo=signal.SIGALRM):

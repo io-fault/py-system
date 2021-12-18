@@ -193,7 +193,7 @@ def main(inv:process.Invocation) -> process.Exit:
 	inv.parameters['system'].setdefault('environment', {})
 
 	process.Fork.substitute(getattr(module, symbol), inv)
-	raise process.Panic("substitution failed to raised control exception")
+	process.panic("substitution failed to raised control exception")
 
 if __name__ == '__main__':
 	process.control(main, process.Invocation.system())

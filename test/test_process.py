@@ -12,7 +12,7 @@ class Trapped(Exception):
 
 def test_critical(test):
 	"""
-	# &.module.critical
+	# - &module.critical
 	"""
 	global Trapped
 	test.issubclass(Trapped, Exception) # sanity
@@ -45,7 +45,7 @@ def test_critical(test):
 		l.acquire()
 		try:
 			module.critical(None, raise_trap)
-		except module.Panic as exc:
+		except module.Critical as exc:
 			test.isinstance(exc.__cause__, Trapped)
 		except:
 			test.fail("critical did not raise panic")
@@ -56,6 +56,30 @@ def test_critical(test):
 		module.__control_lock__ = ctllock
 
 	test/raised_called == True
+
+def test_panic(test):
+	"""
+	# - &module.panic
+
+	# Validate the effect of panic triggering a &module.Critical exception
+	# on the main threaad.
+	"""
+
+	# Expect main thread execution.
+	test/module.main_thread_id == module.thread.identify()
+
+	with test/module.Critical:
+		module.panic("main panic is immediately raised")
+
+	ex = thread.amutex()
+	def always_panic(*args):
+		module.panic("thread panic")
+		ex.release()
+
+	ex.acquire()
+	with test/module.Critical:
+		tid = module.thread.create(always_panic, ())
+		ex.acquire()
 
 def test_interject(test):
 	"""
