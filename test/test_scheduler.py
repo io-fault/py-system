@@ -2,6 +2,9 @@ import os
 import time
 from .. import kernel as module
 
+class Violation(Exception):
+	pass
+
 def test_Scheduler_close(test):
 	"""
 	# - &module.Scheduler.close
@@ -22,7 +25,7 @@ def test_Scheduler_close(test):
 
 	# Task still functions.
 	k.enqueue((lambda: None))
-	test/k.execute(None) == 1
+	test/k.execute() == 1
 
 def test_Scheduler_execute(test):
 	"""
@@ -40,32 +43,40 @@ def test_Scheduler_execute(test):
 	test/k.loaded == False
 	k.enqueue(effect)
 	test/k.loaded == True
-	test/k.execute(None) == 1
+	test/k.execute() == 1
 	test/k.loaded == False
 	test/x == True
 
-	test/k.execute(None) == 0
+	test/k.execute() == 0
 	test/k.loaded == False
 
-def test_Scheduler_execute_error_trap(test):
+def test_Scheduler_exceptions(test):
 	"""
-	# - &module.Scheduler.execute
+	# - &module.Scheduler
+	# - &module.Event.meta_exception
+
+	# Validate exception signalling.
 	"""
+	errors = []
+	def errlog(*args):
+		errors.append(args)
 
-	k = module.Scheduler()
-	x = False
-	def trap(ob, err):
-		nonlocal x
-		x = (ob, err)
-	def effect():
-		raise ValueError("data")
+	def raised():
+		raise Violation("sample")
 
-	k.enqueue(effect)
-	test/k.execute(trap) == 1
+	ks = module.Scheduler()
+	errctl = module.Link(module.Event.meta_exception(None), errlog)
+	ks.dispatch(errctl)
 
-	test/x[0] == effect
-	test.isinstance(x[1], ValueError)
-	test/x[1].args == ("data",)
+	ks.enqueue(raised)
+	test/ks.execute() == 1
+	test/errors[0][0] == errctl
+	test/errors[0][1] == raised
+	err = errors[0][2]
+	test.isinstance(err, Violation)
+	test/err.__traceback__ != None
+
+	ks.close()
 
 def test_execute_nothing(test):
 	"""
@@ -75,7 +86,7 @@ def test_execute_nothing(test):
 	k = module.Scheduler()
 	for x in range(512):
 		test/k.loaded == False
-		test/k.execute(None) == 0
+		test/k.execute() == 0
 
 def test_enqueue_interrupt(test):
 	"""
@@ -91,7 +102,7 @@ def test_enqueue_interrupt(test):
 	k.enqueue((lambda: None))
 
 	# Clear queue to allow kernelq_receive to be performed.
-	test/k.execute(None) == 1
+	test/k.execute() == 1
 	test/k.wait(0) == 1
 
 def test_dispatch_actuate(test):
@@ -109,7 +120,7 @@ def test_dispatch_actuate(test):
 	try:
 		ks.dispatch(ln)
 		test/ks.wait(0) == 1
-		test/ks.execute(None) == 1
+		test/ks.execute() == 1
 		test/(ln in ks.operations()) == False
 
 		# Too late.
@@ -136,15 +147,15 @@ def test_dispatch_terminate(test):
 	try:
 		ks.dispatch(ln)
 		test/ks.wait(0) == 0
-		test/ks.execute(None) == 0
+		test/ks.execute() == 0
 		test/(ln in ks.operations()) == True
 
 		test/ks.close() == True
-		test/ks.execute(None) == 1
+		test/ks.execute() == 1
 		test/(ln in ks.operations()) == False
 
 		# Nothing more.
-		test/ks.execute(None) == 0
+		test/ks.execute() == 0
 	except:
 		ks.void()
 
@@ -169,10 +180,10 @@ def test_Link_never_states(test):
 		test/ln.cancelled == False
 
 		test/ks.wait(0) == 0
-		test/ks.execute(None) == 0
+		test/ks.execute() == 0
 		ks.cancel(ln)
 		test/ks.wait(0) == 0
-		test/ks.execute(None) == 0
+		test/ks.execute() == 0
 	finally:
 		ks.void()
 
@@ -197,10 +208,10 @@ def test_Link_scheduler_states(test):
 		test/ln.cancelled == False
 
 		test/ks.wait(1) == 1
-		test/ks.execute(None) == 1
+		test/ks.execute() == 1
 
 		test/ks.wait(0) == 0
-		test/ks.execute(None) == 0
+		test/ks.execute() == 0
 
 		test/ln.dispatched == True
 		test/ln.cancelled == True
@@ -301,7 +312,7 @@ def test_Event_time(test):
 		test/ki.wait(1) == 1
 		test/ki.wait(0) == 0
 		test/ki.wait(0) == 0
-		test/ki.execute(None) == 1
+		test/ki.execute() == 1
 	finally:
 		ki.void()
 		test.garbage()
@@ -336,7 +347,7 @@ def test_time_event_periodic(test):
 		ki.dispatch(ln)
 		for x in range(5):
 			ki.wait()
-			ki.execute(None)
+			ki.execute()
 
 		b=time.time()
 		# approx half a second
@@ -345,7 +356,7 @@ def test_time_event_periodic(test):
 		# cancellation
 		ki.cancel(ln)
 		test/ki.wait(0)
-		test/ki.execute(None) == 0
+		test/ki.execute() == 0
 	finally:
 		ki.void()
 		test.garbage()
@@ -366,11 +377,11 @@ def test_signal_trap(test):
 
 		ki.dispatch(ln)
 		test/ki.wait(0) == 0
-		test/ki.execute(None) == 0
+		test/ki.execute() == 0
 
 		os.kill(os.getpid(), signal.SIGUSR2)
 		test/ki.wait(0) == 1
-		test/ki.execute(None) == 1
+		test/ki.execute() == 1
 	finally:
 		ki.void()
 		test.garbage()
@@ -407,7 +418,7 @@ def test_process_exit(test):
 
 		# Initial executing queue is empty.
 		ki.wait()
-		ki.execute(None)
+		ki.execute()
 
 		test/os.WIFEXITED(status) == True
 		test/os.WEXITSTATUS(status) == 3
@@ -446,20 +457,20 @@ def test_Scheduler_io_pipe(test):
 
 		data = b'first'
 		ki.wait(0)
-		ki.execute(None)
+		ki.execute()
 		# Allow receive to occur.
 		data = b''
 		ki.wait(0)
-		ki.execute(None)
+		ki.execute()
 
 		data = b'second'
 		ki.wait(0)
-		ki.execute(None)
+		ki.execute()
 		tx()
 		# Allow receive to occur.
 		data = b''
 		ki.wait(0)
-		ki.execute(None)
+		ki.execute()
 	finally:
 		ki.void()
 		test.garbage()

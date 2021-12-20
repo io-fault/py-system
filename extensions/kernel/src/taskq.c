@@ -99,47 +99,59 @@ taskq_enqueue(TaskQueue tq, PyObj callable)
 	// when it or other critical operations fail.
 */
 STATIC(void)
-trap_execution_error(PyObj errctl, PyObj task)
+trap_execution_error(PyObj errctl, PyObj errctx, PyObj task)
 {
-	PyObj exc, val, tb;
-	PyErr_Fetch(&exc, &val, &tb);
+	PyObj rob;
+	PyObj exc = NULL, val = NULL, tb = NULL;
 
-	if (errctl != Py_None)
+	if (errctl == NULL)
 	{
-		PyObj ereturn;
+		/* Oddly trifling to avoid PyErr_PrintEx exiting the process. */
 
-		PyErr_NormalizeException(&exc, &val, &tb);
-		if (PyErr_Occurred())
+		if (PyErr_ExceptionMatches(PyExc_SystemExit))
 		{
-			/* normalization failed? */
-			PyErr_WriteUnraisable(task);
-			PyErr_Clear();
-		}
-		else
-		{
+			PyObj sysexit = NULL;
+			PyErr_Fetch(&exc, &sysexit, &tb);
+			PyErr_NormalizeException(&exc, &sysexit, &tb);
 			if (tb != NULL)
-			{
-				PyException_SetTraceback(val, tb);
-				Py_DECREF(tb);
-			}
+				PyException_SetTraceback(sysexit, tb);
+			Py_CLEAR(exc);
+			Py_CLEAR(tb);
 
-			ereturn = PyObject_CallFunctionObjArgs(errctl, task, val, NULL);
-			if (ereturn != NULL)
-				Py_DECREF(ereturn);
-			else
-			{
-				/* errctl raised exception */
-				PyErr_WriteUnraisable(task);
-				PyErr_Clear();
-			}
+			PyErr_SetString(PyExc_RuntimeError, "system exit raised in task");
+			PyErr_Fetch(&exc, &val, &tb);
+			PyErr_NormalizeException(&exc, &val, &tb);
+			PyException_SetCause(val, sysexit);
+			PyErr_Restore(exc, val, tb);
 		}
+
+		PyErr_PrintEx(0);
+		return;
+	}
+
+	PyErr_Fetch(&exc, &val, &tb);
+	PyErr_NormalizeException(&exc, &val, &tb);
+	if (PyErr_Occurred())
+	{
+		/* normalization failed? */
+		PyErr_WriteUnraisable(task);
 	}
 	else
 	{
-		/* explicitly discarded */
-		Py_XDECREF(tb);
+		if (tb != NULL)
+			PyException_SetTraceback(val, tb);
+
+		rob = PyObject_CallFunctionObjArgs(errctl, errctx, task, val, NULL);
+		if (rob != NULL)
+			Py_DECREF(rob);
+		else
+		{
+			/* errctl raised exception */
+			PyErr_WriteUnraisable(task);
+		}
 	}
 
+	Py_XDECREF(tb);
 	Py_XDECREF(exc);
 	Py_XDECREF(val);
 }
@@ -176,7 +188,7 @@ taskq_continue(TaskQueue tq)
 	// and rotate &TaskQueue.q_loading for the next cycle.
 */
 CONCEAL(int)
-taskq_execute(TaskQueue tq, PyObj errctl)
+taskq_execute(TaskQueue tq, PyObj errctl, PyObj errctx)
 {
 	Tasks exec = tq->q_executing;
 	Tasks next = NULL;
@@ -200,7 +212,7 @@ taskq_execute(TaskQueue tq, PyObj errctl)
 			total += 1;
 
 			if (xo == NULL)
-				trap_execution_error(errctl, task);
+				trap_execution_error(errctl, errctx, task);
 			else
 				Py_DECREF(xo);
 

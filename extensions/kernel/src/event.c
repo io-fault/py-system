@@ -178,7 +178,7 @@ ev_reference(Event ev, PyObj args, PyObj kw)
 		return(-1);
 
 	#ifdef __linux__
-	if (kp < 0)
+	if (kp < 0 && Event_Type(ev) != EV_TYPE_ID(meta_exception))
 	{
 		kp = eventfd(0, EFD_CLOEXEC);
 		if (kp < 0)

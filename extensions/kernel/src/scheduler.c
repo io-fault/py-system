@@ -59,6 +59,9 @@ interrupt_wait(Scheduler ks)
 	return(1);
 }
 
+/**
+	// &.kernel.Scheduler.enqueue
+*/
 STATIC(PyObj)
 ks_enqueue(Scheduler ks, PyObj callable)
 {
@@ -74,21 +77,23 @@ ks_enqueue(Scheduler ks, PyObj callable)
 }
 
 /**
-	// Drain both sides of the task queue.
+	// &.kernel.Scheduler.execute
 */
 STATIC(PyObj)
-ks_execute(PyObj self, PyObj errctl)
+ks_execute(PyObj self)
 {
 	Scheduler ks = (Scheduler) self;
 	TaskQueue tq = Scheduler_GetTaskQueue(ks);
+	Link exctrap = (Link) Scheduler_GetExceptionTrap(ks);
+	PyObj errctl = exctrap != NULL ? exctrap->ln_task : NULL;
 	int total = 0, status = 0;
 
-	status = taskq_execute(tq, errctl);
+	status = taskq_execute(tq, errctl, exctrap);
 	if (status < 0)
 		return(NULL);
 	total += status;
 
-	status = taskq_execute(tq, errctl);
+	status = taskq_execute(tq, errctl, exctrap);
 	if (status < 0)
 		return(NULL);
 	total += status;
@@ -140,7 +145,7 @@ ks_termination(Scheduler ks, KernelQueue kq, TaskQueue tq)
 }
 
 /**
-	// Enqueue termination tasks and close the kernel queue resources.
+	// &.kernel.Scheduler.close
 */
 STATIC(PyObj)
 ks_close(PyObj self)
@@ -177,7 +182,7 @@ ks_close(PyObj self)
 }
 
 /**
-	// Close the kqueue FD, and release references.
+	// &.kernel.Scheduler.void
 */
 STATIC(PyObj)
 ks_void(PyObj self)
@@ -190,6 +195,9 @@ ks_void(PyObj self)
 	Py_RETURN_NONE;
 }
 
+/**
+	// &.kernel.Scheduler.interrupt
+*/
 STATIC(PyObj)
 ks_interrupt(PyObj self)
 {
@@ -219,6 +227,9 @@ ks_interrupt(PyObj self)
 	return(rob);
 }
 
+/**
+	// &.kernel.Scheduler.dispatch
+*/
 STATIC(PyObj)
 ks_dispatch(PyObj self, PyObj args, PyObj kw)
 {
@@ -235,6 +246,12 @@ ks_dispatch(PyObj self, PyObj args, PyObj kw)
 
 	switch (Event_Type(ln->ln_event))
 	{
+		case EV_TYPE_ID(meta_exception):
+		{
+			Scheduler_UpdateExceptionTrap(ks, ln);
+		}
+		break;
+
 		case EV_TYPE_ID(meta_actuate):
 		{
 			if (ks->ks_waiting != 2 || kq->kq_root == -1)
@@ -262,6 +279,9 @@ ks_dispatch(PyObj self, PyObj args, PyObj kw)
 	return(ln);
 }
 
+/**
+	// &.kernel.Scheduler.cancel
+*/
 STATIC(PyObj)
 ks_cancel(PyObj self, PyObj args, PyObj kw)
 {
@@ -275,6 +295,12 @@ ks_cancel(PyObj self, PyObj args, PyObj kw)
 
 	switch (Event_Type(ln->ln_event))
 	{
+		case EV_TYPE_ID(meta_exception):
+		{
+			Scheduler_UpdateExceptionTrap(ks, NULL);
+		}
+		break;
+
 		default:
 		{
 			return(kernelq_cancel(Scheduler_GetKernelQueue(ks), ln));
@@ -283,6 +309,9 @@ ks_cancel(PyObj self, PyObj args, PyObj kw)
 	}
 }
 
+/**
+	// &.kernel.Scheduler.operations
+*/
 STATIC(PyObj)
 ks_operations(PyObj self)
 {
@@ -300,7 +329,7 @@ ks__set_waiting(PyObj self)
 }
 
 /**
-	// collect and process kqueue events
+	// &.kernel.Scheduler.wait
 */
 STATIC(PyObj)
 ks_wait(PyObj self, PyObj args)
@@ -355,7 +384,7 @@ ks_methods[] = {
 
 		PyMethod_Variable(wait),
 		PyMethod_None(interrupt),
-		PyMethod_Sole(execute),
+		PyMethod_None(execute),
 
 		PyMethod_Sole(enqueue),
 		PyMethod_Keywords(dispatch),
@@ -403,29 +432,11 @@ ks_getset[] = {
 };
 
 STATIC(int)
-ks_clear(PyObj self)
-{
-	Scheduler ks = (Scheduler) self;
-	kernelq_clear(Scheduler_GetKernelQueue(ks));
-	taskq_clear(Scheduler_GetTaskQueue(ks));
-	return(0);
-}
-
-STATIC(void)
-ks_dealloc(PyObj self)
-{
-	Scheduler ks = (Scheduler) self;
-
-	taskq_clear(Scheduler_GetTaskQueue(ks));
-	kernelq_clear(Scheduler_GetKernelQueue(ks));
-
-	Py_TYPE(self)->tp_free(self);
-}
-
-STATIC(int)
 ks_traverse(PyObj self, visitproc visit, void *arg)
 {
 	Scheduler ks = (Scheduler) self;
+
+	Py_VISIT(Scheduler_GetExceptionTrap(ks));
 
 	if (kernelq_traverse(Scheduler_GetKernelQueue(ks), self, visit, arg) < 0)
 		return(-1);
@@ -436,6 +447,31 @@ ks_traverse(PyObj self, visitproc visit, void *arg)
 	return(0);
 }
 
+STATIC(int)
+ks_clear(PyObj self)
+{
+	Scheduler ks = (Scheduler) self;
+
+	Scheduler_UpdateExceptionTrap(ks, NULL);
+	kernelq_clear(Scheduler_GetKernelQueue(ks));
+	taskq_clear(Scheduler_GetTaskQueue(ks));
+
+	return(0);
+}
+
+/**
+	// &.kernel.Scheduler.__del__
+*/
+STATIC(void)
+ks_dealloc(PyObj self)
+{
+	ks_clear(self);
+	Py_TYPE(self)->tp_free(self);
+}
+
+/**
+	// &.kernel.Scheduler.__new__
+*/
 STATIC(PyObj)
 ks_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
@@ -452,6 +488,7 @@ ks_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 
 	ks = (Scheduler) rob;
 	ks->ks_waiting = 2;
+	ks->ks_exc = NULL;
 
 	if (taskq_initialize(Scheduler_GetTaskQueue(ks)) < 0)
 	{
@@ -481,11 +518,12 @@ SchedulerType = {
 		Py_TPFLAGS_BASETYPE|
 		Py_TPFLAGS_HAVE_GC|
 		Py_TPFLAGS_DEFAULT,
-	.tp_new = ks_new,
-	.tp_dealloc = ks_dealloc,
 
+	.tp_new = ks_new,
 	.tp_traverse = ks_traverse,
 	.tp_clear = ks_clear,
+	.tp_dealloc = ks_dealloc,
+
 	.tp_methods = ks_methods,
 	.tp_members = ks_members,
 	.tp_getset = ks_getset,

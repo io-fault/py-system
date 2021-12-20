@@ -9,6 +9,7 @@
 */
 #define EVENT_TYPE_META_LIST() \
 	EV_TYPE(meta_actuate, ev_reference) \
+	EV_TYPE(meta_exception, ev_reference) \
 	EV_TYPE(meta_terminate, ev_reference)
 
 /**
@@ -130,6 +131,8 @@ ev_type_code(const char *n)
 					return(EV_TYPE_ID(meta_actuate));
 				else if (strcmp(ext, "terminate") == 0)
 					return(EV_TYPE_ID(meta_terminate));
+				else if (strcmp(ext, "exception") == 0)
+					return(EV_TYPE_ID(meta_exception));
 			}
 		}
 

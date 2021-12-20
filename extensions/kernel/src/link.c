@@ -80,7 +80,7 @@ ln_call(Link ln, PyObj args, PyObj kw)
 	}
 
 	Link_Set(ln, executing);
-	rob = PyObject_CallFunction(ln->ln_task, "O", (PyObj) ln);
+	rob = PyObject_CallFunctionObjArgs(ln->ln_task, (PyObj) ln, NULL);
 	Link_Clear(ln, executing);
 	return(rob);
 }
