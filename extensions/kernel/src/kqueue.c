@@ -478,12 +478,13 @@ kernelq_receive(KernelQueue kq, long seconds, long ns)
 			break;
 
 			case EBADF:
-				/**
-					// Force -1 to avoid the possibility of acting on a kqueue
-					// that was allocated by another part of the process after
-					// an unexpected close occurred on this &kq.kq_root.
-				*/
+				/* Concurrent close. */
 				kq->kq_root = -1;
+				kq->kq_event_count = 0;
+				errno = 0;
+				return(0);
+			break;
+
 			default:
 				PyErr_SetFromErrno(PyExc_OSError);
 				return(-1);

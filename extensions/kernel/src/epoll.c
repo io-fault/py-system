@@ -286,7 +286,15 @@ kernelq_receive(KernelQueue kq, long seconds, long ns)
 			break;
 
 			case EBADF:
+				/* Concurrent close. */
 				kq->kq_root = -1;
+				kq->kq_event_count = 0;
+				close(kq->kq_eventfd_interrupt);
+				kq->kq_eventfd_interrupt = -1;
+				errno = 0;
+				return(0);
+			break;
+
 			default:
 				PyErr_SetFromErrno(PyExc_OSError);
 				return(-1);
