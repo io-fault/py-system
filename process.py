@@ -343,13 +343,7 @@ class ControlException(BaseException):
 
 class Critical(ControlException):
 	"""
-	# An exception used to note the failure of a critical resource.
-
-	# Instances of this class are usually interjected into the main thread causing
-	# the process to immediately terminate similar to (system/signal)`SIGABRT`.
-
-	# This is a control exception inheriting from &BaseException. It should not be trapped,
-	# will cause a &control managed process to exit with (system/signal)`SIGUSR1`.
+	# An exception used to communicate that a fatal condition was identified.
 	"""
 
 	__kill__ = True
