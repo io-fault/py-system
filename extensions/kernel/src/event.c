@@ -263,7 +263,7 @@ ev_io_reference(Event ev, PyObj args, PyObj kw)
 }
 
 /* Constructors */
-#define EV_TYPE(NAME, CONVERT) \
+#define EV_TYPE(NAME, CONVERT, CYCLIC) \
 	STATIC(PyObj) \
 	ev_##NAME(PyTypeObject *PYTYPE, PyObj args, PyObj kw) { \
 		PyObj ROB; \
@@ -310,7 +310,7 @@ ev_constructor(PyObj typ, PyObj typstring)
 
 	switch (ev_type)
 	{
-		#define EV_TYPE(NAME, C) \
+		#define EV_TYPE(NAME, C, CYCLIC) \
 			case EV_TYPE_ID(NAME): \
 				normal = #NAME; \
 			break;
@@ -336,7 +336,7 @@ ev_methods[] = {
 			/**
 			// Event.type(i) constructors. */
 			PyMethod_Sole(constructor),
-			#define EV_TYPE(NAME, C) PyMethod_Keywords(NAME),
+			#define EV_TYPE(NAME, C, CYCLIC) PyMethod_Keywords(NAME),
 				EVENT_TYPE_LIST()
 			#undef EV_TYPE
 		#undef PyMethod_TypeControl
