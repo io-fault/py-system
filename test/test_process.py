@@ -133,7 +133,7 @@ def test_Invocation_imports(test):
 
 def test_fs_pwd_no_environ(test):
 	"""
-	# - &.module.fs_pwd
+	# - &module.fs_pwd
 
 	# Path instantiation should be successful in the case that PWD is not present.
 	"""
@@ -149,7 +149,7 @@ def test_fs_pwd_no_environ(test):
 
 def test_fs_pwd_environ_priority(test):
 	"""
-	# - &.module.fs_pwd
+	# - &module.fs_pwd
 
 	# Environment variable is given priority over os.getcwd.
 	"""
@@ -159,7 +159,7 @@ def test_fs_pwd_environ_priority(test):
 
 def test_fs_chdir(test):
 	"""
-	# - &.module.fs_chdir
+	# - &module.fs_chdir
 
 	# Validate fs_chdir's side effects.
 	"""
@@ -170,6 +170,61 @@ def test_fs_chdir(test):
 
 	# Validate consistent identity.
 	test/id(module.fs_chdir(module.files.root)) == id(module.files.root)
+
+def test_scheduler_parallel_execute(test):
+	"""
+	# - &module.Scheduling
+	# - &module.scheduler
+
+	# Validate &module.scheduler initialization with thread execution.
+	"""
+	from time import sleep
+	ks = module.scheduler
+	test.isinstance(ks, module.kernel.Scheduler)
+	test/module.Scheduling() == ks
+	test/module.index['scheduler'][-1] == ks
+
+	events = []
+	def execution():
+		events.append('executed')
+
+	ks.enqueue(execution)
+	for x in range(65, 1, -2):
+		sleep(1/x)
+		if events:
+			break
+	else:
+		#* False positive possible due to processing constraints. (load)
+		test.fail("scheduler did not exit within maximum period")
+
+	test/events[0] == 'executed'
+	ks.void()
+
+def test_scheduler_parallel_close(test):
+	"""
+	# - &module.Scheduling
+	# - &module.scheduler
+
+	# Validate that &module.scheduler loop exit remove the &.process.scheduler attribute.
+	"""
+	from time import sleep
+	ks = module.scheduler
+	test/module.__dict__.__contains__('scheduler') == True
+
+	l = {'x': 0}
+	ks.enqueue(lambda: l.__setitem__('x', 1))
+	ks.close()
+	for x in range(65, 1, -2):
+		sleep(1/x)
+		if 'scheduler' not in module.__dict__:
+			break
+	else:
+		#* False positive possible due to processing constraints. (load)
+		test.fail("scheduler did not exit within maximum period")
+
+	test/l['x'] == 1
+	test/ks.closed == True
+	test/module.__dict__.__contains__('scheduler') == False
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest

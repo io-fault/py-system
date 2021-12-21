@@ -44,6 +44,9 @@ parent_process_id = os.getppid()
 
 # Presume import occurs on main. Applications must update if incorrect.
 main_thread_id = thread.identify()
+index = {
+	'root': ('thread', thread.identify(), None),
+}
 
 # Intercontext Fork Lock
 __fork_lock__ = thread.amutex()
@@ -809,3 +812,46 @@ def fs_chdir(directory) -> files.Path:
 	os.chdir(path)
 	os.environ['PWD'] = path
 	return directory if isinstance(directory, files.Path) else fs_pwd()
+
+def _scheduler_loop(ks:kernel.Scheduler, final=32, limit=16):
+	index['scheduler'] = ('thread', thread.identify(), ks)
+	try:
+		while not ks.closed:
+			ks.wait(limit)
+			ks.execute()
+
+		# Execute remaining task.
+		for i in range(final):
+			if ks.execute() == 0:
+				break
+	finally:
+		# Don't presume the key is still present,
+		# application may have chosen to remove it
+		# early for signalling purposes.
+		index.pop('scheduler', None)
+		if globals().get('scheduler', None) is ks:
+			globals().pop('scheduler', None)
+
+def Scheduling(loop=_scheduler_loop) -> kernel.Scheduler:
+	"""
+	# Initialize or return &.process.scheduler.
+
+	# Accessing &.process.scheduler will perform this automatically.
+	"""
+	if 'scheduler' in globals():
+		return scheduler
+
+	from .kernel import Scheduler
+	ks = Scheduler()
+
+	tid = thread.create(loop, (ks,))
+	index['scheduler'] = ('thread', tid, ks)
+
+	globals()['scheduler'] = ks
+	return ks
+
+del _scheduler_loop
+def __getattr__(name):
+	if name == 'scheduler':
+		return Scheduling()
+	raise AttributeError(name)
