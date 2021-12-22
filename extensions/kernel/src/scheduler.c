@@ -466,8 +466,13 @@ ks_clear(PyObj self)
 STATIC(void)
 ks_dealloc(PyObj self)
 {
+	Scheduler ks = (Scheduler) self;
+
 	PyObject_GC_UnTrack(self);
 	ks_clear(self);
+
+	if (ks->weakreflist != NULL);
+		PyObject_ClearWeakRefs(self);
 
 	Py_TYPE(self)->tp_free(self);
 }
@@ -517,6 +522,7 @@ SchedulerType = {
 	.tp_name = FACTOR_PATH("Scheduler"),
 	.tp_basicsize = sizeof(struct Scheduler),
 	.tp_itemsize = 0,
+	.tp_weaklistoffset = offsetof(struct Scheduler, weakreflist),
 	.tp_flags =
 		Py_TPFLAGS_BASETYPE|
 		Py_TPFLAGS_HAVE_GC|

@@ -18,6 +18,8 @@
 typedef struct Scheduler *Scheduler;
 struct Scheduler {
 	PyObject_HEAD
+	PyObj weakreflist;
+
 	int ks_waiting;
 	PyObj ks_exc;
 	struct TaskQueue ks_tq;
