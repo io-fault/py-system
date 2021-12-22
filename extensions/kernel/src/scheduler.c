@@ -73,6 +73,7 @@ ks_enqueue(Scheduler ks, PyObj callable)
 	if (taskq_enqueue(tq, callable) < 0)
 		return(NULL);
 
+	Py_INCREF(callable);
 	Py_RETURN_NONE;
 }
 

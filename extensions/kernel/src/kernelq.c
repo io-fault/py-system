@@ -147,6 +147,7 @@ kernelq_transition(KernelQueue kq, TaskQueue tq)
 
 		if (taskq_enqueue(tq, ln) < 0)
 			return(-1);
+		Py_INCREF(ln);
 
 		/**
 			// If the task is not cyclic, cancel.

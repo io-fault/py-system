@@ -7,16 +7,13 @@
 
 #include "taskq.h"
 
-#ifndef INITIAL_TASKS_ALLOCATED
-	#define INITIAL_TASKS_ALLOCATED 4
+#ifndef INITIAL_TASK_COUNT
+	#define INITIAL_TASK_COUNT 4
 #endif
 
 #ifndef MAX_TASKS_PER_SEGMENT
 	#define MAX_TASKS_PER_SEGMENT 128
 #endif
-
-#define TASKQ_MEMORY_ACQUIRE PyMem_Malloc
-#define TASKQ_MEMORY_RELEASE PyMem_Free
 
 #define TASKQ_MEMORY_ERROR(string) \
 	PyErr_SetString(PyExc_MemoryError, string)
@@ -25,8 +22,13 @@
 
 #define TASKQ_FULL(TQ) (TQ->q_tailcursor == TQ->q_tail->t_allocated)
 
-#define TASKQ_ALLOCATION_SIZE(STRUCT) \
-	(sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(STRUCT)))
+#define TASKQ_ALLOCATION_SIZE(STRUCT, ITEM, COUNT) \
+	(sizeof(STRUCT) + (COUNT * sizeof(ITEM)))
+
+#define TASKQ_MEMORY_ACQUIRE PyMem_Malloc
+#define TASKQ_MEMORY_RELEASE PyMem_Free
+#define TASKQ_ALLOCATE(N) \
+	TASKQ_MEMORY_ACQUIRE(TASKQ_ALLOCATION_SIZE(struct Tasks, PyObject *, N))
 
 /**
 	// Append a memory allocation to the task queue.
@@ -40,8 +42,10 @@ taskq_extend(TaskQueue tq)
 
 	if (count < MAX_TASKS_PER_SEGMENT)
 		count *= 2;
+	else
+		count = MAX_TASKS_PER_SEGMENT;
 
-	new = TASKQ_MEMORY_ACQUIRE((sizeof(struct Tasks) + (sizeof(PyObject *) * count)));
+	new = TASKQ_ALLOCATE(count);
 	if (new == NULL)
 		return(-1);
 
@@ -57,18 +61,17 @@ taskq_extend(TaskQueue tq)
 }
 
 /**
-	// Insert task presuming available space.
+	// Insert task at the end of the queue.
+	// Presume available space.
 */
 STATIC(int) inline
 taskq_insert(TaskQueue tq, PyObj callable)
 {
 	Tasks tail = tq->q_tail;
+	void **slot = &tail->t_vector[tq->q_tailcursor];
 
-	tail->t_vector[tq->q_tailcursor++] = callable;
-	Py_INCREF(callable);
-
-	if (tq->q_tailcursor == tail->t_allocated)
-		return(taskq_extend(tq));
+	++tq->q_tailcursor;
+	*slot = (void *) callable;
 
 	return(0);
 }
@@ -164,20 +167,22 @@ taskq_continue(TaskQueue tq)
 {
 	Tasks n = NULL;
 
-	n = TASKQ_MEMORY_ACQUIRE((TASKQ_ALLOCATION_SIZE(PyObject *)));
+	/* Allocate new loading queue. */
+	n = TASKQ_ALLOCATE(INITIAL_TASK_COUNT);
 	if (n == NULL)
 	{
 		TASKQ_MEMORY_ERROR("could not allocate memory for queue continuation");
 		return(-1);
 	}
+	n->t_next = NULL;
+	n->t_allocated = INITIAL_TASK_COUNT;
 
+	/* Rotate loading into executing. */
 	tq->q_tail->t_allocated = tq->q_tailcursor;
 	tq->q_executing = tq->q_loading;
 
+	/* Update loading to use new allocation. */
 	tq->q_tail = tq->q_loading = n;
-	tq->q_loading->t_next = NULL;
-	tq->q_loading->t_allocated = INITIAL_TASKS_ALLOCATED;
-
 	tq->q_tailcursor = 0;
 
 	return(0);
@@ -208,6 +213,8 @@ taskq_execute(TaskQueue tq, PyObj errctl, PyObj errctx)
 		for (i = 0, c = exec->t_allocated; i < c; ++i)
 		{
 			task = exec->t_vector[i];
+			exec->t_vector[i] = NULL;
+
 			xo = PyObject_CallObject(task, NULL);
 			total += 1;
 
@@ -236,7 +243,7 @@ taskq_execute(TaskQueue tq, PyObj errctl, PyObj errctx)
 	else
 	{
 		/* loading queue is empty; create empty executing queue */
-		tq->q_executing = TASKQ_MEMORY_ACQUIRE(sizeof(struct Tasks));
+		tq->q_executing = TASKQ_ALLOCATE(0);
 		tq->q_executing->t_allocated = 0;
 		tq->q_executing->t_next = NULL;
 	}
@@ -344,9 +351,7 @@ taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 CONCEAL(int)
 taskq_initialize(TaskQueue tq)
 {
-	tq->q_loading = TASKQ_MEMORY_ACQUIRE(
-		sizeof(struct Tasks) + (INITIAL_TASKS_ALLOCATED * sizeof(PyObject *))
-	);
+	tq->q_loading = TASKQ_ALLOCATE(INITIAL_TASK_COUNT);
 	if (tq->q_loading == NULL)
 	{
 		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue");
@@ -354,11 +359,9 @@ taskq_initialize(TaskQueue tq)
 	}
 
 	tq->q_loading->t_next = NULL;
-	tq->q_loading->t_allocated = INITIAL_TASKS_ALLOCATED;
+	tq->q_loading->t_allocated = INITIAL_TASK_COUNT;
 
-	tq->q_executing = TASKQ_MEMORY_ACQUIRE(
-		sizeof(struct Tasks) + (0 * sizeof(PyObject *))
-	);
+	tq->q_executing = TASKQ_ALLOCATE(0);
 	if (tq->q_executing == NULL)
 	{
 		PyErr_SetString(PyExc_MemoryError, "could not allocate memory for queue");
