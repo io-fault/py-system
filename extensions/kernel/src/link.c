@@ -121,6 +121,7 @@ ln_new(PyTypeObject *typ, PyObj args, PyObj kw)
 STATIC(void)
 ln_dealloc(Link ln)
 {
+	PyObject_GC_UnTrack(ln);
 	ln_clear(ln);
 	Py_TYPE(ln)->tp_free(ln);
 }

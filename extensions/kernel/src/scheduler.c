@@ -465,7 +465,9 @@ ks_clear(PyObj self)
 STATIC(void)
 ks_dealloc(PyObj self)
 {
+	PyObject_GC_UnTrack(self);
 	ks_clear(self);
+
 	Py_TYPE(self)->tp_free(self);
 }
 

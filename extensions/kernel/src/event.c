@@ -532,6 +532,7 @@ ev_traverse(PyObj self, visitproc visit, void *arg)
 STATIC(void)
 ev_dealloc(Event ev)
 {
+	PyObject_GC_UnTrack(ev);
 	ev_release(ev);
 	ev_clear(ev);
 	ev->ev_spec.evs_type = EV_TYPE_ID(invalid);
