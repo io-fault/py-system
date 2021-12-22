@@ -305,7 +305,7 @@ taskq_clear(TaskQueue tq)
 	// Container traversal for GC support.
 */
 CONCEAL(int)
-taskq_traverse(TaskQueue tq, PyObj self, visitproc visit, void *arg)
+taskq_traverse(TaskQueue tq, visitproc visit, void *arg)
 {
 	Tasks t, n;
 	size_t i;

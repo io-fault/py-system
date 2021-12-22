@@ -52,5 +52,5 @@ int kernelq_transition(KernelQueue, TaskQueue);
 int kernelq_close(KernelQueue);
 
 void kernelq_clear(KernelQueue);
-int kernelq_traverse(KernelQueue, PyObj, visitproc, void *);
+int kernelq_traverse(KernelQueue, visitproc, void *);
 #endif

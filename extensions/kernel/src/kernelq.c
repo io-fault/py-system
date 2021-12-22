@@ -22,11 +22,10 @@ kernelq_clear(KernelQueue kq)
 }
 
 CONCEAL(int)
-kernelq_traverse(KernelQueue kq, PyObj self, visitproc visit, void *arg)
+kernelq_traverse(KernelQueue kq, visitproc visit, void *arg)
 {
 	Py_VISIT(kq->kq_references);
 	Py_VISIT(kq->kq_cancellations);
-
 	return(0);
 }
 

@@ -438,10 +438,10 @@ ks_traverse(PyObj self, visitproc visit, void *arg)
 
 	Py_VISIT(Scheduler_GetExceptionTrap(ks));
 
-	if (kernelq_traverse(Scheduler_GetKernelQueue(ks), self, visit, arg) < 0)
+	if (kernelq_traverse(Scheduler_GetKernelQueue(ks), visit, arg) < 0)
 		return(-1);
 
-	if (taskq_traverse(Scheduler_GetTaskQueue(ks), self, visit, arg) < 0)
+	if (taskq_traverse(Scheduler_GetTaskQueue(ks), visit, arg) < 0)
 		return(-1);
 
 	return(0);
@@ -453,6 +453,7 @@ ks_clear(PyObj self)
 	Scheduler ks = (Scheduler) self;
 
 	Scheduler_UpdateExceptionTrap(ks, NULL);
+
 	kernelq_clear(Scheduler_GetKernelQueue(ks));
 	taskq_clear(Scheduler_GetTaskQueue(ks));
 
