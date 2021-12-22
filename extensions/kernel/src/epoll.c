@@ -347,7 +347,6 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 		return(-4);
 	}
 
-	Py_XDECREF(current);
 	Link_Set(ln, dispatched);
 	return(0);
 }

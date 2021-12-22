@@ -372,6 +372,8 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 
 	/*
 		// Update prior to kevent to make clean up easier on failure.
+		// If no error and current is not NULL, the reference is held by
+		// by kq_cancellations.
 	*/
 	if (kernelq_reference_update(kq, ln, &current) < 0)
 		return(-1);
@@ -380,7 +382,7 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 	{
 		if (current != NULL && current != ln)
 		{
-			PyObj old;
+			PyObj old = NULL;
 
 			if (kernelq_reference_update(kq, ln, &old) < 0)
 				PyErr_WriteUnraisable(ln);
@@ -393,7 +395,6 @@ kernelq_schedule(KernelQueue kq, int cyclic, Link ln)
 		// Release old record (current), if any.
 		// Scheduler is now holding the reference to &record via kq_references.
 	*/
-	Py_XDECREF(current);
 	Link_Set(ln, dispatched);
 	return(0);
 }
