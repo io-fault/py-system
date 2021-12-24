@@ -183,6 +183,15 @@ def _after_fork_child():
 	parent_process_id = current_process_id
 	current_process_id = os.getpid()
 
+	if 'scheduler' in index:
+		index.pop('scheduler', None)
+		s = globals().pop('scheduler', None)
+		if s is not None:
+			try:
+				s.void()
+			except:
+				sys.unraisablehook(*sys.exc_info())
+
 	if not __fork_lock__.locked():
 		# Only perform cleanup tasks
 		for after_fork_in_child_task in fork_child_cleanup:
@@ -813,7 +822,7 @@ def fs_chdir(directory) -> files.Path:
 	os.environ['PWD'] = path
 	return directory if isinstance(directory, files.Path) else fs_pwd()
 
-def _scheduler_loop(ks:kernel.Scheduler, final=32, limit=16):
+def _scheduler_loop(ks:kernel.Scheduler, proxy, limit, final):
 	index['scheduler'] = ('thread', thread.identify(), ks)
 	try:
 		while not ks.closed:
@@ -828,11 +837,11 @@ def _scheduler_loop(ks:kernel.Scheduler, final=32, limit=16):
 		# Don't presume the key is still present,
 		# application may have chosen to remove it
 		# early for signalling purposes.
-		index.pop('scheduler', None)
-		if globals().get('scheduler', None) is ks:
+		if globals().get('scheduler', None) is proxy:
+			index.pop('scheduler', None)
 			globals().pop('scheduler', None)
 
-def Scheduling(loop=_scheduler_loop) -> kernel.Scheduler:
+def Scheduling(limit=16, final=32, loop=_scheduler_loop) -> kernel.Scheduler:
 	"""
 	# Initialize or return &.process.scheduler.
 
@@ -842,13 +851,15 @@ def Scheduling(loop=_scheduler_loop) -> kernel.Scheduler:
 		return scheduler
 
 	from .kernel import Scheduler
+	from weakref import proxy
+
 	ks = Scheduler()
 
-	tid = thread.create(loop, (ks,))
-	index['scheduler'] = ('thread', tid, ks)
+	p = globals()['scheduler'] = proxy(ks)
+	tid = thread.create(loop, (ks, p, limit, final))
+	index['scheduler'] = ('thread', tid, p)
 
-	globals()['scheduler'] = ks
-	return ks
+	return p
 
 del _scheduler_loop
 def __getattr__(name):

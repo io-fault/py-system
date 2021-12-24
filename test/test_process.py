@@ -223,8 +223,9 @@ def test_scheduler_parallel_close(test):
 		test.fail("scheduler did not exit within maximum period")
 
 	test/l['x'] == 1
-	test/ks.closed == True
 	test/module.__dict__.__contains__('scheduler') == False
+	with test/ReferenceError:
+		test/ks.closed == True
 
 if __name__ == '__main__':
 	import sys; from ...test import library as libtest
