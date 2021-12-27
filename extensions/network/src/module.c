@@ -12,6 +12,7 @@
 #include <netdb.h>
 
 #include <fault/libc.h>
+#include <fault/symbols.h>
 #include <fault/internal.h>
 #include <fault/python/environ.h>
 #include <fault/python/injection.h>
@@ -566,12 +567,16 @@ struct EndpointAPI _ep_apis = {
 #define PYTHON_TYPES() \
 	ID(Endpoint)
 
+#define nw_select_endpoints nw_select_endpoints_gai
+#define nw_select_interfaces nw_select_interfaces_gai
+
+#define PyMethod_Id(N) nw_##N
 #define MODULE_FUNCTIONS() \
-	PYMETHOD(select_endpoints, nw_select_endpoints_gai, METH_VARARGS, NULL) \
-	PYMETHOD(select_interfaces, nw_select_interfaces_gai, METH_VARARGS, NULL) \
-	PYMETHOD(connect, nw_connect, METH_VARARGS|METH_KEYWORDS, NULL) \
-	PYMETHOD(service, nw_service, METH_VARARGS|METH_KEYWORDS, NULL) \
-	PYMETHOD(bind, nw_bind, METH_VARARGS|METH_KEYWORDS, NULL)
+	PyMethod_Variable(select_endpoints), \
+	PyMethod_Variable(select_interfaces), \
+	PyMethod_Keywords(connect), \
+	PyMethod_Keywords(service), \
+	PyMethod_Keywords(bind),
 
 #include <fault/python/module.h>
 INIT(module, 0, NULL)
@@ -603,3 +608,4 @@ INIT(module, 0, NULL)
 		return(-1);
 	}
 }
+#undef PyMethod_Id
