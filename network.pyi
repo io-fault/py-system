@@ -1,5 +1,8 @@
 """
-# Socket interfaces for clients and servers.
+# System types and calls for communicating with hosts identified by &Endpoint instances.
+
+# While &.kernel has some socket interfaces, the high-level system calls here are exclusively
+# functions of &Endpoint instances.
 """
 
 class Endpoint(object):
@@ -13,70 +16,70 @@ class Endpoint(object):
 		"""
 
 	@property
-	def address_family(self):
+	def address(self) -> str|int:
 		"""
-		# The system address family identifier.
+		# The address that identifies the host being contacted.
 		"""
 
 	@property
-	def address_type(self):
+	def port(self) -> str|int:
 		"""
-		# The type of addressing used to reference the endpoint.
+		# The port of the host that identifies the service to be contacted.
+		"""
+
+	@property
+	def type(self) -> str:
+		"""
+		# The type of addressing used to identify the host.
+
 		# One of `'ip6'`, `'ip4'`, `'local'`, or `None` if family is unknown.
-		"""
-
-	@property
-	def address(self):
-		"""
-		# The address portion of the endpoint.
-		"""
-
-	@property
-	def port(self):
-		"""
-		# The port of the endpoint as an &int.
-		# &None if the endpoint has no port.
 		"""
 
 	@property
 	def pair(self):
 		"""
-		# A newly constructed tuple consisting of the address and port attributes.
+		# Tuple consisting of the address and port attributes.
 		"""
 
 	@property
-	def transport(self) -> int:
+	def pf_code(self) -> int:
 		"""
-		# The system's transport protocol code that should be used to connect to the endpoint.
+		# The integer identifier used by the system to identify the protocol family.
 		"""
 
 	@property
-	def type(self) -> int:
+	def tp_code(self) -> int:
 		"""
-		# The system's socket type code that should be used when allocating a socket.
+		# The integer identifier used by the system to identify the transport protocol.
 		"""
 
-def select_endpoints():
+	@property
+	def st_code(self) -> int:
+		"""
+		# The integer identifier used by the system to identify the socket's type.
+		"""
+
+def select_endpoints(host:str, service:str|int):
 	"""
 	# Resolve the &Endpoint set of the given host and service using (system/manual)`getaddrinfo`.
 	"""
 
-def select_interfaces():
+def select_interfaces(host:str, service:str|int):
 	"""
 	# Identify the interfaces to bind to for the service (system/manual)`getaddrinfo`.
 	"""
 
-def connect(endpoint):
+def connect(endpoint:Endpoint, interface:Endpoint=None):
 	"""
 	# Connect new sockets using the given endpoints.
 	"""
 
-def service(interface):
+def service(interface:Endpoint):
 	"""
 	# Create a listening socket using the given endpoint as the interface.
 	"""
 
-def bind(interface):
+def bind(interface:Endpoint):
 	"""
 	# Create and bind a socket to an interface.
 	"""
