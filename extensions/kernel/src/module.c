@@ -399,6 +399,48 @@ kport_set_cloexec(PyObj mod, PyObj seq)
 	Py_RETURN_NONE;
 }
 
+#define KPORT_TRANSFER(NAME, KPC) \
+	int kp_##KPC(kport_t, kport_t *, uint32_t); \
+	STATIC(PyObj) \
+	k_##NAME(PyObj module, PyObj args, PyObj kw) \
+	{ \
+		Py_buffer kpv; \
+		int aq = 0, limit = -1, offset = -1; \
+		kport_t kp = -1; \
+		static char *kwlist[] = {"kport", "ports", "limit", "offset", NULL}; \
+		\
+		if (!PyArg_ParseTupleAndKeywords(args, kw, "iw*|$ii", kwlist, &kp, &kpv, &limit, &offset)) \
+			return(NULL); \
+		\
+		if (offset < 0) \
+			offset = 0; \
+		\
+		if (limit < 0) \
+			limit = ((kpv.len - (offset * sizeof(kport_t))) / sizeof(kport_t)); \
+		\
+		Py_BEGIN_ALLOW_THREADS \
+		{ \
+			aq = kp_##KPC(kp, kpv.buf + (offset * sizeof(kport_t)), limit); \
+		} \
+		Py_END_ALLOW_THREADS \
+		PyBuffer_Release(&kpv); \
+		if (aq < 0) \
+		{ \
+			PyErr_SetFromErrno(PyExc_OSError); \
+			errno = 0; \
+			return(NULL); \
+		} \
+		\
+		Py_RETURN_INTEGER(aq); \
+	}
+
+KPORT_TRANSFER(accept_ports, accept);
+KPORT_TRANSFER(transmit_ports, transmit);
+KPORT_TRANSFER(receive_ports, receive);
+KPORT_TRANSFER(alloc_meta, alloc_meta);
+KPORT_TRANSFER(alloc_pipe, alloc_unidirectional);
+KPORT_TRANSFER(alloc_socketpair, alloc_bidirectional);
+
 /*
 	// Retrieve a reference to the process_module module and register
 	// the atfork handlers.
@@ -467,14 +509,23 @@ fault_python_ext_if = {
 
 #define PyMethod_Id(N) k_##N
 #define MODULE_FUNCTIONS() \
-	PyMethod_Sole(preserve), \
-	PyMethod_Sole(released), \
+	PyMethod_Sole(signalexit), \
 	PyMethod_None(hostname), \
 	PyMethod_None(machine_execution_context), \
 	PyMethod_None(machine), \
 	PyMethod_None(clockticks), \
 	PyMethod_Sole(set_process_title), \
-	PyMethod_Sole(signalexit), \
+	\
+	PyMethod_Sole(preserve), \
+	PyMethod_Sole(released), \
+	\
+	PyMethod_Keywords(accept_ports), \
+	PyMethod_Keywords(receive_ports), \
+	PyMethod_Keywords(transmit_ports), \
+	PyMethod_Keywords(alloc_meta), \
+	PyMethod_Keywords(alloc_pipe), \
+	PyMethod_Keywords(alloc_socketpair), \
+	\
 	PyMethod_Sole(initialize),
 
 #include <fault/python/module.h>
