@@ -43,47 +43,63 @@ kports_create(kport_t data[], Py_ssize_t length)
 		return(NULL);
 
 	memcpy(KPorts_GetArray(kp), data, length * sizeof(kport_t));
-
 	return(kp);
 }
 
+/**
+	// &.kernel.Ports.close
+*/
 STATIC(PyObj)
-kports_close(PyObj self)
+kp_close(PyObj self)
 {
-	Py_ssize_t pos;
+	Py_ssize_t i;
 	KPorts kp = (KPorts) self;
 
-	for (pos = 0; pos < KPorts_GetLength(kp); ++pos)
+	for (i = 0; i < KPorts_GetLength(kp); ++i)
 	{
 		/* Check and report failures */
-		close(KPorts_GetItem(kp, pos));
+		close(KPorts_GetItem(kp, i));
+		KPorts_SetItem(kp, i, -errno);
 	}
 
 	Py_RETURN_NONE;
 }
 
+/**
+	// &.kernel.Ports.configure
+*/
+int kp_chfd(kport_t, int, int);
+int kp_chfl(kport_t, int, int);
 STATIC(PyObj)
-kports_enter(PyObj self)
+kp_configure(PyObj self)
 {
-	Py_RETURN_NONE;
+	Py_ssize_t i;
+	int first_errno = 0;
+	KPorts kpv = (KPorts) self;
+
+	Py_BEGIN_ALLOW_THREADS
+	{
+		for (i = 0; i < KPorts_GetLength(kpv); ++i)
+		{
+			kport_t kp = KPorts_GetItem(kpv, i);
+
+			if (kp_chfd(kp, 1, FD_CLOEXEC) < 0 && first_errno == 0)
+				first_errno = errno;
+
+			if (kp_chfl(kp, 1, O_NONBLOCK) < 0 && first_errno == 0)
+				first_errno = errno;
+		}
+	}
+	Py_END_ALLOW_THREADS
+
+	Py_RETURN_INTEGER(first_errno);
 }
 
+/**
+	// &.kernel.Ports.allocate
+*/
 STATIC(PyObj)
-kports_exit(PyObj self, PyObj args)
-{
-	PyObj exc, val, tb;
-
-	if (!PyArg_ParseTuple(args, "OOO", &exc, &val, &tb))
-		return(NULL);
-
-	if (exc != NULL)
-		kports_close(self);
-
-	Py_RETURN_NONE;
-}
-
-STATIC(PyObj)
-kports_allocate(PyTypeObject *subtype, PyObj length)
+kp_allocate(PyTypeObject *subtype, PyObj length)
 {
 	KPorts kp;
 	PyObj rob;
@@ -108,30 +124,18 @@ kports_allocate(PyTypeObject *subtype, PyObj length)
 
 STATIC(PyMethodDef)
 kports_methods[] = {
-	{"__enter__",
-		(PyCFunction) kports_enter,
-		METH_NOARGS,
-		PyDoc_STR("Context manager open returning &None.")
-	},
+	#define PyMethod_Id(N) kp_##N
+		PyMethod_None(close),
+		PyMethod_None(configure),
 
-	{"__exit__",
-		(PyCFunction) kports_exit,
-		METH_VARARGS,
-		PyDoc_STR("Close the contained file descriptors upon error.")
-	},
-
-	{"allocate",
-		(PyCFunction) kports_allocate,
-		METH_O|METH_CLASS,
-		PyDoc_STR("Allocate an instance according to the given length.")
-	},
-
-	{"close",
-		(PyCFunction) kports_close,
-		METH_NOARGS,
-		PyDoc_STR("Close all non-negative file descriptors contained in the sequence.")
-	},
-
+		/**
+			// Class methods.
+		*/
+		#undef PyMethod_TypeControl
+		#define PyMethod_TypeControl PyMethod_ClassType
+			PyMethod_Sole(allocate),
+		#undef PyMethod_TypeControl
+	#undef PyMethod_Id
 	{NULL,}
 };
 
@@ -184,12 +188,18 @@ kports_richcompare(PyObj self, PyObj x, int op)
 	return(rob);
 }
 
+/**
+	// &.kernel.Ports.__len__
+*/
 STATIC(Py_ssize_t)
 kports_length(PyObj self)
 {
 	return(KPorts_GetLength(((KPorts) self)));
 }
 
+/**
+	// &.kernel.Ports.__concat__
+*/
 STATIC(PyObj)
 kports_concat(PyObj self, PyObj x)
 {
@@ -208,6 +218,9 @@ kports_concat(PyObj self, PyObj x)
 	return((PyObj) kp);
 }
 
+/**
+	// &.kernel.Ports.__repeat__
+*/
 STATIC(PyObj)
 kports_repeat(PyObj self, Py_ssize_t quantity)
 {
@@ -226,6 +239,9 @@ kports_repeat(PyObj self, Py_ssize_t quantity)
 	return((PyObj) kp);
 }
 
+/**
+	// &.kernel.Ports.__getitem__
+*/
 STATIC(PyObj)
 kports_getitem(PyObj self, Py_ssize_t index)
 {
@@ -240,6 +256,9 @@ kports_getitem(PyObj self, Py_ssize_t index)
 	return(PyLong_FromLong((long) KPorts_GetItem(kp, index)));
 }
 
+/**
+	// &.kernel.Ports.__setitem__
+*/
 STATIC(int)
 kports_setitem(PyObj self, Py_ssize_t index, PyObj val)
 {
@@ -271,6 +290,9 @@ kports_as_sequence = {
 	kports_setitem,
 };
 
+/**
+	// &.kernel.Ports.__getitem__
+*/
 STATIC(PyObj)
 kports_subscript(PyObj self, PyObj item)
 {
@@ -341,6 +363,9 @@ kports_buffer = {
 	NULL,
 };
 
+/**
+	// &.kernel.Ports.__new__
+*/
 STATIC(PyObj)
 kports_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 {
@@ -423,44 +448,21 @@ kports_dealloc(PyObj self)
 	Py_TYPE(self)->tp_free(self);
 }
 
+/**
+	// &.kernel.Ports
+*/
 PyTypeObject
 KPortsType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Ports"),    /* tp_name */
-	sizeof(struct KPorts),          /* tp_basicsize */
-	sizeof(kport_t),                /* tp_itemsize */
-	kports_dealloc,                 /* tp_dealloc */
-	NULL,                           /* tp_print */
-	NULL,                           /* tp_getattr */
-	NULL,                           /* tp_setattr */
-	NULL,                           /* tp_compare */
-	NULL,                           /* tp_repr */
-	NULL,                           /* tp_as_number */
-	&kports_as_sequence,            /* tp_as_sequence */
-	&kports_as_mapping,             /* tp_as_mapping */
-	NULL,                           /* tp_hash */
-	NULL,                           /* tp_call */
-	NULL,                           /* tp_str */
-	NULL,                           /* tp_getattro */
-	NULL,                           /* tp_setattro */
-	&kports_buffer,                 /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	NULL,                           /* tp_doc */
-	NULL,                           /* tp_traverse */
-	NULL,                           /* tp_clear */
-	kports_richcompare,             /* tp_richcompare */
-	0,                              /* tp_weaklistoffset */
-	NULL,                           /* tp_iter */
-	NULL,                           /* tp_iternext */
-	kports_methods,                 /* tp_methods */
-	NULL,                           /* tp_members */
-	NULL,                           /* tp_getset */
-	NULL,                           /* tp_base */
-	NULL,                           /* tp_dict */
-	NULL,                           /* tp_descr_get */
-	NULL,                           /* tp_descr_set */
-	0,                              /* tp_dictoffset */
-	NULL,                           /* tp_init */
-	NULL,                           /* tp_alloc */
-	kports_new,                     /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Ports"),
+	.tp_basicsize = sizeof(struct KPorts),
+	.tp_itemsize = sizeof(kport_t),
+	.tp_dealloc = kports_dealloc,
+	.tp_as_sequence = &kports_as_sequence,
+	.tp_as_mapping = &kports_as_mapping,
+	.tp_as_buffer = &kports_buffer,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_richcompare = kports_richcompare,
+	.tp_methods = kports_methods,
+	.tp_new = kports_new,
 };
