@@ -166,6 +166,19 @@ def test_endpoint_ip6_new(test):
 	test/ep.port == 0xFFFF
 	test/ep.address == '::'
 
+def test_Endpoint_posix_codes(test):
+	"""
+	# Validate presence of integer codes identifying the protocol family,
+	# socket type, and transport protocol.
+	"""
+	v4 = module.Endpoint('ip4', ('127.0.0.1', 80))
+	v6 = module.Endpoint('ip6', ('::1', 80))
+	local = module.Endpoint('local', ('/', 'socket'))
+	for x in [v4, v6, local]:
+		test.isinstance(x.pf_code, int)
+		test.isinstance(x.st_code, int)
+		test.isinstance(x.tp_code, int)
+
 if __name__ == '__main__':
 	import sys; from ....test import library as libtest
 	libtest.execute(sys.modules['__main__'])

@@ -677,7 +677,7 @@ static PyMethodDef endpoint_methods[] = {
 };
 
 static PyObj
-endpoint_get_address_family(PyObj self, void *_)
+endpoint_get_protocol_family(PyObj self, void *_)
 {
 	Endpoint E = (Endpoint) self;
 	return(PyLong_FromLong(Endpoint_GetAddress(E)->ss_family));
@@ -767,17 +767,17 @@ endpoint_get_pair(PyObj self, void *_)
 
 static PyGetSetDef
 endpoint_getset[] = {
-	{"address_family", endpoint_get_address_family, NULL, NULL},
-	{"address_type", endpoint_get_address_type, NULL, NULL},
+	{"type", endpoint_get_address_type, NULL, NULL},
 	{"address", endpoint_get_address, NULL, NULL},
 	{"port", endpoint_get_port, NULL, NULL},
 	{"pair", endpoint_get_pair, NULL, NULL},
+	{"pf_code", endpoint_get_protocol_family, NULL, NULL},
 	{NULL,},
 };
 
 static PyMemberDef endpoint_members[] = {
-	{"transport", T_INT, offsetof(struct Endpoint, transport), READONLY, NULL},
-	{"type", T_INT, offsetof(struct Endpoint, type), READONLY, NULL},
+	{"tp_code", T_INT, offsetof(struct Endpoint, transport), READONLY, NULL},
+	{"st_code", T_INT, offsetof(struct Endpoint, type), READONLY, NULL},
 	{NULL,},
 };
 
@@ -1024,41 +1024,15 @@ endpoint_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 PyTypeObject
 EndpointType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Endpoint"), /* tp_name */
-	sizeof(struct Endpoint),        /* tp_basicsize */
-	sizeof(void *),                 /* tp_itemsize */
-	NULL,                           /* tp_dealloc */
-	NULL,                           /* tp_print */
-	NULL,                           /* tp_getattr */
-	NULL,                           /* tp_setattr */
-	NULL,                           /* tp_compare */
-	endpoint_repr,                  /* tp_repr */
-	NULL,                           /* tp_as_number */
-	NULL,                           /* tp_as_sequence */
-	NULL,                           /* tp_as_mapping */
-	NULL,                           /* tp_hash */
-	NULL,                           /* tp_call */
-	endpoint_str,                   /* tp_str */
-	NULL,                           /* tp_getattro */
-	NULL,                           /* tp_setattro */
-	NULL,                           /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	NULL,                           /* tp_doc */
-	NULL,                           /* tp_traverse */
-	NULL,                           /* tp_clear */
-	endpoint_richcompare,           /* tp_richcompare */
-	0,                              /* tp_weaklistoffset */
-	NULL,                           /* tp_iter */
-	NULL,                           /* tp_iternext */
-	endpoint_methods,               /* tp_methods */
-	endpoint_members,               /* tp_members */
-	endpoint_getset,                /* tp_getset */
-	NULL,                           /* tp_base */
-	NULL,                           /* tp_dict */
-	NULL,                           /* tp_descr_get */
-	NULL,                           /* tp_descr_set */
-	0,                              /* tp_dictoffset */
-	NULL,                           /* tp_init */
-	NULL,                           /* tp_alloc */
-	endpoint_new,                   /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Endpoint"),
+	.tp_basicsize = sizeof(struct Endpoint),
+	.tp_itemsize = sizeof(void *),
+	.tp_repr = endpoint_repr,
+	.tp_str = endpoint_str,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_richcompare = endpoint_richcompare,
+	.tp_methods = endpoint_methods,
+	.tp_members = endpoint_members,
+	.tp_getset = endpoint_getset,
+	.tp_new = endpoint_new,
 };
