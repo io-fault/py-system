@@ -43,7 +43,7 @@ int kernelq_identify(kevent_t *, event_t *);
 int kernelq_delta(KernelQueue, int, kport_t, kevent_t *);
 int kernelq_interrupt_accept(KernelQueue);
 int kernelq_schedule(KernelQueue, int, Link);
-PyObj kernelq_cancel(KernelQueue, Link);
+PyObj kernelq_cancel(KernelQueue, Event);
 
 int kernelq_initialize(KernelQueue);
 int kernelq_receive(KernelQueue, long, long);

@@ -193,11 +193,10 @@ kernelq_transition(KernelQueue kq, TaskQueue tq)
 }
 
 CONCEAL(PyObj)
-kernelq_cancel(KernelQueue kq, Link ln)
+kernelq_cancel(KernelQueue kq, Event ev)
 {
 	kport_t kp = -1;
 	kevent_t kev = {0,};
-	Event ev = (Event) ln->ln_event;
 	PyObj original;
 
 	if (kernelq_identify(&kev, Event_Specification(ev)) < 0)
@@ -209,12 +208,12 @@ kernelq_cancel(KernelQueue kq, Link ln)
 
 	/*
 		// Prepare for cancellation by adding the existing
-		// scheduled &ln to the cancellation list. This
+		// scheduled &ev to the cancellation list. This
 		// allows any concurrently collected event to be
-		// safely enqueued using &ln.
+		// safely enqueued.
 	*/
 
-	original = PyDict_GetItem(kq->kq_references, ln->ln_event); /* borrowed */
+	original = PyDict_GetItem(kq->kq_references, ev); /* borrowed */
 	if (original == NULL)
 	{
 		/* No event in table. No cancellation necessary. */

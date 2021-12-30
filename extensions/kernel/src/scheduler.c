@@ -284,17 +284,44 @@ ks_dispatch(PyObj self, PyObj args, PyObj kw)
 	// &.kernel.Scheduler.cancel
 */
 STATIC(PyObj)
-ks_cancel(PyObj self, PyObj args, PyObj kw)
+ks_cancel(PyObj self, PyObj ref)
 {
-	const static char *kwlist[] = {"link", NULL};
-
 	Scheduler ks = (Scheduler) self;
 	Link ln = NULL;
+	Event ev = NULL;
 
-	if (!PyArg_ParseTupleAndKeywords(args, kw, "O!", kwlist, &LinkType, &ln))
-		return(NULL);
+	switch (PyObject_IsInstance(ref, &EventType))
+	{
+		case -1:
+			return(NULL);
+		break;
 
-	switch (Event_Type(ln->ln_event))
+		case 1:
+			ev = (Event) ref;
+		break;
+
+		case 0:
+		{
+			switch (PyObject_IsInstance(ref, &LinkType))
+			{
+				case -1:
+					return(NULL);
+				break;
+				case 1:
+					ln = (Link) ref;
+					ev = ln->ln_event;
+				break;
+				case 0:
+					PyErr_SetString(PyExc_TypeError,
+						"cancel requires either an Event or Link instance");
+					return(NULL);
+				break;
+			}
+		}
+		break;
+	}
+
+	switch (Event_Type(ev))
 	{
 		case EV_TYPE_ID(meta_exception):
 		{
@@ -304,7 +331,7 @@ ks_cancel(PyObj self, PyObj args, PyObj kw)
 
 		default:
 		{
-			return(kernelq_cancel(Scheduler_GetKernelQueue(ks), ln));
+			return(kernelq_cancel(Scheduler_GetKernelQueue(ks), ev));
 		}
 		break;
 	}
@@ -389,7 +416,7 @@ ks_methods[] = {
 
 		PyMethod_Sole(enqueue),
 		PyMethod_Keywords(dispatch),
-		PyMethod_Keywords(cancel),
+		PyMethod_Sole(cancel),
 		PyMethod_None(operations),
 
 		PyMethod_None(_set_waiting),
