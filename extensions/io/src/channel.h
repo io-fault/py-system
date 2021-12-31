@@ -34,9 +34,7 @@ typedef struct ChannelPyTypeObject {
 ChannelPyTypeObject
 	ChannelType,
 	ArrayType,
-	OctetsType,
-	SocketsType,
-	PortsType;
+	OctetsType;
 
 /**
 	// Generalized events used by all channels

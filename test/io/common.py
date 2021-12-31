@@ -36,8 +36,6 @@ def allocports(A):
 	return s1 + s2
 
 ralloc_index = {
-	io.Ports: kernel.Ports.allocate,
-	io.Sockets: kernel.Ports.allocate,
 	io.Octets: bytearray,
 }
 
@@ -517,7 +515,6 @@ def exchange_many_bytes(test, am, client, server):
 	test/server.read_payload == client_sends
 
 def exchange_many_bytes_many_times(test, am, client, server):
-	'excercise reuse'
 	server.setup_read(0)
 	client.setup_read(0)
 
@@ -602,37 +599,16 @@ def stream_listening_connection(test, version, address, port = None):
 	am = ArrayActionManager()
 	if_p = network.Endpoint(version, address, None, 'octets')
 	fd = network.service(if_p)
-	s = io.alloc_service(fd)
+	s_endpoint = network.receive_endpoint(fd).replace(transport='octets')
 
-	# check for initial failures
-	s.port.raised()
-	with test/TypeError:
-		s.resize_exoresource("foobar")
-	s.resize_exoresource(10)
-	test/s.port.freight == "sockets"
-	test/s.port.error_description == 'No error occurred.'
+	def Accept(ls=fd):
+		kpv = kernel.Ports.allocate(1)
+		kernel.accept_ports(ls, kpv)
+		return kpv
 
-	listen = Events(s)
-
-	s_endpoint = s.endpoint()
-	if isinstance(address, tuple):
-		full_address = (s_endpoint.address, s_endpoint.port)
-		test/s_endpoint.address == address[0]
-	else:
-		full_address = address
-		address in test/(s_endpoint.address, str(s_endpoint))
-	test/s_endpoint.address_type == version
-	test/str(s_endpoint) != None
-
-	if s_endpoint.port is None:
-		test/s_endpoint.pair == None
-	else:
-		test/s_endpoint.pair == (s_endpoint.address, s_endpoint.port)
-
-	with am.thread(), am.manage(listen):
-
+	with am.thread():
 		for exchange in transfer_cases:
-			peer_ep = network.Endpoint(version, full_address, None, 'octets')
+			peer_ep = s_endpoint
 			pfd = network.connect(peer_ep)
 			client_channels = io.alloc_octets(pfd)
 
@@ -648,13 +624,7 @@ def stream_listening_connection(test, version, address, port = None):
 				c_endpoint = client.write_channel.endpoint()
 				r_endpoint = client.read_channel.endpoint()
 
-				listen.setup_read(1)
-				for x in am.delta():
-					if listen.sockets:
-						break
-				test/listen.exhaustions > 0
-				fd = listen.sockets[0]
-				listen.clear()
+				fd = Accept()[0]
 
 				server_channels = io.alloc_octets(fd)
 				server = Endpoint(server_channels)
@@ -693,5 +663,4 @@ def stream_listening_connection(test, version, address, port = None):
 			test/client.channels[1].endpoint() == None
 			del client
 
-	test/listen.channels[0].terminated == True
 	test/am.array.terminated == True

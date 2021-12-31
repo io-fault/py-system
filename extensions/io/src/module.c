@@ -2055,252 +2055,15 @@ OctetsTIF = {
 	f_octets, 1,
 };
 
-PyDoc_STRVAR(Octets_doc, "Channel transferring binary data in bytes.");
 ChannelPyTypeObject OctetsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Octets"),   /* tp_name */
-	sizeof(struct Channel),         /* tp_basicsize */
-	0,                              /* tp_itemsize */
-	NULL,                           /* tp_dealloc */
-	NULL,                           /* tp_print */
-	NULL,                           /* tp_getattr */
-	NULL,                           /* tp_setattr */
-	NULL,                           /* tp_compare */
-	NULL,                           /* tp_repr */
-	NULL,                           /* tp_as_number */
-	NULL,                           /* tp_as_sequence */
-	NULL,                           /* tp_as_mapping */
-	NULL,                           /* tp_hash */
-	NULL,                           /* tp_call */
-	NULL,                           /* tp_str */
-	NULL,                           /* tp_getattro */
-	NULL,                           /* tp_setattro */
-	NULL,                           /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	Octets_doc,                     /* tp_doc */
-	NULL,                           /* tp_traverse */
-	NULL,                           /* tp_clear */
-	NULL,                           /* tp_richcompare */
-	0,                              /* tp_weaklistoffset */
-	NULL,                           /* tp_iter */
-	NULL,                           /* tp_iternext */
-	octets_methods,                 /* tp_methods */
-	NULL,                           /* tp_members */
-	NULL,                           /* tp_getset */
-	&ChannelType.typ,               /* tp_base */
-	NULL,                           /* tp_dict */
-	NULL,                           /* tp_descr_get */
-	NULL,                           /* tp_descr_set */
-	0,                              /* tp_dictoffset */
-	NULL,                           /* tp_init */
-	NULL,                           /* tp_alloc */
-	NULL,                           /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Octets"),
+	.tp_basicsize = sizeof(struct Channel),
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_methods = octets_methods,
+	.tp_base = &ChannelType.typ,
 },
 	&OctetsTIF
-};
-
-struct ChannelInterface
-SocketsTIF = {
-	{(io_op_t) port_input_sockets, NULL},
-	f_sockets, sizeof(int),
-};
-
-static PyObj
-sockets_set_accept_filter(PyObj self, PyObj args)
-{
-	Channel t = (Channel) self;
-	char *filtername;
-
-	if (!PyArg_ParseTuple(args, "s", &filtername))
-		return(NULL);
-
-	if (Channel_PortLatched(t))
-	{
-		#ifdef SO_ACCEPTFILTER
-		{
-			struct accept_filter_arg afa;
-
-			if (strlen(filtername)+1 > sizeof(afa.af_name))
-			{
-				PyErr_SetString(PyExc_ValueError, "filter name is too long");
-				return(NULL);
-			}
-
-			bzero(&afa, sizeof(afa));
-			strcpy(afa.af_name, filtername);
-			setsockopt(Channel_GetKPoint(t), SOL_SOCKET, SO_ACCEPTFILTER, &afa, sizeof(afa));
-		}
-		#else
-			;/* XXX: warn about accept filter absence? */
-		#endif
-	}
-
-	Py_RETURN_NONE;
-}
-
-static PyObj
-sockets_resize_exoresource(PyObj self, PyObj args)
-{
-	Channel t = (Channel) self;
-	int backlog;
-
-	if (!PyArg_ParseTuple(args, "i", &backlog))
-		return(NULL);
-
-	if (Channel_PortLatched(t))
-	{
-		/*
-			// Failure to resize the listening queue is not necessarily
-			// fatal; this is unlike listen during initialization as
-			// we are essentially checking that the socket *can* listen.
-		*/
-
-		port_listen(Channel_GetPort(t), backlog);
-	}
-
-	Py_RETURN_NONE;
-}
-
-static PyMethodDef sockets_methods[] = {
-	{"resize_exoresource",
-		(PyCFunction) sockets_resize_exoresource,
-		METH_VARARGS,
-		PyDoc_STR(
-			"Resize the Sockets' listening queue. Normally, this adjusts the backlog of a listening socket.\n"
-			"\n"
-			"[Parameters]\n"
-			"/(&int)`backlog`/\n"
-			"\tBacklog parameter given to &2.listen"
-			"/(&int)`Return`/\n"
-			"\tThe given backlog.\n"
-			"\n"
-		)
-	},
-
-	{"set_accept_filter",
-		(PyCFunction) sockets_set_accept_filter,
-		METH_VARARGS,
-		PyDoc_STR(
-			"Set an accept filter on the socket so that &2.accept "
-			"only accepts sockets that meet the designated filter's requirements.\n"
-			"\n"
-			"On platforms that do support accept filters this method does nothing.\n"
-			"Currently, this is a FreeBSD only feature: `'dataready'`, 'dnsready'`, 'httpready'`\n"
-
-			"[Parameters]\n"
-			"/(&str)`name`/\n"
-			"\tThe name of the filter to use.\n"
-			"\n"
-			"[Effects]\n"
-			"/(&None.__class__)`Return`/\n"
-			"\tNothing.\n"
-			"\n"
-		)
-	},
-
-	{NULL,}
-};
-
-PyDoc_STRVAR(Sockets_doc, "channel transferring file descriptors accepted by accept(2)");
-
-ChannelPyTypeObject SocketsType = {{
-	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Sockets"),  /* tp_name */
-	sizeof(struct Channel),         /* tp_basicsize */
-	0,                              /* tp_itemsize */
-	NULL,                           /* tp_dealloc */
-	NULL,                           /* tp_print */
-	NULL,                           /* tp_getattr */
-	NULL,                           /* tp_setattr */
-	NULL,                           /* tp_compare */
-	NULL,                           /* tp_repr */
-	NULL,                           /* tp_as_number */
-	NULL,                           /* tp_as_sequence */
-	NULL,                           /* tp_as_mapping */
-	NULL,                           /* tp_hash */
-	NULL,                           /* tp_call */
-	NULL,                           /* tp_str */
-	NULL,                           /* tp_getattro */
-	NULL,                           /* tp_setattro */
-	NULL,                           /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	Sockets_doc,                    /* tp_doc */
-	NULL,                           /* tp_traverse */
-	NULL,                           /* tp_clear */
-	NULL,                           /* tp_richcompare */
-	0,                              /* tp_weaklistoffset */
-	NULL,                           /* tp_iter */
-	NULL,                           /* tp_iternext */
-	sockets_methods,                /* tp_methods */
-	NULL,                           /* tp_members */
-	NULL,                           /* tp_getset */
-	&ChannelType.typ,               /* tp_base */
-	NULL,                           /* tp_dict */
-	NULL,                           /* tp_descr_get */
-	NULL,                           /* tp_descr_set */
-	0,                              /* tp_dictoffset */
-	NULL,                           /* tp_init */
-	NULL,                           /* tp_alloc */
-	NULL,                           /* tp_new */
-},
-	&SocketsTIF,
-};
-
-struct ChannelInterface
-PortsTIF = {
-	{(io_op_t) port_input_ports, (io_op_t) port_output_ports},
-	f_ports, sizeof(int),
-};
-
-static PyMethodDef
-ports_methods[] = {
-	{NULL,}
-};
-
-PyDoc_STRVAR(Ports_doc, "");
-
-ChannelPyTypeObject
-PortsType = {{
-	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Ports"),    /* tp_name */
-	sizeof(struct Channel),         /* tp_basicsize */
-	0,                              /* tp_itemsize */
-	NULL,                           /* tp_dealloc */
-	NULL,                           /* tp_print */
-	NULL,                           /* tp_getattr */
-	NULL,                           /* tp_setattr */
-	NULL,                           /* tp_compare */
-	NULL,                           /* tp_repr */
-	NULL,                           /* tp_as_number */
-	NULL,                           /* tp_as_sequence */
-	NULL,                           /* tp_as_mapping */
-	NULL,                           /* tp_hash */
-	NULL,                           /* tp_call */
-	NULL,                           /* tp_str */
-	NULL,                           /* tp_getattro */
-	NULL,                           /* tp_setattro */
-	NULL,                           /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,             /* tp_flags */
-	Ports_doc,                      /* tp_doc */
-	NULL,                           /* tp_traverse */
-	NULL,                           /* tp_clear */
-	NULL,                           /* tp_richcompare */
-	0,                              /* tp_weaklistoffset */
-	NULL,                           /* tp_iter */
-	NULL,                           /* tp_iternext */
-	ports_methods,                  /* tp_methods */
-	NULL,                           /* tp_members */
-	NULL,                           /* tp_getset */
-	&ChannelType.typ,               /* tp_base */
-	NULL,                           /* tp_dict */
-	NULL,                           /* tp_descr_get */
-	NULL,                           /* tp_descr_set */
-	0,                              /* tp_dictoffset */
-	NULL,                           /* tp_init */
-	NULL,                           /* tp_alloc */
-	NULL,                           /* tp_new */
-},
-	&PortsTIF,
 };
 
 /**
@@ -4246,32 +4009,6 @@ ArrayType = {{
 };
 
 static PyObj
-_talloc_sockets_input(PyObj module, PyObj param)
-{
-	const PyObj typ = &SocketsType;
-	Port p = NULL;
-	PyObj rob = NULL;
-	kport_t fd = -1;
-
-	fd = PyLong_AsLong(param);
-	if (PyErr_Occurred())
-		return(0);
-
-	rob = alloci(typ, &p);
-	if (rob == NULL)
-		return(NULL);
-	Channel_SetResource(((Channel) rob), NULL);
-
-	p->freight = f_sockets;
-	p->point = fd;
-	ports_identify_socket(p);
-	if (p->cause == kc_pyalloc)
-		p->cause = kc_none;
-
-	return(rob);
-}
-
-static PyObj
 _talloc_octets_input(PyObj module, PyObj param)
 {
 	const PyObj typ = &OctetsType;
@@ -4371,31 +4108,6 @@ _talloc_octets_socket(PyObj module, PyObj param)
 	return(rob);
 }
 
-static PyObj
-_talloc_ports_socket(PyObj module, PyObj param)
-{
-	const PyObj typ = &PortsType;
-	Port p = NULL;
-	PyObj rob = NULL;
-	kport_t fd = -1;
-
-	fd = PyLong_AsLong(param);
-	if (PyErr_Occurred())
-		return(0);
-
-	rob = allocio(typ, typ, &p);
-	if (rob == NULL)
-		return(NULL);
-
-	p->freight = f_ports;
-	p->point = fd;
-	ports_identify_socket(p);
-	if (p->cause == kc_pyalloc)
-		p->cause = kc_none;
-
-	return(rob);
-}
-
 /**
 	// Access to channel allocators.
 */
@@ -4407,17 +4119,11 @@ _talloc_ports_socket(PyObj module, PyObj param)
 		alloc_output, _talloc_octets_output, METH_O, \
 		"Allocate Octets for the given write-only file descriptor.") \
 	PYMETHOD( \
-		alloc_service, _talloc_sockets_input, METH_O, \
-		"Allocate Sockets for the given listening socket file descriptor.") \
-	PYMETHOD( \
 		alloc_datagrams, _talloc_datagrams_socket, METH_O, \
 		"Allocate a Datagrams pair for the given socket file descriptor.") \
 	PYMETHOD( \
 		alloc_octets, _talloc_octets_socket, METH_O, \
-		"Allocate an Octets pair for the given socket file descriptor.") \
-	PYMETHOD( \
-		alloc_ports, _talloc_ports_socket, METH_O, \
-		"Allocate a Ports pair for the given socket file descriptor.")
+		"Allocate an Octets pair for the given socket file descriptor.")
 
 #include <fault/python/module.h>
 

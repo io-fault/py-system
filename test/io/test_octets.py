@@ -318,10 +318,6 @@ def test_octets_acquire_badfd_detect(test):
 		xs, xsw = io.alloc_octets(r)
 		test/xs.port.error_code == errno.EBADF
 		test/xs.port.call == 'identify' # local call
-
-		xs = io.alloc_service(w)
-		test/xs.port.error_code == errno.EBADF
-		test/xs.port.call == 'identify' # local call
 	finally:
 		os.close(r)
 		os.close(w)

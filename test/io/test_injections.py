@@ -114,14 +114,14 @@ def test_acquire_retry_fail(test):
 		J = io.Array()
 		io.__ERRNO_RECEPTACLE__['port_identify_type'] = errno_retry_callback
 
-		for typ in [io.alloc_input, io.alloc_output, io.alloc_service]:
+		for typ in [io.alloc_input, io.alloc_output]:
 			s = typ(-14)
 			test/s.port.error_code == errno.EINTR
 			test/s.port.call == 'fstat'
 			J.acquire(s)
 
 		with J:
-			test/J.sizeof_transfer() == 3
+			test/J.sizeof_transfer() == 2
 			for x in J.transfer():
 				test/x.terminated == True
 	finally:
@@ -316,9 +316,6 @@ def test_array_alloc_port_memory_errors(test):
 
 		with test/MemoryError as exc:
 			io.alloc_octets(8)
-
-		with test/MemoryError as exc:
-			io.alloc_service(8)
 	finally:
 		io.__PYTHON_RECEPTACLE__.clear()
 
@@ -345,8 +342,6 @@ def test_array_allocio_memory_errors(test):
 		for i in range(4):
 			with test/MemoryError as exc:
 				io.alloc_octets(8)
-			with test/MemoryError as exc:
-				io.alloc_service(8)
 	finally:
 		io.__PYTHON_RECEPTACLE__.clear()
 

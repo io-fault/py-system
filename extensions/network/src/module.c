@@ -552,6 +552,56 @@ nw_bind(PyObj module, PyObj args, PyObj kw)
 	return(nw_bind_endpoint((Endpoint) ob));
 }
 
+static PyObj
+nw_transmit_endpoint(PyObj module, PyObj fileno)
+{
+	int r;
+	kport_t kp = -1;
+	any_addr_t addr;
+	socklen_t addrlen = sizeof(addr);
+
+	memset(&addr, 0, addrlen);
+	addr.ss_family = AF_UNSPEC;
+
+	kp = PyLong_AsLong(fileno);
+	if (kp == -1 && PyErr_Occurred())
+		return(NULL);
+
+	r = getpeername(kp, (if_addr_ref_t) &(addr), &addrlen);
+	if (r)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	return(endpoint_create(0, 0, &addr, addrlen));
+}
+
+static PyObj
+nw_receive_endpoint(PyObj module, PyObj fileno)
+{
+	int r;
+	kport_t kp = -1;
+	any_addr_t addr;
+	socklen_t addrlen = sizeof(addr);
+
+	memset(&addr, 0, addrlen);
+	addr.ss_family = AF_UNSPEC;
+
+	kp = PyLong_AsLong(fileno);
+	if (kp == -1 && PyErr_Occurred())
+		return(NULL);
+
+	r = getsockname(kp, (if_addr_ref_t) &(addr), &addrlen);
+	if (r)
+	{
+		PyErr_SetFromErrno(PyExc_OSError);
+		return(NULL);
+	}
+
+	return(endpoint_create(0, 0, &addr, addrlen));
+}
+
 /**
 	// Capsule target providing access to &EndpointType creation and duplication.
 */
@@ -574,6 +624,8 @@ struct EndpointAPI _ep_apis = {
 #define MODULE_FUNCTIONS() \
 	PyMethod_Variable(select_endpoints), \
 	PyMethod_Variable(select_interfaces), \
+	PyMethod_Sole(receive_endpoint), \
+	PyMethod_Sole(transmit_endpoint), \
 	PyMethod_Keywords(connect), \
 	PyMethod_Keywords(service), \
 	PyMethod_Keywords(bind),

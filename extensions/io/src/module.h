@@ -1,11 +1,9 @@
 /**
-	// Handy for macros working with lowercase names.
+	// Invariant maintenance for preprocessor lists.
 */
 #define channeltype   ((PyObject *) &ChannelType)
 #define arraytype     ((PyObject *) &ArrayType)
 #define octetstype    ((PyObject *) &OctetsType)
-#define socketstype   ((PyObject *) &SocketsType)
-#define portstype     ((PyObject *) &PortsType)
 #define datagramstype ((PyObject *) &DatagramsType)
 #define porttype      ((PyObject *) &PortType)
 #define endpointtype  ((PyObject *) &EndpointType)
@@ -14,8 +12,6 @@
 	ID(Channel, void) \
 	ID(Array, channels) \
 	ID(Octets, octets) \
-	ID(Sockets, sockets) \
-	ID(Ports, ports) \
 	ID(Datagrams, datagrams) \
 
 #define PY_TYPES() \
