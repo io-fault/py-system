@@ -25,7 +25,7 @@
 	PY_TYPES()
 #undef ID
 
-#define ID(x, y) PyTypeObject x##Type;
+#define ID(x, y) extern PyTypeObject x##Type;
 	PY_TYPES()
 #undef ID
 

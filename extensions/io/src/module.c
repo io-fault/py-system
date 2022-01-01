@@ -351,68 +351,24 @@ port_shatter(PyObj self)
 
 static PyMethodDef port_methods[] = {
 	/* METH_O, METH_VARARGS, METH_VARKEYWORDS, METH_NOARGS */
-	{"shatter",
-		(PyCFunction) port_shatter, METH_NOARGS,
-		PyDoc_STR(
-			"Destroy the resource reference without triggering representation shutdowns such as (/unix/man/2)`shutdown` on sockets. "
-			"Ports with Array attached Channels should never be shattered as it causes the event subscription to be lost. "
-			"Subsequently, the Channel will remain in the Array ring until terminated by user code.\n\n"
-	)},
-
-	{"leak",
-		(PyCFunction) port_leak, METH_NOARGS,
-		PyDoc_STR(
-			"Leak the kernel resource reference. Allows use of the file descriptor "
-			"without fear of a subsequent shutdown or close from a Channel.\n\n"
-	)},
-
-	{"raised",
-		(PyCFunction) port_raised, METH_NOARGS,
-		PyDoc_STR(
-			"Raise the &OSError corresponding to the noted error."
-	)},
-
-	{"exception",
-		(PyCFunction) port_exception, METH_NOARGS,
-		PyDoc_STR(
-			"Return the &OSError corresponding to the operating system error.\n"
-			"\n[Effects]\n"
-			"/(&Exception)`Return`/\n"
-			"\tThe Python exception that would be raised by &raised.\n"
-			"\n"
-	)},
-
+	{"shatter", (PyCFunction) port_shatter, METH_NOARGS, NULL,},
+	{"leak", (PyCFunction) port_leak, METH_NOARGS, NULL,},
+	{"raised", (PyCFunction) port_raised, METH_NOARGS, NULL,},
+	{"exception", (PyCFunction) port_exception, METH_NOARGS, NULL,},
 	{NULL,}
 };
 
 static PyMemberDef port_members[] = {
-	{"id", T_KPORT, offsetof(struct Port, point), READONLY,
-		PyDoc_STR(
-			"The identifier of the port used to communicate with the kernel."
-	)},
-	{"error_code", T_KERROR, offsetof(struct Port, error), READONLY,
-		PyDoc_STR(
-			"The error code associated with the Port."
-	)},
+	{"id", T_KPORT, offsetof(struct Port, point), READONLY, NULL,},
+	{"error_code", T_KERROR, offsetof(struct Port, error), READONLY, NULL,},
 
 	/*
 		// Some aliases to lend toward convention.
 	*/
-
-	{"fileno", T_KPORT, offsetof(struct Port, point), READONLY,
-		PyDoc_STR("Alias to &id. Included for convention.")},
-	{"errno", T_KERROR, offsetof(struct Port, error), READONLY,
-		PyDoc_STR("Alias to &error_code. Included for convention.")},
-
-	{"_call_id", T_UBYTE, offsetof(struct Port, cause), READONLY,
-		PyDoc_STR(
-		"The internal identifier for the &call string."
-	)},
-	{"_freight_id", T_INT, offsetof(struct Port, freight), READONLY,
-		PyDoc_STR(
-		"The internal identifier for the &freight string."
-	)},
-
+	{"fileno", T_KPORT, offsetof(struct Port, point), READONLY, NULL,},
+	{"errno", T_KERROR, offsetof(struct Port, error), READONLY, NULL,},
+	{"_call_id", T_UBYTE, offsetof(struct Port, cause), READONLY, NULL,},
+	{"_freight_id", T_INT, offsetof(struct Port, freight), READONLY, NULL,},
 	{NULL,},
 };
 
@@ -481,32 +437,11 @@ port_get_posix_description(PyObj self, void *_)
 }
 
 static PyGetSetDef port_getset[] = {
-	{"call", port_get_call, NULL,
-		PyDoc_STR(
-			"The system library call or system.io call performed that caused the error associated with the Port.\n"
-	)},
-
-	{"error_name", port_get_error_name, NULL,
-		PyDoc_STR(
-			"The macro name of the errno. Equivalent to `errno.errorcode[port.errno]`.\n"
-	)},
-
-	{"freight", port_get_freight, NULL,
-		PyDoc_STR(
-			"What was being transferred by the Channel.\n"
-	)},
-
-	{"error_description", port_get_error_description, NULL,
-		PyDoc_STR(
-			"A string describing the errno using the (/unix/man/2)`strerror` function.\n"
-			"This may be equivalent to the &strposix attribute."
-	)},
-
-	{"_posix_description", port_get_posix_description, NULL,
-		PyDoc_STR(
-			"A string describing the errno using the POSIX descriptions built into Traffic.\n"
-	)},
-
+	{"call", port_get_call, NULL, NULL,},
+	{"error_name", port_get_error_name, NULL, NULL,},
+	{"freight", port_get_freight, NULL, NULL,},
+	{"error_description", port_get_error_description, NULL, NULL,},
+	{"_posix_description", port_get_posix_description, NULL, NULL,},
 	{NULL,},
 };
 
@@ -589,9 +524,6 @@ port_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	return(rob);
 }
 
-PyDoc_STRVAR(port_doc,
-"Port(id = -1, error_code = 0, call = 'none', freight = 'void')\n\n");
-
 static void
 port_dealloc(PyObj self)
 {
@@ -615,43 +547,16 @@ port_dealloc(PyObj self)
 PyTypeObject
 PortType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Port"),   /* tp_name */
-	sizeof(struct Port),          /* tp_basicsize */
-	0,                            /* tp_itemsize */
-	port_dealloc,                 /* tp_dealloc */
-	NULL,                         /* tp_print */
-	NULL,                         /* tp_getattr */
-	NULL,                         /* tp_setattr */
-	NULL,                         /* tp_compare */
-	port_repr,                    /* tp_repr */
-	NULL,                         /* tp_as_number */
-	NULL,                         /* tp_as_sequence */
-	NULL,                         /* tp_as_mapping */
-	NULL,                         /* tp_hash */
-	NULL,                         /* tp_call */
-	port_str,                     /* tp_str */
-	NULL,                         /* tp_getattro */
-	NULL,                         /* tp_setattro */
-	NULL,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,           /* tp_flags */
-	port_doc,                     /* tp_doc */
-	NULL,                         /* tp_traverse */
-	NULL,                         /* tp_clear */
-	NULL,                         /* tp_richcompare */
-	0,                            /* tp_weaklistoffset */
-	NULL,                         /* tp_iter */
-	NULL,                         /* tp_iternext */
-	port_methods,                 /* tp_methods */
-	port_members,                 /* tp_members */
-	port_getset,                  /* tp_getset */
-	NULL,                         /* tp_base */
-	NULL,                         /* tp_dict */
-	NULL,                         /* tp_descr_get */
-	NULL,                         /* tp_descr_set */
-	0,                            /* tp_dictoffset */
-	NULL,                         /* tp_init */
-	NULL,                         /* tp_alloc */
-	port_new,                     /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Port"),
+	.tp_basicsize = sizeof(struct Port),
+	.tp_dealloc = port_dealloc,
+	.tp_repr = port_repr,
+	.tp_str = port_str,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_methods = port_methods,
+	.tp_members = port_members,
+	.tp_getset = port_getset,
+	.tp_new = port_new,
 };
 
 static PyMethodDef endpoint_methods[] = {
@@ -1060,36 +965,14 @@ jxi_iter(PyObj self)
 	return(self);
 }
 
-PyDoc_STRVAR(jxi_doc, "iterator producing Channels with events to be processed");
 PyTypeObject jxi_type = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("jxi"),   /* tp_name */
-	sizeof(struct jxi),          /* tp_basicsize */
-	0,                           /* tp_itemsize */
-	jxi_dealloc,                 /* tp_dealloc */
-	NULL,                        /* tp_print */
-	NULL,                        /* tp_getattr */
-	NULL,                        /* tp_setattr */
-	NULL,                        /* tp_compare */
-	NULL,                        /* tp_repr */
-	NULL,                        /* tp_as_number */
-	NULL,                        /* tp_as_sequence */
-	NULL,                        /* tp_as_mapping */
-	NULL,                        /* tp_hash */
-	NULL,                        /* tp_call */
-	NULL,                        /* tp_str */
-	NULL,                        /* tp_getattro */
-	NULL,                        /* tp_setattro */
-	NULL,                        /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,          /* tp_flags */
-	jxi_doc,                     /* tp_doc */
-	NULL,                        /* tp_traverse */
-	NULL,                        /* tp_clear */
-	NULL,                        /* tp_richcompare */
-	0,                           /* tp_weaklistoffset */
-	jxi_iter,                    /* tp_iter */
-	jxi_next,                    /* tp_iternext */
-	NULL,
+	.tp_name = PYTHON_MODULE_PATH("jxi"),
+	.tp_basicsize = sizeof(struct jxi),
+	.tp_dealloc = jxi_dealloc,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_iter = jxi_iter,
+	.tp_iternext = jxi_next,
 };
 
 static PyObj
@@ -1420,137 +1303,30 @@ channel_endpoint(PyObj self)
 
 static PyMethodDef
 channel_methods[] = {
-	{"endpoint", (PyCFunction) channel_endpoint, METH_NOARGS,
-		PyDoc_STR(
-			"Construct an Endpoint object from the Channel describing the known destination of the channel, the end-point.\n"
-			"For output channels, the endpoint will be the remote host. For input channels, the endpoint will be "
-			"the local interface and port."
-			"\n\n"
-			"[Effect]\n"
-			"/(&Endpoint)`Return`/\n\t"
-			"A new Endpoint instance.\n"
-			"\n"
-		)
-	},
-
-	{"acquire",
-		(PyCFunction) channel_acquire, METH_O,
-		PyDoc_STR(
-			"Acquire a resource for facilitating transfers. The `resource` type depends on\n"
-			"the Channel subclass, but it is *normally* an object supporting the buffer interface.\n"
-			"The particular Channel type should document the kind of object it expects."
-			"\n\n"
-			"[Parameters]\n"
-			"/(&object)`resource`/\n"
-			"\tThe resource to use facitate transfers.\n"
-			"\n\n"
-			"[Effects]\n"
-			"/(&Channel)`Return`/"
-			"\tThe Channel instance acquiring the resource.\n"
-			"\n"
-		)
-	},
-
-	{"resize_exoresource",
-		(PyCFunction) channel_resize_exoresource, METH_VARARGS,
-		PyDoc_STR(
-			"Resize the related exoresource.\n"
-			"[Parameters]\n"
-			"/(&int)`new_size`/\n"
-			"\tThe size, relative or absolute, of the kernel resource that should be used for the Channel.\n"
-		)
-	},
-
-	{"force",
-		(PyCFunction) channel_force, METH_NOARGS,
-		PyDoc_STR(
-			"Force the channel to perform a transfer.\n"
-			"This causes an empty transfer event to occur.\n"
-		)
-	},
-
-	{"transfer", (PyCFunction) channel_transfer, METH_NOARGS,
-		PyDoc_STR(
-			"This returns the slice of the resource that was transferred iff a transfer occurred.\n"
-			"It is essentially `channel.resource[channel.slice()]`.\n"
-			"\n"
-			"[Effects]\n"
-			"/(&object)`Return`/\n"
-			"\tThe transferred data. Usually a &memoryview.\n"
-			"\n"
-		)
-	},
-
-	{"slice", (PyCFunction) channel_slice, METH_NOARGS,
-		PyDoc_STR(
-			"The slice method is always available. In cases where the channel is not in a cycle, a zero-distance slice "
-			"will be returned desribing the current position in the resource's buffer.\n"
-			"[Effects]\n"
-			"/(&slice)`Return`/\n"
-			"\tA slice specifying the portion of the resource that was transferred.\n"
-		)
-	},
-
-	{"sizeof_transfer", (PyCFunction) channel_sizeof_transfer, METH_NOARGS,
-		PyDoc_STR(
-			"Get the size of the current transfer; `0` if there is no transfer.\n"
-			"\n"
-			"[Effects]\n"
-			"/(&int)`Return`/\n"
-			"\tThe number of units transferred.\n"
-			"\n"
-		)
-	},
-
-	{"terminate",
-		(PyCFunction) channel_terminate, METH_NOARGS,
-		PyDoc_STR(
-			"Terminate the Channel permanently causing events to subside. Eventually, \n"
-			"resources being held by the Tranist will be released.\n"
-			"[Effects]\n"
-			"/(&Channel)`Return`/\n"
-			"\tThe channel being terminated.\n"
-		)
-	},
-
+	{"endpoint", (PyCFunction) channel_endpoint, METH_NOARGS, NULL,},
+	{"acquire", (PyCFunction) channel_acquire, METH_O, NULL,},
+	{"resize_exoresource", (PyCFunction) channel_resize_exoresource, METH_VARARGS, NULL,},
+	{"force", (PyCFunction) channel_force, METH_NOARGS, NULL,},
+	{"transfer", (PyCFunction) channel_transfer, METH_NOARGS, NULL,},
+	{"slice", (PyCFunction) channel_slice, METH_NOARGS, NULL,},
+	{"sizeof_transfer", (PyCFunction) channel_sizeof_transfer, METH_NOARGS, NULL,},
+	{"terminate", (PyCFunction) channel_terminate, METH_NOARGS, NULL,},
 	{NULL,},
 };
 
 static PyMemberDef
 channel_members[] = {
-	{"array",
-		T_OBJECT, offsetof(struct Channel, array), READONLY,
-		PyDoc_STR(
-			"The &Array instance that the Channel has been acquired by.\n"
-			"`None` if the Channel has not been acquired by a Array instance."
-		)
-	},
-
-	{"port",
-		T_OBJECT, offsetof(struct Channel, port), READONLY,
-		PyDoc_STR(
-			"The &Port instance that the Channel uses to communicate with the kernel.\n"
-			"This object is always present on the Channel."
-		)
-	},
-
-	{"link",
-		T_OBJECT, offsetof(struct Channel, link), 0,
-		PyDoc_STR(
-			"User storage slot for attaching data for adapter callback mechanisms."
-		)
-	},
+	{"array", T_OBJECT, offsetof(struct Channel, array), READONLY, NULL,},
+	{"port", T_OBJECT, offsetof(struct Channel, port), READONLY, NULL,},
+	{"link", T_OBJECT, offsetof(struct Channel, link), 0, NULL,},
 
 	/*
 		// Internal state access.
 	*/
 	#if FV_INJECTIONS()
-		{"_state", T_UBYTE, offsetof(struct Channel, state), READONLY,
-			PyDoc_STR("bit map defining the internal and external state of the channel")},
-		{"_delta", T_UBYTE, offsetof(struct Channel, delta), READONLY,
-			PyDoc_STR("bit map defining the internal state changes")},
-		{"_event", T_UBYTE, offsetof(struct Channel, events), READONLY,
-			PyDoc_STR("bit map of events that occurred this cycle")},
+		{"_state", T_UBYTE, offsetof(struct Channel, state), READONLY, NULL,},
+		{"_delta", T_UBYTE, offsetof(struct Channel, delta), READONLY, NULL,},
+		{"_event", T_UBYTE, offsetof(struct Channel, events), READONLY, NULL,},
 	#endif
 
 	{NULL,},
@@ -1718,85 +1494,31 @@ static PyGetSetDef channel_getset[] = {
 	/*
 		// Event introspection.
 	*/
-	{"polarity", channel_get_polarity, NULL,
-		PyDoc_STR("`1` if the channel receives, `-1` if it sends.")
-	},
-
-	{"terminated", channel_get_terminated, NULL,
-		PyDoc_STR("Whether the channel is capable of transferring at all.")
-	},
-
-	{"exhausted", channel_get_exhausted, NULL,
-		PyDoc_STR("Whether the channel has a resource capable of performing transfers.")
-	},
-
-	{"resource", channel_get_resource, NULL,
-		PyDoc_STR("The object whose buffer was acquired, &Octets.acquire, "
-			"as the Channel's transfer resource.\n\n&None if there is no resource.")
-	},
+	{"polarity", channel_get_polarity, NULL, NULL,},
+	{"terminated", channel_get_terminated, NULL, NULL,},
+	{"exhausted", channel_get_exhausted, NULL, NULL,},
+	{"resource", channel_get_resource, NULL, NULL,},
 
 	#if FV_INJECTIONS()
-		{"_xtransfer",
-			channel_get_xtransfer, channel_set_xtransfer,
-			PyDoc_STR("Whether the exoresource is currently known to be capable of transfers.")
-		},
-
-		{"_itransfer",
-			channel_get_itransfer, channel_set_xtransfer,
-			PyDoc_STR("Whether the channel is currently known to be capable of transfers.")
-		},
+		{"_xtransfer", channel_get_xtransfer, channel_set_xtransfer, NULL,},
+		{"_itransfer", channel_get_itransfer, channel_set_xtransfer, NULL,},
 	#endif
 
 	{NULL,},
 };
-
-PyDoc_STRVAR(channel_doc,
-	"The base Channel type, &.abstract.Channel, created and used by &.kernel.\n"
-);
 
 /**
 	// Base type for the channel implementations.
 */
 ChannelPyTypeObject ChannelType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Channel"),   /* tp_name */
-	sizeof(struct Channel),          /* tp_basicsize */
-	0,                               /* tp_itemsize */
-	channel_dealloc,                 /* tp_dealloc */
-	NULL,                            /* tp_print */
-	NULL,                            /* tp_getattr */
-	NULL,                            /* tp_setattr */
-	NULL,                            /* tp_compare */
-	NULL,                            /* tp_repr */
-	NULL,                            /* tp_as_number */
-	NULL,                            /* tp_as_sequence */
-	NULL,                            /* tp_as_mapping */
-	NULL,                            /* tp_hash */
-	NULL,                            /* tp_call */
-	NULL,                            /* tp_str */
-	NULL,                            /* tp_getattro */
-	NULL,                            /* tp_setattro */
-	NULL,                            /* tp_as_buffer */
-	Py_TPFLAGS_BASETYPE|
-	Py_TPFLAGS_DEFAULT,              /* tp_flags */
-	channel_doc,                     /* tp_doc */
-	NULL,                            /* tp_traverse */
-	NULL,                            /* tp_clear */
-	NULL,                            /* tp_richcompare */
-	0,                               /* tp_weaklistoffset */
-	NULL,                            /* tp_iter */
-	NULL,                            /* tp_iternext */
-	channel_methods,                 /* tp_methods */
-	channel_members,                 /* tp_members */
-	channel_getset,                  /* tp_getset */
-	NULL,                            /* tp_base */
-	NULL,                            /* tp_dict */
-	NULL,                            /* tp_descr_get */
-	NULL,                            /* tp_descr_set */
-	0,                               /* tp_dictoffset */
-	NULL,                            /* tp_init */
-	NULL,                            /* tp_alloc */
-	NULL,                            /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Channel"),
+	.tp_basicsize = sizeof(struct Channel),
+	.tp_dealloc = channel_dealloc,
+	.tp_flags = Py_TPFLAGS_BASETYPE|Py_TPFLAGS_DEFAULT,
+	.tp_methods = channel_methods,
+	.tp_members = channel_members,
+	.tp_getset = channel_getset,
 },
 	&ChannelTIF,
 };
@@ -2035,17 +1757,7 @@ allociopair(PyObj isubtype, PyObj osubtype, Port p[])
 }
 
 static PyMethodDef octets_methods[] = {
-	{"resize_exoresource", (PyCFunction) octets_resize_exoresource, METH_VARARGS,
-		PyDoc_STR(
-			"Set the size of the external resource corresponding to transfers.\n"
-			"In most cases, this attempts to configure the size of the socket's buffer.\n"
-
-			"[Parameters]\n"
-			"/new_size/\n"
-			"\tThe number of octets to use as the external resource size.\n"
-		)
-	},
-
+	{"resize_exoresource", (PyCFunction) octets_resize_exoresource, METH_VARARGS, NULL,},
 	{NULL,},
 };
 
@@ -2234,20 +1946,9 @@ datagramarray_set_endpoint(PyObj self, PyObj args)
 }
 
 static PyMethodDef datagramarray_methods[] = {
-	{"payload",
-		(PyCFunction) datagramarray_payload, METH_VARARGS,
-		PyDoc_STR("Extract the payload for the datagram at the given offset. Returns a &memoryview.")
-	},
-
-	{"endpoint",
-		(PyCFunction) datagramarray_endpoint, METH_VARARGS,
-		PyDoc_STR("Extract the endpoint for the datagram at the given offset.")
-	},
-
-	{"set_endpoint",
-		(PyCFunction) datagramarray_set_endpoint, METH_VARARGS,
-		PyDoc_STR("Set the endpoint for the specified datagram.")
-	},
+	{"payload", (PyCFunction) datagramarray_payload, METH_VARARGS, NULL,},
+	{"endpoint", (PyCFunction) datagramarray_endpoint, METH_VARARGS, NULL,},
+	{"set_endpoint", (PyCFunction) datagramarray_set_endpoint, METH_VARARGS, NULL,},
 
 	{NULL,},
 };
@@ -2571,46 +2272,19 @@ datagramarray_dealloc(PyObj self)
 	Py_TYPE(self)->tp_free(self);
 }
 
-PyDoc_STRVAR(datagramarray_doc, "A mutable buffer object for sending and receiving Datagrams; octets coupled with an IP address.");
 PyTypeObject DatagramArrayType = {
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("DatagramArray"), /* tp_name */
-	sizeof(struct DatagramArray),        /* tp_basicsize */
-	sizeof(struct Datagram *),           /* tp_itemsize */
-	datagramarray_dealloc,               /* tp_dealloc */
-	NULL,                                /* tp_print */
-	NULL,                                /* tp_getattr */
-	NULL,                                /* tp_setattr */
-	NULL,                                /* tp_compare */
-	NULL,                                /* tp_repr */
-	NULL,                                /* tp_as_number */
-	&datagramarray_sequence,             /* tp_as_sequence */
-	&datagramarray_mapping,              /* tp_as_mapping */
-	NULL,                                /* tp_hash */
-	NULL,                                /* tp_call */
-	NULL,                                /* tp_str */
-	NULL,                                /* tp_getattro */
-	NULL,                                /* tp_setattro */
-	&datagramarray_buffer,               /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,                  /* tp_flags */
-	datagramarray_doc,                   /* tp_doc */
-	NULL,                                /* tp_traverse */
-	NULL,                                /* tp_clear */
-	NULL,                                /* tp_richcompare */
-	0,                                   /* tp_weaklistoffset */
-	datagramarray_iter,                  /* tp_iter */
-	NULL,                                /* tp_iternext */
-	datagramarray_methods,               /* tp_methods */
-	NULL,                                /* tp_members */
-	NULL,                                /* tp_getset */
-	NULL,                                /* tp_base */
-	NULL,                                /* tp_dict */
-	NULL,                                /* tp_descr_get */
-	NULL,                                /* tp_descr_set */
-	0,                                   /* tp_dictoffset */
-	NULL,                                /* tp_init */
-	NULL,                                /* tp_alloc */
-	datagramarray_new,                   /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("DatagramArray"),
+	.tp_basicsize = sizeof(struct DatagramArray),
+	.tp_itemsize = sizeof(struct Datagram *),
+	.tp_dealloc = datagramarray_dealloc,
+	.tp_as_sequence = &datagramarray_sequence,
+	.tp_as_mapping = &datagramarray_mapping,
+	.tp_as_buffer = &datagramarray_buffer,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_iter = datagramarray_iter,
+	.tp_methods = datagramarray_methods,
+	.tp_new = datagramarray_new,
 };
 
 static PyObj
@@ -2641,15 +2315,7 @@ datagrams_transfer(PyObj self)
 }
 
 static PyMethodDef datagrams_methods[] = {
-	{"transfer",
-		(PyCFunction) datagrams_transfer, METH_NOARGS,
-		PyDoc_STR(
-			"The slice of the Datagrams representing the Transfer.\n"
-			"\n"
-			"[ Return ]\n"
-			"The transferred data as a &DatagramArray.\n"
-		)
-	},
+	{"transfer", (PyCFunction) datagrams_transfer, METH_NOARGS, NULL,},
 	{NULL,},
 };
 
@@ -2665,46 +2331,13 @@ DatagramsTIF = {
 	// to identify whether or not the kpoint can be closed.
 */
 
-PyDoc_STRVAR(datagrams_doc, "channel transferring DatagramArray's");
 ChannelPyTypeObject DatagramsType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Datagrams"),  /* tp_name */
-	sizeof(struct Datagrams),         /* tp_basicsize */
-	0,                                /* tp_itemsize */
-	NULL,                             /* tp_dealloc */
-	NULL,                             /* tp_print */
-	NULL,                             /* tp_getattr */
-	NULL,                             /* tp_setattr */
-	NULL,                             /* tp_compare */
-	NULL,                             /* tp_repr */
-	NULL,                             /* tp_as_number */
-	NULL,                             /* tp_as_sequence */
-	NULL,                             /* tp_as_mapping */
-	NULL,                             /* tp_hash */
-	NULL,                             /* tp_call */
-	NULL,                             /* tp_str */
-	NULL,                             /* tp_getattro */
-	NULL,                             /* tp_setattro */
-	NULL,                             /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,               /* tp_flags */
-	datagrams_doc,                    /* tp_doc */
-	NULL,                             /* tp_traverse */
-	NULL,                             /* tp_clear */
-	NULL,                             /* tp_richcompare */
-	0,                                /* tp_weaklistoffset */
-	NULL,                             /* tp_iter */
-	NULL,                             /* tp_iternext */
-	datagrams_methods,                /* tp_methods */
-	NULL,                             /* tp_members */
-	NULL,                             /* tp_getset */
-	&ChannelType.typ,                 /* tp_base */
-	NULL,                             /* tp_dict */
-	NULL,                             /* tp_descr_get */
-	NULL,                             /* tp_descr_set */
-	0,                                /* tp_dictoffset */
-	NULL,                             /* tp_init */
-	NULL,                             /* tp_alloc */
-	NULL,                             /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Datagrams"),
+	.tp_basicsize = sizeof(struct Datagrams),
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_methods = datagrams_methods,
+	.tp_base = &ChannelType.typ,
 },
 	&DatagramsTIF
 };
@@ -3789,96 +3422,20 @@ array_exit(PyObj self, PyObj args)
 
 static PyMethodDef
 array_methods[] = {
-	{"resize_exoresource",
-		(PyCFunction) array_resize_exoresource, METH_VARARGS,
-		PyDoc_STR(
-			"In cases where resize fails, the old size will be returned "
-			"and no error will be mentioned. For Arrays, resize *must* "
-			"be called outside of a cycle--outside of the context manager block."
-			"\n"
-			"[Parameters]\n"
-			"/(&int)`max_events`/\n"
-			"\tThe maximum number events to transfer.\n"
-			"\n"
-			"[Return]\n"
-			"The new size as an &int.\n"
-		)
-	},
-
-	{"acquire",
-		(PyCFunction) array_acquire, METH_O,
-		PyDoc_STR(
-			"Acquires the Channel so that it may participate in &Array cycles.\n"
-
-			"[Parameters]\n"
-			"/channel/\n"
-			"\tThe &Channel that will be managed by this Array.\n"
-		)
-	},
-
-	{"void",
-		(PyCFunction) array_void, METH_NOARGS,
-		PyDoc_STR(
-			"Void all attached channels in an unfriendly manner.\n"
-			"Terminate events will not be generated, the current cycle, if any, will be exited.\n\n"
-			"! NOTE:\n"
-			"\tNormally, this function should be only be used by child processes destroying the parent's state."
-		)
-	},
-
-	{"wait",
-		(PyCFunction) array_wait, METH_VARARGS,
-		PyDoc_STR(
-			"Set the time limit for transaction wait.\n"
-			"\n"
-			"Returns the Array instance for use as a context manager.\n"
-		)
-	},
-
-	{"force",
-		(PyCFunction) array_force, METH_NOARGS,
-		PyDoc_STR(
-			"Causes the next cycle to not wait for events. If a cycle has been started\n"
-			"and is currently waiting for events, force will cause it to stop waiting for events.\n"
-			"\n"
-			"Returns the Array instance being forced for method chaining.\n"
-		)
-	},
-
-	{"transfer",
-		(PyCFunction) array_transfer, METH_NOARGS,
-		PyDoc_STR(
-			"Returns an iterable producing the channels that have events.\n"
-		)
-	},
-
-	{"sizeof_transfer",
-		(PyCFunction) array_sizeof_transfer, METH_NOARGS,
-		PyDoc_STR(
-			"Get the number of transfers currently available; `0` if there is no transfers."
-			"! NOTE:\n"
-			"\tCurrently unavailable.\n\n"
-			"\n"
-			"Returns the number of Channels with events this cycle.\n"
-		)
-	},
-
-	{"__enter__",
-		(PyCFunction) array_enter, METH_NOARGS,
-		PyDoc_STR("Enter a Array cycle allowing channelion state to be examined.")
-	},
-
-	{"__exit__",
-		(PyCFunction) array_exit, METH_VARARGS,
-		PyDoc_STR("Exit the Array cycle destroying the channelion state.")
-	},
-
+	{"resize_exoresource", (PyCFunction) array_resize_exoresource, METH_VARARGS, NULL,},
+	{"acquire", (PyCFunction) array_acquire, METH_O, NULL,},
+	{"void", (PyCFunction) array_void, METH_NOARGS, NULL,},
+	{"wait", (PyCFunction) array_wait, METH_VARARGS, NULL,},
+	{"force", (PyCFunction) array_force, METH_NOARGS, NULL,},
+	{"transfer", (PyCFunction) array_transfer, METH_NOARGS, NULL,},
+	{"sizeof_transfer", (PyCFunction) array_sizeof_transfer, METH_NOARGS, NULL,},
+	{"__enter__", (PyCFunction) array_enter, METH_NOARGS, NULL,},
+	{"__exit__", (PyCFunction) array_exit, METH_VARARGS, NULL,},
 	{NULL,},
 };
 
 static PyMemberDef array_members[] = {
-	{"volume", T_PYSSIZET, offsetof(struct Array, nchannels), READONLY,
-		PyDoc_STR("The number of channels being managed by the Array instance.")},
+	{"volume", T_PYSSIZET, offsetof(struct Array, nchannels), READONLY, NULL,},
 	{NULL,},
 };
 
@@ -3910,9 +3467,7 @@ array_get_resource(PyObj self, void *_)
 }
 
 static PyGetSetDef array_getset[] = {
-	{"resource", array_get_resource, NULL,
-		PyDoc_STR("A &list of all Channels attached to this Array instance, save the Array instance.")
-	},
+	{"resource", array_get_resource, NULL, NULL,},
 	{NULL,},
 };
 
@@ -3961,49 +3516,18 @@ array_new(PyTypeObject *subtype, PyObj args, PyObj kw)
 	return((PyObj) J);
 }
 
-PyDoc_STRVAR(Array_doc,
-"The Array implementation, &.abstract.Array, for performing I/O with the kernel.");
-
 ChannelPyTypeObject
 ArrayType = {{
 	PyVarObject_HEAD_INIT(NULL, 0)
-	PYTHON_MODULE_PATH("Array"),  /* tp_name */
-	sizeof(struct Array),         /* tp_basicsize */
-	0,                            /* tp_itemsize */
-	array_dealloc,                /* tp_dealloc */
-	NULL,                         /* tp_print */
-	NULL,                         /* tp_getattr */
-	NULL,                         /* tp_setattr */
-	NULL,                         /* tp_compare */
-	NULL,                         /* tp_repr */
-	NULL,                         /* tp_as_number */
-	NULL,                         /* tp_as_sequence */
-	NULL,                         /* tp_as_mapping */
-	NULL,                         /* tp_hash */
-	NULL,                         /* tp_call */
-	NULL,                         /* tp_str */
-	NULL,                         /* tp_getattro */
-	NULL,                         /* tp_setattro */
-	NULL,                         /* tp_as_buffer */
-	Py_TPFLAGS_DEFAULT,           /* tp_flags */
-	Array_doc,                    /* tp_doc */
-	NULL,                         /* tp_traverse */
-	NULL,                         /* tp_clear */
-	NULL,                         /* tp_richcompare */
-	0,                            /* tp_weaklistoffset */
-	NULL,                         /* tp_iter */
-	NULL,                         /* tp_iternext */
-	array_methods,                /* tp_methods */
-	array_members,                /* tp_members */
-	array_getset,                 /* tp_getset */
-	&ChannelType.typ,             /* tp_base */
-	NULL,                         /* tp_dict */
-	NULL,                         /* tp_descr_get */
-	NULL,                         /* tp_descr_set */
-	0,                            /* tp_dictoffset */
-	NULL,                         /* tp_init */
-	NULL,                         /* tp_alloc */
-	array_new,                    /* tp_new */
+	.tp_name = PYTHON_MODULE_PATH("Array"),
+	.tp_basicsize = sizeof(struct Array),
+	.tp_dealloc = array_dealloc,
+	.tp_flags = Py_TPFLAGS_DEFAULT,
+	.tp_methods = array_methods,
+	.tp_members = array_members,
+	.tp_getset = array_getset,
+	.tp_base = &ChannelType.typ,
+	.tp_new = array_new,
 },
 	&ArrayTIF,
 };
@@ -4127,10 +3651,10 @@ _talloc_octets_socket(PyObj module, PyObj param)
 
 #include <fault/python/module.h>
 
-INIT(module, 0, PyDoc_STR("Asynchronous System I/O"))
+INIT(module, 0, NULL)
 {
 	/*
-		// Safely shared by subinterpreters.
+		// Safely shared by subinterpreters?
 	*/
 	if (KP == NULL)
 	{
