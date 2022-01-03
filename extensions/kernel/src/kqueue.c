@@ -25,8 +25,12 @@
 */
 #if __EV_KQUEUE__(1)
 
+#ifndef O_EVTONLY
+	/* macos uses O_EVTONLY so just abstract on it for BSD's */
+	#define O_EVTONLY O_RDONLY
+#endif
+
 /**
-	// Primarily for macos. BSD's just need RDONLY.
 	// ev_type is ignored here as the subevent set is determined by kernelq_identify.
 */
 CONCEAL(kport_t)
