@@ -550,7 +550,7 @@ def parse_sx_plan(text) -> typing.Tuple[
 
 	return ([tuple(x.split('=', 1)+[None])[:2] for x in env], exe, parameters)
 
-def serialize_sx_plan(triple, limit=8, inline=16) -> str:
+def serialize_sx_plan(triple, limit=8, inline=24) -> str:
 	"""
 	# Serialize the environment, execution path, and command arguments into a string.
 	"""
@@ -598,8 +598,12 @@ def serialize_sx_plan(triple, limit=8, inline=16) -> str:
 			continue
 		elif iargs:
 			# Emit due to current field not being inlined.
-			yield '\t:'
-			yield ' '.join(iargs)
+			if len(iargs) > 1:
+				yield '\t:'
+				yield ' '.join(iargs)
+			else:
+				yield '\t|'
+				yield iargs[0]
 			yield '\n'
 			del iargs[:]
 
@@ -620,8 +624,12 @@ def serialize_sx_plan(triple, limit=8, inline=16) -> str:
 			yield '\n'
 	else:
 		if iargs:
-			yield '\t:'
-			yield ' '.join(iargs)
+			if len(iargs) > 1:
+				yield '\t:'
+				yield ' '.join(iargs)
+			else:
+				yield '\t|'
+				yield iargs[0]
 			yield '\n'
 
 class Platform(object):
